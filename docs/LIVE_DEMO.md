@@ -7,7 +7,7 @@ There are two live pieces, and both run on one page:
    compressed or forgotten, and the exact context the model was given.
 2. **Benchmark check.** This re-runs the slide 11/12 comparison on all of
    LoCoMo in about 20 seconds and checks the result against the committed CSV.
-   The expected output is RAG 28.1%, P1-S 36.8%, both **MATCH**, +8.7 points.
+   The expected output is RAG 28.1%, P1-S 37.5%, both **MATCH**, +9.4 points.
 
 Everything runs offline on the laptop. No internet and no API key are needed.
 
