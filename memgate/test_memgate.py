@@ -52,6 +52,17 @@ check("budget fact scores high", s.score("My budget is 40000 rupees.")[0] > 0.45
 check("fact labelled", s.score("My budget is 40000 rupees.")[1] == "fact")
 check("chatter below fact threshold",
       s.score("That makes sense to me overall.")[0] < 0.45)
+# The router scores the stored "[Speaker] message" string (policies._as_item),
+# so the rules above must hold for that form too, not only for bare text.
+_tagged = [("[user] ok thanks", "user"), ("[Caroline] I went to the market.", "Caroline"),
+           ("[Maria] We decided to keep the old car.", "Maria"),
+           ("[Maria] I went there on 7 May.", "Maria"),
+           ("[assistant] Got it: report due 2 November.", "assistant")]
+check("speaker tag does not change the score",
+      all(s.score(t, sp) == s.score(t.split("] ", 1)[1], sp) for t, sp in _tagged))
+check("tagged filler still scores low", s.score("[user] ok thanks", "user")[0] < 0.1)
+check("capitalised speaker name is not a proper-noun signal",
+      s.score("[Caroline] That makes sense to me overall.", "Caroline")[1] == "context")
 
 print("\n-- store --")
 st = ThreeTierStore(short_capacity=3)
