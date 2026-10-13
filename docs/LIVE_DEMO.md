@@ -55,39 +55,11 @@ restart. *New chat* starts a fresh memory; the dropdown next to it switches
 between saved chats. Every decision on screen comes from the same `observe()` and
 `build_context()` code the results came from.
 
-## A 3-minute script
+## The script
 
-1. **Demo scale, mode P1, then *Load sample chat*.** "This is 18 messages of a normal
-   conversation. Watch where each one went." Point at three things:
-   * "Hi!" and "Sure." were **forgotten**: they're filler, with u ≈ 0.02.
-   * The deadline went to **Tier 3** as a durable fact (u = 0.80).
-   * The assistant's "Got it: report due 2 November" is **struck through**.
-     The correction "Actually the report deadline moved to 4 November"
-     superseded it. Supersession retires only the *single closest* old fact,
-     so the user's original sentence with the old date is still in Tier 3. If
-     asked, say so: it's a deliberate design choice (store.py) so that one
-     update can't wipe out half the store.
-2. **Ask: "When is my report due?"** The model answers 4 November. Point at
-   *Context sent*: "The model never saw the conversation, only these notes,
-   tagged by the tier they came from. The correction and its higher score are
-   in there, so the model takes the newer date."
-3. **Switch to P1-S** (S = 150; this starts a new chat), *Load sample chat* again. "This is the
-   headline policy under a storage budget. Watch the store fill up, then watch
-   it forget the lowest-scored messages first." The Decisions log shows
-   *store over budget: lowest-score fact forgotten*.
-4. **Use the scorer's weakness, honestly.** Under P1-S, "My guide wants the
-   slides in the NMIMS template" scores only 0.15, the same as "lol yes", and
-   is forgotten first because it's older. "This is slide 15 happening live: the hand-written scorer
-   doesn't know that a preference matters. That's why the scorer is the
-   bottleneck, and why a scorer that transfers is our remaining work." The
-   question still gets answered, because the assistant's restatement of it
-   survived. Say that too.
-5. **Benchmark check → Run.** "These are the numbers on slide 11, recomputed
-   now from the raw benchmark: 1,527 questions, about 20 seconds." End on the
-   two **MATCH** badges.
-
-Let the panel type their own message too. That is the strongest moment of the
-demo.
+Follow `docs/JURY_DEMO_SCRIPT.md`: what to click, what to type and what to say
+at each step, with the numbers after the scorer fix. It uses the chat page
+(`/`) and its **Memory** panel.
 
 ## What it can't show, and how to answer if asked
 

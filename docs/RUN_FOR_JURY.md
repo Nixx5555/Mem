@@ -9,7 +9,7 @@ restart. A second page, the results dashboard, shows the experiment numbers.
 ## 1. One-time setup (needs internet)
 
 ```bash
-git clone https://github.com/ruthme1ster/MemGate.git
+git clone https://github.com/Nixx5555/Mem.git MemGate
 cd MemGate/memgate
 
 python3 -m venv .venv
@@ -73,7 +73,7 @@ side by side, which is the clearest view for the jury script.
 The dashboard needs no server: open `MemGate/frontend/index.html` in the
 browser.
 
-For the review, follow the 3-minute script in `docs/LIVE_DEMO.md`. Pick
+For the review, follow `docs/JURY_DEMO_SCRIPT.md`. Pick
 **Demo scale** in the top bar so evictions show within a few messages.
 
 ## Options
