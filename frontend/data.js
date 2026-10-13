@@ -5,7 +5,7 @@ window.MEMGATE = {
   "generated": "2026-10-13",
   "commit": "e21ed94",
   "loc": 7410,
-  "tests": 61,
+  "tests": 71,
   "turns": 5882,
   "questions": 1527,
   "answerable": 715,

@@ -2,6 +2,8 @@
 
 **Prepared for Review 2** (first issued 8 September 2026; brought up to date with the Review 2 deck, October 2026)
 
+> **Scorer fix, 13 October 2026.** The P1 router used to score `"[Speaker] message"` instead of the message. §4.1–§4.3, §4.10 and the headline use the re-run numbers (`docs/SCORER_FIX_RESULTS.md`). §4.6, §4.7, §4.8 and §4.9 were not re-run and still show numbers from before the fix.
+
 | | |
 |---|---|
 | **Project** | MemGate: An Adaptive Memory Layer for Long-Running LLM Agents |
@@ -10,7 +12,7 @@
 | **Report date** | October 2026 (first issued 8 September 2026) |
 | **Covers** | Review 1 (25 July 2026) → present |
 | **Working sessions** | 12, 17, 24, 27 August; 17, 25–26, 29 September 2026 |
-| **Repository state** | branch `endtask-full-run`, 68 tests passing, ~7,400 lines of Python in `memgate/` |
+| **Repository state** | branch `endtask-full-run`, 71 tests passing, ~7,400 lines of Python in `memgate/` |
 | **Companion documents** | `REPORT.md` (paper-ready writeup) · `SESSION_RECORD.md` (full working record) · `frontend/index.html` (interactive results dashboard) |
 
 ---
@@ -44,11 +46,11 @@ itself to the test on a second benchmark, and it does not replicate (§4.8).
 
 ### The headline, in one sentence
 
-Under a bounded store, **choosing which turns to forget is worth +8.7
+Under a bounded store, **choosing which turns to forget is worth +9.4
 answer-recall points** over forgetting oldest-first — at identical storage,
 identical fidelity and identical retrieval, so the gap is the decision policy
-and nothing else (95% CI [+4.8, +14.3] clustered by conversation, McNemar
-p = 1.1×10⁻⁴). **Compressing an evicted turn instead of dropping it loses 6.7
+and nothing else (95% CI [+5.4, +14.9] clustered by conversation, McNemar
+p = 2.8×10⁻⁵). **Compressing an evicted turn instead of dropping it loses 7.1
 points.** On a second benchmark (LongMemEval) the headline does not hold, and
 the cause is the scorer rather than the mechanism (§4.8).
 
@@ -180,14 +182,14 @@ Context budget fixed at 2048 tokens, storage budget swept. **Answer recall:**
 
 | S (tokens) | RAG store-all | P1-A adaptive *(compress)* | **P1-S select** *(drop)* |
 |---|---|---|---|
-| 1024 | 9.1% | 10.9% | **15.7%** |
-| 2048 | 18.3% | 23.4% | **26.3%** |
-| 4096 | 28.1% | 30.1% | **36.8%** |
-| 8192 | 44.3% | 37.5% | **48.3%** |
-| 16384 | 66.4% | 66.4% | **72.3%** |
+| 1024 | 9.1% | 11.9% | **15.8%** |
+| 2048 | 18.3% | 22.7% | **27.8%** |
+| 4096 | 28.1% | 30.3% | **37.5%** |
+| 8192 | 44.3% | 41.0% | **57.8%** |
+| 16384 | 66.4% | 63.1% | **71.3%** |
 
-P1-A *wins* evidence recall (+12.9 at S=8192) while *losing* answer recall
-(−6.9). Reporting only the former would have shown compression winning.
+P1-A *wins* evidence recall (+7.0 over P1-S at S=8192) while *losing* answer
+recall (−16.8). Reporting only the former would have shown compression winning.
 
 ### 4.2 Statistical significance (§3.3)
 
@@ -195,12 +197,12 @@ Paired bootstrap, B = 10,000, resampled **by conversation**, with exact McNemar.
 
 | Comparison | Metric | Δ | 95% CI (clustered) | McNemar p | |
 |---|---|---|---|---|---|
-| P1-S vs RAG | **answer** | **+8.67** | **[+4.77, +14.27]** | 1.1×10⁻⁴ | significant |
-| P1-S vs RAG | evidence | +1.96 | [−1.48, +5.52] | 0.16 | **not significant** |
-| P1-S vs P1-A | answer | +6.71 | [+4.24, +9.54] | 3.6×10⁻⁵ | significant |
-| P1-S vs P1-A | evidence | −10.74 | [−13.65, −7.90] | 4.7×10⁻²⁰ | significant |
-| P1-S vs P0 | answer | +18.46 | [+14.68, +23.56] | 3.8×10⁻¹⁷ | significant |
-| P1-S vs P0 | evidence | +9.69 | [+6.85, +12.83] | 3.6×10⁻¹⁴ | significant |
+| P1-S vs RAG | **answer** | **+9.37** | **[+5.45, +14.90]** | 2.8×10⁻⁵ | significant |
+| P1-S vs RAG | evidence | +2.42 | [−1.48, +6.43] | 0.08 | **not significant** |
+| P1-S vs P1-A | answer | +7.13 | [+4.32, +10.28] | 2.1×10⁻⁵ | significant |
+| P1-S vs P1-A | evidence | −11.53 | [−14.73, −8.47] | 1.8×10⁻²³ | significant |
+| P1-S vs P0 | answer | +19.16 | [+15.42, +24.13] | 8.2×10⁻¹⁹ | significant |
+| P1-S vs P0 | evidence | +10.15 | [+6.58, +13.84] | 1.2×10⁻¹⁵ | significant |
 
 ### 4.3 The rate–distortion prediction fails (§3.4)
 
@@ -210,10 +212,10 @@ ratio, **answer recall at S = 2048:**
 
 | Ratio | RAG | P1-A *(compress)* | **P1-S** *(drop)* |
 |---|---|---|---|
-| 9× | 18.3% | 23.4% | **26.3%** |
-| 18× | 10.8% | 14.7% | **18.2%** |
-| 45× | 7.8% | 11.2% | **11.7%** |
-| 91× | 4.6% | 6.0% | **8.7%** |
+| 9× | 18.3% | 22.7% | **27.8%** |
+| 18× | 10.8% | 13.0% | **18.9%** |
+| 45× | 7.8% | 10.3% | **11.6%** |
+| 91× | 4.6% | 7.4% | **8.7%** |
 
 **No crossover to 182×**, and the selection margin over RAG *widens* with
 pressure.
@@ -320,7 +322,7 @@ retention (22.1% against 22.0%). Answer recall, 62 answer-recoverable questions:
 | **32,768** | **31.4%** | **30.6%** | **51.6%** | **−21.0 [−35.5, −6.5]** |
 
 At matched retention selection **loses to FIFO by 21 answer points**, where
-LoCoMo gives +8.67. **The cause is the scorer, not the mechanism:** the
+LoCoMo gives +9.4. **The cause is the scorer, not the mechanism:** the
 heuristic's separation between evidence and non-evidence turns reverses sign,
 +0.0476 on LoCoMo against −0.0346 on LongMemEval, so eviction discards evidence
 first. The heuristic was written for LoCoMo's 32-token dialogue lines;
@@ -351,7 +353,7 @@ negative was the compressor. But dropping still wins, 36.8% against 34.1%, a
 
 P4 learns the scorer from retrieval feedback every 25 turns, with no future
 questions (`results/online.csv`). Against the hand-written heuristic it is
-**−1.54 answer points, CI [−4.63, +0.79], not significant** — parity. The cues
+**−2.94 answer points, CI [−7.93, +1.13], not significant** — parity. The cues
 it learns (short turns, no sentence-final period) are the ones LongMemEval
 inverts, so it is the obvious first try at §4.8 only if allowed to re-learn per
 corpus.
@@ -387,7 +389,7 @@ eviction order.
 |---|---|---|---|
 | **Language** | Python | 3.10 | Entire implementation; no framework dependency |
 | | NumPy | — | Vector maths, cosine retrieval, bootstrap resampling |
-| | `dataclasses` | stdlib | Typed records; the 68-test suite (`test_memgate.py`, self-contained runner) |
+| | `dataclasses` | stdlib | Typed records; the 71-test suite (`test_memgate.py`, self-contained runner) |
 | **Tokenisation** | `tiktoken` | `cl100k_base` | Exact token accounting — budgets are real tokens, not a word-count proxy |
 | **Embeddings** | `sentence-transformers` | all-MiniLM-L6-v2, 384-d | Retrieval ranking and semantic supersession |
 | | PyTorch | MPS backend | Local inference on Apple silicon |
@@ -469,7 +471,7 @@ Capstone Project/
     ├── run_experiment.py         synthetic sanity set
     ├── diagnose.py               attributes every miss to one swappable component
     ├── make_figures.py           fig1–fig5
-    ├── test_memgate.py           68 tests
+    ├── test_memgate.py           71 tests
     └── results/                  every CSV and figure quoted in this report
 ```
 
@@ -485,7 +487,7 @@ nine-minute benchmark run.
 
 | Guard | What it prevents |
 |---|---|
-| **68 tests** (`test_memgate.py`) | Regression across the store, scorers, policies, compressor and harness |
+| **71 tests** (`test_memgate.py`) | Regression across the store, scorers, policies, compressor and harness |
 | **3 label-blindness invariants** | The §5.1 leak, re-armed. Routing, eviction *and* demotion must produce a bit-identical store when every evaluation label is stripped |
 | **Offline pinning** on import | A silently fetched or half-downloaded model relabelling a whole results table — this already happened once, with MiniLM |
 | **Backend provenance** (`backend_info()`) | Reporting a MiniLM number that was actually produced by the hashed bag-of-words fallback |
@@ -514,7 +516,7 @@ Stated in full, because each one bounds a claim above.
    future questions to learn from.
 6. **Single embedder, single judge model.** The §4.6 negative is evidence about
    *a 0.5B model prompted per turn*, not about LLM judging in general.
-7. **The scorer is tuned to LoCoMo.** Read +8.7 as what a policy recovers given
+7. **The scorer is tuned to LoCoMo.** Read +9.4 as what a policy recovers given
    a scorer that suits the corpus, not as a property of scored selection in
    general (§4.8).
 8. **On LongMemEval, strict recall is uninterpretable for a compressing arm:** a
@@ -546,8 +548,8 @@ what *doesn't* work:
 
 1. With storage unbounded — the standard accounting — tiered compression is a
    **net loss** against keeping everything and retrieving.
-2. With storage bounded, the decision policy is worth **+8.7 answer-recall
-   points**, while compression still **loses 6.7**.
+2. With storage bounded, the decision policy is worth **+9.4 answer-recall
+   points**, while compression still **loses 7.1**.
 3. The rate–distortion crossover at which compression should pay is **not
    reachable** on this benchmark — to 182×, keeping a selected subset whole
    beats compressing everything.
@@ -568,7 +570,7 @@ not the one you think you are making.**
 
 ```bash
 cd memgate
-python3 test_memgate.py          # 68 tests
+python3 test_memgate.py          # 71 tests
 python3 run_locomo.py            # context-budget frontier
 python3 run_storage_sweep.py     # §4.1 storage budget
 python3 run_significance.py      # §4.2 bootstrap + McNemar
