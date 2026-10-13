@@ -143,11 +143,10 @@ class HeuristicScorer(Scorer):
 
 
 class LLMJudgeScorer(Scorer):
-    """P2 — stub. Phase 3.
-
-    Prompt plan: give the model the turn plus recent context, ask for
-    {"importance": 0-1, "type": fact|decision|preference|task|filler}.
-    Cache by turn hash; call only on eviction, never per turn.
+    """P2 placeholder, superseded. The P2 judge that produced the reported
+    results is `memgate.judge.LLMJudgeScorer` (Qwen2.5-0.5B, logit-expectation
+    scoring, evaluated in run_judge_eval.py). This class is kept only so old
+    imports fail loudly rather than silently resolving to a different scorer.
     """
     name = "P2-llm-judge"
 
@@ -155,7 +154,7 @@ class LLMJudgeScorer(Scorer):
         self.client = client
 
     def score(self, text, speaker="user"):
-        raise NotImplementedError("P2 lands in Phase 3 — see build plan step 3.")
+        raise NotImplementedError("use memgate.judge.LLMJudgeScorer — this stub predates it")
 
 
 class DistilledScorer(Scorer):
