@@ -47,7 +47,7 @@ d('Qwen/Qwen2.5-1.5B-Instruct', local_dir='models/Qwen2.5-1.5B-Instruct')"
 ```
 
 Check it once: `python3 run_live_check.py` should end with two **MATCH** lines
-(RAG 28.1%, P1-S 36.8%).
+(RAG 28.1%, P1-S 36.8%; P1-S reads 37.5% once the scorer fix is merged).
 
 ## 2. Running it
 
