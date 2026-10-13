@@ -19,7 +19,8 @@ python3 live_demo.py          # loads MiniLM + Qwen2.5-1.5B (~10 s), then:
 # open http://localhost:8765
 ```
 
-* `python3 live_demo.py --no-llm` is the fallback if the model won't load. The
+* If the model won't load, the app says so in the terminal and carries on
+  without it. `python3 live_demo.py --no-llm` does the same on purpose. The
   memory still works and the page shows what the model *would* have been sent.
 * `python3 run_live_check.py` runs the benchmark check from a terminal on its
   own, without the page.
@@ -38,15 +39,21 @@ python3 live_demo.py          # loads MiniLM + Qwen2.5-1.5B (~10 s), then:
 | **Context sent** | The exact notes put in the prompt for the last message, tagged by tier. |
 | **Mode** | **P1**: threshold routing, exactly slide 6. **P1-S**: the headline policy, which forgets the lowest score first once the store is full. **P1-A**: demotes to a gist instead of forgetting. |
 
-The demo uses small sizes so decisions happen within a few messages instead
-of a few hundred. Tier 1 holds 4 messages, the context is 512 tokens, and the
-store budget is S = 150. Those are the only settings that differ from the
-experiments. Every decision on screen comes from the same `observe()` and
+The app opens at **full scale**, the sizes the experiments ran with: Tier 1
+holds 6 messages, the context is 2048 tokens, and P1-S/P1-A use S = 4096. At
+that scale nothing is evicted until a long conversation. For the jury, pick
+**Demo scale** in the top bar: Tier 1 holds 4 messages, the context is 512
+tokens and S = 150, so decisions happen within a few messages. Those sizes are
+the only settings that differ from the experiments.
+
+Every conversation is saved (in `memgate/chats/`) and comes back after a
+restart. *New chat* starts a fresh memory; the dropdown next to it switches
+between saved chats. Every decision on screen comes from the same `observe()` and
 `build_context()` code the results came from.
 
 ## A 3-minute script
 
-1. **Mode P1, then *Load sample chat*.** "This is 18 messages of a normal
+1. **Demo scale, mode P1, then *Load sample chat*.** "This is 18 messages of a normal
    conversation. Watch where each one went." Point at three things:
    * "Hi!" and "Sure." were **forgotten**: they're filler, with u ≈ 0.02.
    * The deadline went to **Tier 3** as a durable fact (u = 0.80).
@@ -60,7 +67,7 @@ experiments. Every decision on screen comes from the same `observe()` and
    *Context sent*: "The model never saw the conversation, only these notes,
    tagged by the tier they came from. The correction and its higher score are
    in there, so the model takes the newer date."
-3. **Switch to P1-S** (S = 150), *Load sample chat* again. "This is the
+3. **Switch to P1-S** (S = 150; this starts a new chat), *Load sample chat* again. "This is the
    headline policy under a storage budget. Watch the store fill up, then watch
    it forget the lowest-scored messages first." The Decisions log shows
    *store over budget: lowest-score fact forgotten*.
@@ -93,7 +100,7 @@ demo.
 
 ## If something breaks
 
-* **The page shows an error:** press *Reset* and continue.
+* **The page shows an error:** press *New chat* and continue.
 * **The model hangs:** restart with `--no-llm`. The tiers, decisions and
   context panel all still work.
 * **The benchmark check says DIFFERS:** check the info line at the top right.
