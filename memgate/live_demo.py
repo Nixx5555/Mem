@@ -400,7 +400,14 @@ def main():
     print(f"  embedder: {backend_info()['embedder']}", flush=True)
     if model.enabled:
         print(f"  loading {model.name} ...", flush=True)
-        model.load()
+        try:
+            model.load()
+        except Exception as exc:         # mlx_lm is Apple-silicon only
+            print(f"  [MemGate] WARNING: chat model did not load "
+                  f"({type(exc).__name__}: {str(exc)[:90]}); continuing as "
+                  f"--no-llm. The memory side works unchanged.", flush=True)
+            model.enabled = False
+            model.name = "none (model failed to load)"
     app = App(model)
     srv = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(app))
     print(f"\n  open http://localhost:{args.port}   (Ctrl+C to stop)\n", flush=True)
