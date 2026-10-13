@@ -423,3 +423,115 @@ def load_longmemeval(path: str = DEFAULT_LME_PATH, limit: int = 0):
           f"(dropped {dropped_no_ev} without evidence, "
           f"{dropped_empty_ans} without an answer)")
     return out
+
+
+# ------------------------------------------------------------------ REALTALK
+DEFAULT_REALTALK_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "data", "realtalk")
+
+REALTALK_CATEGORIES = {1: "multi_hop", 2: "temporal", 3: "commonsense"}
+_RT_RANGE = re.compile(r"^D(\d+):(\d+)-D(\d+):(\d+)$")
+_RT_ID = re.compile(r"^D\d+:\d+$")
+
+
+def _realtalk_evidence(raw_ids):
+    """Normalise REALTALK's hand-typed evidence strings into dia_ids.
+
+    The annotators typed evidence free-form, so roughly one id in ten is not a
+    plain "D5:3": ranges ("D12:3-D12:5"), several ids in one string joined by
+    ";" or ". ", and stray trailing dots. Ranges are expanded only within one
+    day; anything else unparseable is returned as-is so the caller's dangling
+    check drops the question rather than guessing.
+    """
+    out = []
+    for raw in raw_ids:
+        for part in re.split(r"[;,]\s*|\.\s+|\s+", str(raw).strip()):
+            part = part.strip().rstrip(".")
+            if not part:
+                continue
+            m = _RT_RANGE.match(part)
+            if m and m.group(1) == m.group(3) and int(m.group(2)) <= int(m.group(4)):
+                out += [f"D{m.group(1)}:{i}"
+                        for i in range(int(m.group(2)), int(m.group(4)) + 1)]
+            else:
+                out.append(part)
+    return out
+
+
+def load_realtalk(path: str = DEFAULT_REALTALK_DIR):
+    """Load REALTALK (Lee et al., 2025) into the LoCoMo shape.
+
+    REALTALK is 10 conversations between real people chatting daily for 21
+    days, annotated with LoCoMo's schema (`session_N` turn lists, `qa` with
+    `evidence` dia_ids). It is the closest public corpus to LoCoMo that is
+    NOT synthetic: LoCoMo's dialogues are LLM-generated, REALTALK's are typed
+    by humans, so a scorer that has learned LoCoMo's style rather than what
+    makes a turn worth keeping should show it here. Source:
+    https://github.com/danny911kr/REALTALK (data/Chat_*.json; data/locomo/ in
+    that repo is a copy of LoCoMo and is deliberately not loaded).
+
+    Same hazards and the same treatment as `load_locomo`: ids are namespaced by
+    conversation, and questions whose evidence does not resolve to a turn are
+    dropped, after `_realtalk_evidence` has normalised the free-form strings.
+    Turn text is `clean_text`; image captions are ignored, as LoCoMo's are.
+    REALTALK has no adversarial category.
+    """
+    files = sorted(f for f in os.listdir(path)
+                   if f.startswith("Chat_") and f.endswith(".json"))
+    out, dropped_dangling, dropped_empty, n_ev_fixed = [], 0, 0, 0
+    for fname in files:
+        with open(os.path.join(path, fname)) as f:
+            raw = json.load(f)
+        sid = "rt-" + fname[:-len(".json")]
+        turns: List[Turn] = []
+        known_ids, by_id = set(), {}
+        sessions = sorted(
+            ((int(m.group(1)), k) for k in raw
+             for m in [_SESSION_KEY.match(k)] if m))
+        for s_pos, (_, key) in enumerate(sessions):
+            for idx, t in enumerate(raw[key]):
+                uid = f"{sid}/{t['dia_id']}"
+                text = t.get("clean_text", "") or ""
+                known_ids.add(uid)
+                by_id[uid] = text
+                turns.append(Turn(session=s_pos, index=idx,
+                                  speaker=t.get("speaker", "user"),
+                                  text=text, fact_id=uid))
+
+        last_session = len(sessions) - 1
+        questions: List[Question] = []
+        for q in raw.get("qa", []):
+            cat = int(q["category"])
+            ev_raw = q.get("evidence") or []
+            ev = _realtalk_evidence(ev_raw)
+            if ev != list(ev_raw):
+                n_ev_fixed += 1
+            ev = [f"{sid}/{e}" for e in dict.fromkeys(ev)]
+            if not ev:
+                dropped_empty += 1
+                continue
+            if any(e not in known_ids for e in ev):
+                dropped_dangling += 1
+                continue
+            ans = str(q.get("answer", "") or "")
+            ev_text = " ".join(by_id.get(e, "") for e in ev)
+            aw = answer_tokens(ans)
+            recoverable = bool(aw) and set(aw) <= set(answer_tokens(ev_text))
+            questions.append(Question(
+                text=q["question"], gold_fact_id=ev[0], gold_evidence=ev,
+                asked_after_session=last_session,
+                kind=REALTALK_CATEGORIES.get(cat, "unknown"), category=cat,
+                answer=ans, answer_recoverable=recoverable))
+
+        _assert_locomo_wellformed(sid, turns, questions)
+        out.append((sid, turns, questions))
+
+    if not out:
+        raise ValueError(f"no conversations parsed from {path}")
+    print(f"  REALTALK: {len(out)} conversations, "
+          f"{sum(len(t) for _, t, _ in out)} turns, "
+          f"{sum(len(q) for _, _, q in out)} questions "
+          f"(dropped {dropped_dangling} dangling-evidence, {dropped_empty} "
+          f"empty-evidence; {n_ev_fixed} evidence lists normalised)")
+    return out

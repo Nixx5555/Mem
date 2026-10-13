@@ -393,6 +393,21 @@ try:
 except ImportError:
     print("  SKIP  sklearn not installed")
 
+print("\n-- REALTALK evidence and the scorer's input string --")
+from memgate.data import _realtalk_evidence
+check("REALTALK evidence ranges, separators and dots normalise",
+      _realtalk_evidence(["D12:3-D12:5", "D11:17; D16:1", "D5:3.", "D13:4. D14:4"])
+      == ["D12:3", "D12:4", "D12:5", "D11:17", "D16:1", "D5:3", "D13:4", "D14:4"])
+check("an unparseable REALTALK id is kept so the question is dropped",
+      _realtalk_evidence(["D13:45:D20:19"]) == ["D13:45:D20:19"])
+from train_transfer import MessageOnly
+_h = HeuristicScorer()
+check("MessageOnly scores the message, not the [speaker] tag",
+      MessageOnly(_h).score("[Maria] ok thanks", "Maria")
+      == _h.score("ok thanks", "Maria"))
+check("the [speaker] tag changes P1's score (the bug MessageOnly removes)",
+      _h.score("[Maria] ok thanks", "Maria") != _h.score("ok thanks", "Maria"))
+
 print("\n-- offline reproducibility --")
 # A run that can silently fetch a model is a run whose inputs are not pinned,
 # and this project has already lost a results table to a half-downloaded
