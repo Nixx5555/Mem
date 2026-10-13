@@ -43,7 +43,8 @@ from memgate.reader import ChatModel, BACKENDS
 from memgate.utils import backend_info, count_tokens
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PAGE = os.path.join(HERE, "demo", "index.html")
+PAGE = os.path.join(HERE, "demo", "chat.html")          # the chat app
+INSPECT = os.path.join(HERE, "demo", "index.html")    # all tiers at once
 CHATS = os.path.join(HERE, "chats")
 TIER_KEY = {SHORT_TERM: "t1", WORKING: "t2", LONG_TERM: "t3"}
 
@@ -359,6 +360,9 @@ def make_handler(app):
             if self.path in ("/", "/index.html"):
                 with open(PAGE, "rb") as fh:
                     return self._send(200, fh.read(), "text/html; charset=utf-8")
+            if self.path == "/inspect":
+                with open(INSPECT, "rb") as fh:
+                    return self._send(200, fh.read(), "text/html; charset=utf-8")
             if self.path == "/api/state":
                 return self._send(200, app.full_state())
             if self.path == "/api/chats":
@@ -460,7 +464,12 @@ class App:
         with sess.lock:
             events = sess.add("user", text)
             ctx, items = sess.context(text)
-            reply = self.model.reply(ctx.text, text)
+            try:
+                reply = self.model.reply(ctx.text, text)
+            except Exception:
+                self._title(text)
+                self.chats.save(self.chat)   # the message is in memory; keep disk in step
+                raise
             events += sess.add("assistant", reply)
             self._title(text)
             self.chats.save(self.chat)

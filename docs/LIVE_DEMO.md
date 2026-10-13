@@ -29,6 +29,10 @@ python3 live_demo.py          # loads MiniLM + Qwen2.5-1.5B (~10 s), then:
 
 ## What's on screen
 
+The main page (`/`) is a chat app; the memory sits in a side panel behind the
+**Memory** button. For the script below use the **memory view** at
+`http://localhost:8765/inspect`, which lays everything out at once:
+
 | Area | What it shows |
 |---|---|
 | **Chat** (left) | The conversation. The model sees *only* what MemGate sends, never the history. |

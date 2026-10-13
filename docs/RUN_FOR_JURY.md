@@ -62,6 +62,14 @@ Wait for `open http://localhost:8765`, then open that address in a browser.
 The terminal also prints which model and embedder loaded; check both say what
 you expect.
 
+The page is a normal chat: past chats on the left, the conversation in the
+middle, the message box at the bottom. **Memory** (top right) opens a side
+panel with what MemGate is holding (Tiers), every keep/compress/forget
+decision (Decisions), and the exact notes the model was given for the last
+reply (Sent to model). The small "notes from memory" chip under each reply
+opens the same panel. `http://localhost:8765/inspect` shows all three tiers
+side by side, which is the clearest view for the jury script.
+
 The dashboard needs no server: open `MemGate/frontend/index.html` in the
 browser.
 
