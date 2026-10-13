@@ -562,7 +562,7 @@ not the one you think you are making.
 
 ```bash
 cd memgate
-python3 test_memgate.py          # 61 tests
+python3 test_memgate.py          # 68 tests
 python3 run_locomo.py            # context-budget frontier
 python3 run_storage_sweep.py     # §3.2 storage budget
 python3 run_scaling.py           # §3.4 compression ratio to 182x
@@ -572,6 +572,10 @@ python3 train_scorer.py          # §3.6 learned scorer
 python3 precompute_judge.py      # P2 judge scores (local model, ~15 min, cached)
 python3 run_judge_eval.py        # §3.7 scorer comparison + CIs
 python3 run_endtask.py           # §3.8 end-task accuracy (~50 min, resumable)
+python3 run_longmemeval.py       # §3.9 LongMemEval, swept by store budget
+python3 run_lme_split.py         # §3.9 recency-confound control
+python3 run_abstractive.py       # §3.10 abstractive compression
+python3 run_online.py            # §3.11 online learning
 python3 make_figures.py          # figures
 ```
 
