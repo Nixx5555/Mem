@@ -55,6 +55,8 @@ def main():
     warm_cache([t.text if args.scorer_fix else f"[{t.speaker}] {t.text}"
                 for _c, ts, _q in units for t in ts])
 
+    out = os.path.join(RESULTS, "scorer_models_" + "_".join(names)
+                       + ("_tagmonthfix" if args.scorer_fix else "") + ".csv")
     rows = []
     for use_emb in (False, True):
         fs = "hand+MiniLM" if use_emb else "hand"
@@ -107,12 +109,10 @@ def main():
                     print(f"  {mname} {np.mean(aucs):.3f}/{np.mean(aps):.3f}",
                           end="", flush=True)
                 print()
-
-    out = os.path.join(RESULTS, "scorer_models_" + "_".join(names)
-                       + ("_fixed" if args.scorer_fix else "") + ".csv")
-    with open(out, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-        w.writeheader(); w.writerows(rows)
+                # written after every block, so a killed run keeps what it did
+                with open(out, "w", newline="") as f:
+                    w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+                    w.writeheader(); w.writerows(rows)
     print(f"\nwrote {out}")
     return 0
 

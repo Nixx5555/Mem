@@ -106,13 +106,11 @@ _TAG = re.compile(r"^\[[^\]]*\] ")
 class MessageOnly:
     """Score the message without the "[Speaker] " tag the policy prepends.
 
-    `_as_item` stores every turn as "[speaker] text" and `_route` hands that
-    string to the scorer, so P1's anchored filler regex never fires, the
-    proper-noun bonus fires on every capitalised speaker name, and "[Maria]"
-    trips the month pattern (scorer-check/SCORER_CHECK.md). This wrapper
-    strips the tag at score time, so the fix can be measured without editing
-    policies.py; with --message-only the learned scorer is also TRAINED on
-    the bare message, so train and inference see the same string.
+    Written before scoring.py stripped the tag itself (message_only, from the
+    speaker-tag fix); on top of that fix it changes only what the learned
+    scorer EMBEDS, since LearnedScorer passes its input to MiniLM unstripped.
+    With --scorer-fix the learned scorer is trained on the bare message too,
+    so train and inference see the same string.
     """
 
     def __init__(self, inner):
@@ -178,7 +176,7 @@ def main():
                       if args.message_only else []))
     S = args.store_budget
     print(f"  context budget {CONTEXT_BUDGET}   store budget {S}   scorer input: "
-          f"{'FIXED (message only, whole-word months)' if args.scorer_fix else '[speaker] message, loose months (as committed)'}")
+          f"{'FIXED (message only, whole-word months)' if args.scorer_fix else 'scoring.py as is'}")
     for c, d in corpora.items():
         tok = sum(count_tokens(t.text) for _s, ts, _q in d for t in ts)
         print(f"  {c:<12} {len(d):>4} units  {tok/len(d):>9,.0f} tok/unit  "
@@ -288,7 +286,7 @@ def main():
             print()
 
     os.makedirs(RESULTS, exist_ok=True)
-    tag = "_".join(names) + f"_S{S}" + ("_fixed" if args.scorer_fix else "") \
+    tag = "_".join(names) + f"_S{S}" + ("_tagmonthfix" if args.scorer_fix else "") \
         + ("" if args.model == "lr" else f"_{args.model}")
     for fname, data in ((f"transfer_{tag}.csv", rows),
                         (f"transfer_sig_{tag}.csv", sig_rows)):
