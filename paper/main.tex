@@ -41,20 +41,20 @@ first show that the accounting normally used in this area, which bounds the
 context assembled per query but leaves the store unbounded, charges a
 store-everything baseline nothing for retention and therefore settles the
 comparison in advance. When the store is also bounded, choosing which turns to
-forget is worth $+8.67$ answer-recall points over forgetting oldest-first at
-identical storage, fidelity and retrieval (95\% CI $[+4.77, +14.27]$ clustered
-by conversation, McNemar $p=1.1\!\times\!10^{-4}$), while compressing an evicted
-turn instead of dropping it loses $6.71$ points. We also test the
+forget is worth $+9.37$ answer-recall points over forgetting oldest-first at
+identical storage, fidelity and retrieval (95\% CI $[+5.45, +14.90]$ clustered
+by conversation, McNemar $p=2.8\!\times\!10^{-5}$), while compressing an evicted
+turn instead of dropping it loses $7.13$ points. We also test the
 rate--distortion prediction that compression must eventually win. Up to a
-compression ratio of $182\times$ it does not, and the margin in favour of
-selection widens. Charging the budget for the embedding index, which is
+compression ratio of $182\times$ it does not, although the margin in favour
+of selection narrows. Charging the budget for the embedding index, which is
 normally left out, reverses the ranking below about 40\,KiB, where a policy
 that stores no index at all performs best. Finally, an LLM-judged salience
 scorer performs worse than a regular-expression heuristic by $5.87$ points,
 with the confidence interval excluding zero. Through a fixed local reader over
 all 715 answer-recoverable questions, $+6.0$ points of the selection advantage
 convert into correct answers (95\% CI $[+3.3, +9.1]$), which is 69\% of the
-recall gap. We also report three measurement errors that changed our own
+recall gap in that run. We also report three measurement errors that changed our own
 results, each found by an invariant rather than by inspection.
 \end{abstract}
 
@@ -103,8 +103,8 @@ an accounting error common in this area: bounding only the assembled context
 charges a store-everything baseline nothing for retention, settling the
 comparison before it is run (Section~\ref{sec:accounting}). (2)~Evidence that
 the gain is selection, not compression --- at identical storage, fidelity and
-retrieval, scored forgetting is worth $+8.67$ answer-recall points over FIFO
-while compressing an evicted turn loses $6.71$ (Sections~\ref{sec:selection}
+retrieval, scored forgetting is worth $+9.37$ answer-recall points over FIFO
+while compressing an evicted turn loses $7.13$ (Sections~\ref{sec:selection}
 and~\ref{sec:significance}). (3)~A test of the rate--distortion crossover, to
 $182\times$ compression (Section~\ref{sec:scaling}). (4)~Byte-denominated
 accounting: the embedding index outweighs the text it indexes by about
@@ -291,8 +291,8 @@ omits a cost answers a different question from the one it appears to ask.
 Table~\ref{tab:storage} reports both metrics across the sweep. P1-S, which
 drops the lowest-utility item when the cap binds, leads on answer recall at
 every budget. P1-A, which compresses that item instead of dropping it, leads on
-evidence recall at every budget and trails on answer recall, by 6.9 points at
-$S=8192$.
+evidence recall at every budget, yet at $S=8192$ trails even RAG on answer
+recall, by 3.4 points.
 
 This is the identifier problem of Section~\ref{sec:metrics} in practice. A
 demoted gist retains the evidence identifiers of a turn whose text has been
@@ -316,14 +316,14 @@ are forgotten.}
 
 Table~\ref{tab:significance} reports each contrast with intervals resampled at
 the conversation level. The answer-recall gain of scored eviction over FIFO is
-$+8.67$ points with the interval excluding zero. The corresponding
-evidence-recall gain is $+1.96$ points and does not survive clustering
-($p=0.16$), so we do not claim it. We report it here rather than omitting it,
+$+9.37$ points with the interval excluding zero. The corresponding
+evidence-recall gain is $+2.42$ points and does not survive clustering
+($p=0.08$), so we do not claim it. We report it here rather than omitting it,
 since a claim that fails a correctness check is itself information about the
 check.
 
-The P1-S against P1-A rows show the divergence with signs attached: $+6.71$ on
-answer recall and $-10.74$ on evidence recall, both significant. The two
+The P1-S against P1-A rows show the divergence with signs attached: $+7.13$ on
+answer recall and $-11.53$ on evidence recall, both significant. The two
 metrics therefore disagree in direction and not only in magnitude.
 
 \begin{table*}[t]
@@ -345,7 +345,7 @@ test this: every policy hits the floor first, near 0.2\% evidence recall at
 $S=256$. The missing axis is length, so we concatenate up to ten LoCoMo
 conversations --- 186K tokens --- holding $S$ fixed, which raises the
 compression ratio to $182\times$. Table~\ref{tab:scaling} reports no crossover:
-the margin of selection over compression does not close, and the best operating
+the margin of selection over compression narrows but stays positive, and the best operating
 point stays at the vertex, a subset at full fidelity.
 
 One caveat. A concatenated stream is not a natural long conversation --- each
@@ -395,9 +395,9 @@ therefore flat.}
 
 If the decision is where the value lies, then the scorer that makes it is the
 component to improve. Table~\ref{tab:ablation} removes one mechanism at a time.
-Retrieval dominates, at $-30.3$ evidence points, and scored eviction is worth
-$5.0$ points. The demotion row is marked because it shows the same divergence
-in miniature: removing demotion costs $10.7$ evidence points and gains $6.7$
+Retrieval dominates, at $-31.6$ evidence points, and scored eviction is worth
+$6.4$ points. The demotion row is marked because it shows the same divergence
+in miniature: removing demotion costs $11.5$ evidence points and gains $7.1$
 answer points.
 
 \begin{table}[t]
@@ -431,7 +431,8 @@ since a live agent has no future questions to fit against.
 \begin{table}[t]
 \caption{Single-component scorer swap at $S=4096$ with context 2048. Policy,
 retrieval and compression are fixed and only the scorer varies. P3 is an upper
-bound rather than a deployable component.}
+bound rather than a deployable component. Pre-fix run
+(Section~\ref{sec:threats}).}
 \label{tab:scorers}
 \centering
 \small
@@ -456,7 +457,8 @@ so parametric knowledge contributes almost nothing on this benchmark and the
 margin above that floor is attributable to the memory layer. P1-S reaches
 18.5\% against RAG's 12.4\%. Resampling by conversation as before, the realised
 gap is $+6.0$ points with a 95\% interval of $[+3.3, +9.1]$, which is 69\% of
-the $+8.7$-point recall gap between the same two arms.
+the $+8.7$-point recall gap between the same two arms in this pre-fix run
+(Section~\ref{sec:threats}).
 
 Accuracy is not bounded by answer recall, since a reader may guess, so the
 table separates the two regimes. Accuracy given that the answer was present is
@@ -516,6 +518,11 @@ and \texttt{float32} did not help; the cause was left-padding, producing fully
 masked attention rows. Without an explicit guard every filler turn would have
 scored \texttt{NaN} and inverted the eviction order.
 
+A fourth defect was found after the main runs: the heuristic scored each turn
+with its speaker tag, which blocked the filler rule and gave nearly every turn
+the proper-noun bonus. Recall tables use the fixed scorer; the judge, end-task,
+abstractive and LongMemEval runs predate it.
+
 %% ======================================================================
 \section{Limitations}
 \label{sec:limitations}
@@ -544,7 +551,7 @@ Section~\ref{sec:scaling}.
 \emph{The scorer is tuned to this corpus.} On a 94-item LongMemEval
 \cite{wu2024longmemeval} subsample, whose turns average 210 tokens against
 LoCoMo's 32, the heuristic's separation between evidence and non-evidence turns
-reversed in sign and scored eviction lost to FIFO. Read the $+8.67$ of
+reversed in sign and scored eviction lost to FIFO. Read the $+9.37$ of
 Section~\ref{sec:selection} as what a policy recovers \emph{given a scorer
 suited to the corpus}, not as a property of scored selection in general.
 
@@ -562,14 +569,14 @@ the finding.
 Under the accounting normally used here, tiered compression is a net loss
 against storing everything and retrieving --- but that is an artefact of leaving
 the store unbounded. Bound it, and the decision of which items to forget is
-worth $+8.67$ answer-recall points at identical storage, fidelity and
+worth $+9.37$ answer-recall points at identical storage, fidelity and
 retrieval, while compressing an evicted item rather than dropping it loses
-$6.71$. The crossover at which compression should begin to pay is not reached
+$7.13$. The crossover at which compression should begin to pay is not reached
 to $182\times$. Charging the budget for the embedding index reverses the
 ranking below about 40\,KiB. An LLM judge, the obvious route to a better
 scorer, loses to a regular expression, for an identifiable reason: salience is
-not a property of a turn in isolation. Through a fixed reader, $+6.0$ of those
-$+8.67$ points survive as correct answers.
+not a property of a turn in isolation. Through a fixed reader, $+6.0$ of the
+pre-fix $+8.7$ points survive as correct answers.
 
 The practical recommendation is narrow. Retain a scored subset at full fidelity
 rather than compressing everything, and denominate the budget in bytes with the
@@ -579,8 +586,8 @@ removed, and none of those errors was visible in the aggregate numbers they
 affected.
 
 Future work is now a single question. A scorer learned online from retrieval
-feedback already matches the hand-written heuristic on LoCoMo without labels or
-future questions ($-1.54$, n.s.), but the cues it learns --- short turns, no
+feedback is already statistically level with the heuristic on LoCoMo, without
+labels or future questions ($-2.94$, n.s.), but the cues it learns --- short turns, no
 sentence-final period --- are the ones LongMemEval inverts. Whether such a
 scorer, allowed to re-learn per corpus, closes the transfer gap is what this
 work leaves open.

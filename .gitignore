@@ -1,3 +1,6 @@
+# Office lock files
+~$*
+
 # Downloaded artefacts — reproducible, not source. See memgate/README.md.
 # all-MiniLM-L6-v2 (~90 MB) and Qwen2.5-0.5B-Instruct (~942 MB)
 memgate/models/

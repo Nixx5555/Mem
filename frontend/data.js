@@ -2,10 +2,10 @@
 // Every number on the dashboard is read from memgate/results/*.csv.
 window.MEMGATE = {
  "meta": {
-  "generated": "2026-10-13",
-  "commit": "e21ed94",
-  "loc": 7410,
-  "tests": 61,
+  "generated": "2026-10-15",
+  "commit": "d776326",
+  "loc": 8247,
+  "tests": 78,
   "turns": 5882,
   "questions": 1527,
   "answerable": 715,
