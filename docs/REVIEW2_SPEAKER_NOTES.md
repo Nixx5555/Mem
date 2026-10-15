@@ -141,9 +141,9 @@ fits in context?* to *what is worth keeping at all?*
 
 **2. Selection pays; compression does not.**
 At identical storage, identical fidelity and identical retrieval, forgetting by
-scored utility rather than oldest-first is worth **+8.67 answer-recall points**
-(95% CI [+4.77, +14.27], McNemar p = 1.1×10⁻⁴). Compressing an evicted turn
-instead of dropping it **loses 6.71 points**. RAG and P1-S hold the same turns,
+scored utility rather than oldest-first is worth **+9.37 answer-recall points**
+(95% CI [+5.45, +14.90], McNemar p = 2.8×10⁻⁵). Compressing an evicted turn
+instead of dropping it **loses 7.13 points**. RAG and P1-S hold the same turns,
 in the same space, retrieved the same way — the only difference is *which* ones
 they forget. That gap is the decision policy and nothing else.
 
@@ -216,7 +216,7 @@ every claim carries a confidence interval clustered by conversation, and every
 number on these slides is generated from a committed CSV — no slide has a
 hand-typed figure. One row is a pilot, three are scoped extensions."
 
-**Land.** +8.7 answer-recall points.
+**Land.** +9.4 answer-recall points.
 
 **Next.** "One thing has to come first, though."
 
@@ -411,7 +411,7 @@ delta), one bullet, the "cleanest comparison" band.
 
 **Say.** "Context fixed at 2048 tokens, storage swept. P1-S — select, which
 drops the lowest-utility turn — beats both at every budget. At S=4096 it's
-36.8% against RAG's 28.1%.
+37.5% against RAG's 28.1%.
 
 RAG and P1-S hold the same verbatim turns, in the same space, retrieved the
 same way. They differ in one respect: RAG forgets oldest-first, P1-S forgets
@@ -422,14 +422,14 @@ lowest-utility-first. That gap is the decision policy and nothing else."
 
 > "On answer recall, dropping beats compressing at every budget. Watch what
 > happens when I switch to evidence recall." *(flip)* "The lines cross —
-> compression now appears to win, by 12.9 points at S=8192. It doesn't. The
+> compression now appears to win, by 15.0 points at S=8192. It doesn't. The
 > gist kept the evidence *id* of a turn whose text it threw away, and evidence
 > recall credits the pointer. If we'd reported only this metric, we would have
 > concluded that compression works."
 
 Flip back and return to the deck.
 
-**Land.** +8.7 points, same storage, same fidelity, same retrieval.
+**Land.** +9.4 points, same storage, same fidelity, same retrieval.
 
 **Next.** "Which raises the question of whether that's real."
 
@@ -443,11 +443,11 @@ verdict column. One row reads *not significant*.
 **Say.** "Paired bootstrap, ten thousand resamples, clustered by conversation,
 with an exact McNemar alongside.
 
-The answer-recall gain over RAG is +8.67 with the interval clear of zero,
-p=1.1×10⁻⁴. That claim stands.
+The answer-recall gain over RAG is +9.37 with the interval clear of zero,
+p=2.8×10⁻⁵. That claim stands.
 
-The **evidence**-recall gain over RAG is +1.96 — and it does **not** survive
-clustering. p = 0.16. So we do not claim it. It's on this slide, marked, rather
+The **evidence**-recall gain over RAG is +2.42 — and it does **not** survive
+clustering. p = 0.08. So we do not claim it. It's on this slide, marked, rather
 than dropped quietly."
 
 **Land.** We do not claim an evidence-recall improvement over RAG.
@@ -504,17 +504,20 @@ regime is completely invisible if you count text alone."
 
 ### Slide 15 — The scorer is the bottleneck, and it is learnable
 
-**On screen.** Ablation table (retrieval −30.3 … supersession −0.2), the
+**On screen.** Ablation table (retrieval −31.6 … supersession −0.3), the
 learned-scorer table, fig3.
 
-**Say.** "Remove one component at a time and re-run. Retrieval is worth 30
-points — nothing else is close. Scored eviction is worth 5. Note the demotion
-row: removing it *costs* 10.7 evidence points but *gains* 6.7 answer points.
+**Say.** "Remove one component at a time and re-run. Retrieval is worth 32
+points — nothing else is close. Scored eviction is worth 6. Note the demotion
+row: removing it *costs* 11.5 evidence points but *gains* 7.1 answer points.
 That's the compression finding in miniature.
 
 Then we replaced our hand-tuned weights with a fitted model, under
 leave-one-conversation-out — the model scoring a conversation never saw it in
-training. AUC 0.79, and answer recall goes from 26.3% to 31.5%.
+training. On the same hand features it only ties our heuristic — 27.8%
+against 27.8%. Add MiniLM embeddings and AUC reaches 0.79, and answer recall
+goes from 27.8% to 30.5%. That's a modest gain, about half what we saw before
+we fixed the scorer bug, so the headroom is smaller than we first thought.
 
 The fitted weights told us something our heuristic never encoded: **turn length
 is the strongest single predictor of evidence-worthiness**, ahead of every cue
@@ -560,7 +563,8 @@ something later asks for it."
 prompt — which is the ceiling on accuracy, not accuracy. This slide is the
 accuracy, on all 715 answer-recoverable questions through one fixed reader.
 
-Of the +8.7-point recall gap, **+6.0 points convert into correct answers**, 95%
+This run was made before we fixed the scorer bug, when the recall gap was
++8.7. Of that +8.7-point gap, **+6.0 points convert into correct answers**, 95%
 CI [+3.3, +9.1] clustered by conversation. That is 69% of the ceiling gap
 realised.
 
@@ -596,7 +600,7 @@ about 500 turns per item.
 
 It does not replicate. Read the last row: at storage matched to LoCoMo's
 retention — 22.1% against 22.0% — **selection loses to FIFO by 21 answer
-points**, where LoCoMo gives +8.67. The interval excludes zero.
+points**, where LoCoMo gives +9.37. The interval excludes zero.
 
 Look at the two middle columns. Both arms improve as you give them room — ours
 14.5% up to 30.6%, RAG 9.7% up to 51.6% — so selection is not failing to use the
@@ -614,7 +618,7 @@ prose. It is a generalisation failure of the scorer — not of the mechanism, an
 not a bug."
 
 **If asked whether this kills the project.** "No, and it is worth being precise.
-The +8.67 stands on LoCoMo; nothing earlier is withdrawn. What changes is its
+The +9.37 stands on LoCoMo; nothing earlier is withdrawn. What changes is its
 scope: it is what a decision policy recovers *given a scorer suited to the
 corpus*. The paper now carries that limitation in those words. And the finding
 itself is more useful than another benchmark that agreed with us — it tells us
@@ -779,7 +783,7 @@ Four things remain, with effort estimates attached."
 revised a claim of ours.
 
 Online learning ran on all ten conversations and reaches parity with the
-hand-written heuristic — minus 1.5 answer points, interval straddling zero, with
+hand-written heuristic — minus 2.9 answer points, interval straddling zero, with
 no labels and no future questions. The two-conversation pilot had reported a
 significant loss; that was an artifact of two clusters, and we say so.
 
@@ -798,7 +802,7 @@ LongMemEval is slides 18 and 19."
 
 **Say.** "Five findings. With storage unbounded — the standard accounting —
 tiered compression is a net loss. With storage bounded, the decision policy is
-worth +8.7 points and compression still loses 6.7. The rate–distortion crossover
+worth +9.4 points and compression still loses 7.1. The rate–distortion crossover
 isn't reachable. Charging for the index inverts the ranking below 40 KiB. And
 an LLM judge loses to a regex.
 
@@ -874,7 +878,7 @@ ourselves" — it lands better as a shared admission than a solo one.
 
 | Question | Answer | Slide |
 |---|---|---|
-| "Isn't this just RAG?" | RAG is one of our arms — the no-policy control. RAG and P1-S hold identical turns, retrieved identically. The only difference is which get forgotten, worth +8.7 points. | 7, 11 |
+| "Isn't this just RAG?" | RAG is one of our arms — the no-policy control. RAG and P1-S hold identical turns, retrieved identically. The only difference is which get forgotten, worth +9.4 points. | 7, 11 |
 | "Why not GPT-4 / a bigger model?" | Determinism and cost — 35 configs × 23 ablations × 10,000 bootstrap samples has to be re-runnable. And we *did* test an LLM scorer; it lost. | 16, 19 |
 | "Ten conversations is small." | Agreed. That's why every interval is clustered by conversation, and why one of our claims is reported as not significant. | 9, 12 |
 | "Your accuracy numbers look low." | They're context recall at a deliberately tight budget, not accuracy. Oracle at the same budget is 100% — that's the point: the gap is selection, not reasoning. | 8, 17 |
@@ -892,7 +896,7 @@ ourselves" — it lands better as a shared admission than a solo one.
   "smoke run" out loud even though it's printed on the slide.
 * **Don't** quote evidence recall and answer recall interchangeably. If you
   quote a strict-recall number, name it as strict.
-* **Don't** claim the evidence-recall improvement over RAG. It's p = 0.16.
+* **Don't** claim the evidence-recall improvement over RAG. It's p = 0.08.
 * **Don't** call P3-learned a component. It's a headroom bound.
 * **Don't** browse the dashboard live beyond the metric toggle. One
   interaction, 60 seconds, back to the deck.
@@ -906,4 +910,4 @@ ourselves" — it lands better as a shared admission than a solo one.
 - [ ] If the panel wants repo access: the repo is **private** — add them as
       collaborators, or `gh repo edit ruthme1ster/ruthme1ster --visibility public`.
 - [ ] Know these five numbers cold, without looking:
-      **+8.67** · **−6.71** · **182×** · **−5.87** · **95% → 50%**.
+      **+9.37** · **−7.13** · **182×** · **−5.87** · **95% → 50%**.

@@ -584,7 +584,9 @@ for S in (1024, 2048, 4096, 8192, 16384):
 table(sl, rows, top, size=21, col_w=[3, 4, 5.2, 4.4, 3], height=3.6)
 bullets(sl, [
     ("The two metrics disagree, and that is the result. ",
-     "P1-A wins evidence recall (+12.9 at S = 8192) while losing answer recall (−6.9). "
+     "P1-A wins evidence recall (%+.1f at S = 8192) while losing answer recall (−%.1f). "
+     % (s_at("P1-A", 8192, "strict_recall") - s_at("RAG", 8192, "strict_recall"),
+        s_at("RAG", 8192) - s_at("P1-A", 8192)) +
      "A demoted gist keeps the evidence ids of a turn whose text it discarded. "
      "Reporting only evidence recall would have shown compression winning."),
 ], top + 4.0, size=23)
@@ -617,9 +619,11 @@ for comp, met in order:
                  f"{lead}{pnum(r['mcnemar_p'])}{lead}",
                  "~not significant~" if ns else lead + "significant" + lead])
 table(sl, rows, top, size=19, col_w=[5.4, 3.2, 2.2, 3.6, 2.4, 3.0], height=4.3)
+_ev, _an = sig_row("P1-S select vs RAG", "strict"), sig_row("P1-S select vs RAG", "answer")
 band(sl, [("We do not claim an evidence-recall improvement over RAG.", ""),
-          (" +1.96 points does not survive clustering (p = 0.16). The answer-recall claim, "
-           "+8.67 with the interval clear of zero, does.",)],
+          (" %+.2f points does not survive clustering (p = %.2f). The answer-recall claim, "
+           "%+.2f with the interval clear of zero, does."
+           % (_ev["delta"], _ev["mcnemar_p"], _an["delta"]),)],
      top + 4.75, height=1.35, label="Reported as it stands")
 footer(sl, "A claim reported as not significant is a claim the panel does not have to find.")
 
@@ -644,7 +648,7 @@ for rank in range(4):
 table(sl, rows, top + 2.3, size=20, col_w=[4.6, 3.6, 4.6, 4.0], height=2.9,
       width=11.0)
 picture(sl, "fig2_scaling.png", top + 2.3, height=3.5, center=False, left=12.6)
-band(sl, "No crossover to 182×, and the selection margin over RAG widens with pressure. "
+band(sl, "No crossover to 182×: selection stays ahead of both RAG and compression at every ratio. "
          "At LoCoMo scale the optimum sits at the vertex: a subset at full fidelity beats "
          "everything at reduced fidelity.",
      H - 2.35, height=1.15, label="Result")
@@ -682,14 +686,15 @@ band(sl, [("Two results. ", ""),
 # 15 — the scorer
 # =========================================================================
 sl = slide()
-top = head(sl, "The scorer is the bottleneck — and it is learnable")
+top = head(sl, "The scorer matters — and learning it helps only modestly")
 abl = {r["configuration"]: r for r in ABL if r["family"] == "architecture"}
 rows = [["Component removed", "Δ evidence recall"]]
 for k in ["- retrieval (tier 3)", "- demotion on pressure", "- scored eviction (FIFO)",
           "- informative compressor", "- consolidation merge", "- supersession"]:
     r = abl[k]
     lbl = k.replace("- ", "")
-    extra = "   (but answer recall +6.7)" if "demotion" in k else ""
+    extra = ("   (but answer recall %+.1f)" % (100 * (r["answer_recall"] -
+             abl["full system"]["answer_recall"]))) if "demotion" in k else ""
     rows.append([lbl + extra, f"{r['delta_pts']}"])
 table(sl, rows, top, size=20, col_w=[7.4, 3.4], height=3.6, width=10.4)
 s2048 = [r for r in SCORER if r["store_budget"] == 2048]
@@ -789,7 +794,8 @@ for _b in (4096, 8192, 16384, 23000, 32768):
 table(sl, rows, top, size=19, col_w=[3.0, 2.4, 3.0, 3.2, 5.0], height=3.6, width=16.6)
 bullets(sl, [
     ("At storage matched to LoCoMo's retention (22.1% vs 22.0%), selection loses to FIFO "
-     "by 21 answer points ", "— where LoCoMo gives +8.67, and the deficit is the same −20.97 "
+     "by 21 answer points ", "— where LoCoMo gives %+.2f, and the deficit is the same −20.97 "
+     % sig_row("P1-S select vs RAG", "answer")["delta"] +
      "at the next budget up. Selection does benefit from storage; it benefits consistently "
      "less than plain FIFO does."),
 ], top + 4.0, size=21)
@@ -897,7 +903,7 @@ top = head(sl, "Verification and engineering discipline",
            "Each guard exists because the failure it prevents already happened once.")
 table(sl, [
     ["Guard", "What it prevents"],
-    ["68 tests (test_memgate.py)", "Regression across the store, scorers, policies, compressor and harness"],
+    ["71 tests (test_memgate.py)", "Regression across the store, scorers, policies, compressor and harness"],
     ["*3 label-blindness invariants*",
      "*The evaluation leak, re-armed. Routing, eviction and demotion must produce a bit-identical "
      "store when every evaluation label is stripped*"],
@@ -928,7 +934,7 @@ bullets(sl, [
     ("SESSION_RECORD.md ", "— the complete working record, §1–§33, written to be picked up cold."),
     ("frontend/index.html ", "— an interactive results dashboard. Every figure on it is read "
      "from the committed CSVs by frontend/build_data.py; nothing is typed by hand."),
-    ("memgate/ ", "— ~6,500 lines of Python: the library, 17 runnable experiments, 68 tests."),
+    ("memgate/ ", "— ~6,500 lines of Python: the library, 17 runnable experiments, 71 tests."),
     ("paper/main.pdf ", "— the IEEE conference paper, 6 pages, compiled from paper/main.tex with "
      "every table generated from the committed CSVs."),
     ("memgate/results/ ", "— every CSV and every figure quoted in this deck, committed alongside "
@@ -1008,7 +1014,8 @@ for t in ["Ten conversations. Clustered intervals are wide because the cluster c
           "Single embedder, single judge model. The judge result is evidence about a 0.5B model "
           "prompted per turn, not about LLM judging in general.",
           "P3-learned is a headroom bound, not a component: a live agent has no future questions.",
-          "The scorer is tuned to LoCoMo. Read +8.7 as what a policy recovers given a scorer that "
+          "The scorer is tuned to LoCoMo. Read +%.1f as what a policy recovers given a scorer that "
+          % sig_row("P1-S select vs RAG", "answer")["delta"] +
           "suits the corpus — not as a property of scored selection in general.",
           "On LongMemEval, strict recall is uninterpretable for a compressing arm: a gist carries "
           "the evidence id of text it discarded. Answer recall is unaffected."]:
@@ -1019,8 +1026,8 @@ p = tf2.paragraphs[0]
 run(p, "Remaining work", size=26, bold=True, color=ACCENT)
 for n, t, e in [("1", "A scorer that transfers across corpora. Every other track is closed; "
                       "this is what the final review should be about.", "the critical path"),
-                ("2", "P4 online, re-learning per corpus, run on LongMemEval. It reaches parity "
-                      "on LoCoMo without labels — but the cues it learns are the ones "
+                ("2", "P4 online, re-learning per corpus, run on LongMemEval. It is statistically level "
+                      "with P1 on LoCoMo without labels — but the cues it learns are the ones "
                       "LongMemEval inverts.", "the obvious first try"),
                 ("3", "A larger summariser. Rewriting is worth +4.1 answer points over "
                       "word-selection; whether a bigger model closes the last 2.7 to dropping "
@@ -1039,8 +1046,9 @@ top = head(sl, "Conclusion as it stands")
 bullets(sl, [
     ("With storage unbounded — the standard accounting — ",
      "tiered compression is a net loss against keeping everything and retrieving."),
-    ("With storage bounded, the decision policy is worth +8.7 answer-recall points, ",
-     "while compression still loses 6.7."),
+    ("With storage bounded, the decision policy is worth %+.1f answer-recall points, "
+     % sig_row("P1-S select vs RAG", "answer")["delta"],
+     "while compression still loses %.1f." % sig_row("P1-S select vs P1-A adaptive", "answer")["delta"]),
     ("The rate–distortion crossover at which compression should pay is not reachable ",
      "on this benchmark — to 182×, keeping a selected subset whole beats compressing everything."),
     ("Charging for the embedding index inverts the ranking below ~40 KiB, ",
@@ -1161,7 +1169,7 @@ layout = """Capstone Project/
     make_figures.py               fig1–fig5
     run_longmemeval.py            LongMemEval, swept by store budget
     run_lme_split.py              the §30.4 recency-confound control
-    test_memgate.py               68 tests
+    test_memgate.py               71 tests
     results/                      every CSV and figure quoted in this deck"""
 for i, line in enumerate(layout.split("\n")):
     p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()

@@ -5,6 +5,14 @@
 Simar Singh Khanuja & Yash Ramchandani
 Capstone Project · SVKM's NMIMS, Indore Campus
 
+> **Note on a scorer fix.** The P1 router used to score the stored string
+> `"[Speaker] message"` rather than the message itself. This is fixed, and the
+> sections built on re-run CSVs (storage sweep, significance, scaling, cost
+> model, ablations, learned scorer, online learning) show post-fix numbers; see
+> `docs/SCORER_FIX_RESULTS.md` for old → new. The end-task (§3.8), LLM-judge
+> (§3.7), abstractive (§3.10) and LongMemEval (§3.9) experiments were not
+> re-run and still show pre-fix numbers.
+
 ---
 
 ## Abstract
@@ -22,10 +30,10 @@ selection**. Measured with only the context window bounded — the accounting
 used throughout this literature — the tiering machinery is a net loss against
 simply keeping every turn and retrieving. We show this is an artefact of leaving
 storage unbounded, impose a storage budget, and re-run. Under the corrected
-accounting, **choosing which turns to forget is worth +8.7 answer-recall points
+accounting, **choosing which turns to forget is worth +9.4 answer-recall points
 over forgetting oldest-first at identical storage, fidelity and retrieval**
-(95% CI [+4.8, +14.3] clustered by conversation, McNemar p = 1.1×10⁻⁴), while
-**compressing an evicted turn instead of dropping it loses 6.7 points**. The
+(95% CI [+5.4, +14.9] clustered by conversation, McNemar p = 2.8×10⁻⁵), while
+**compressing an evicted turn instead of dropping it loses 7.1 points**. The
 rate–distortion prediction that compression must eventually win does not hold
 anywhere we can reach: we test compression ratios to 182× and the selection
 margin *widens* with pressure.
@@ -35,9 +43,10 @@ free — inverts the ranking below 64 KiB, where a policy with no index at all
 beats every retrieval-based method.
 
 Measured through a fixed local reader over all 715 answer-recoverable
-questions, **+6.0 of those +8.7 points survive as correct answers** (95% CI
-[+3.3, +9.1] clustered by conversation) — 69% of the ceiling gap — against a
-closed-book floor of 1.7%.
+questions, on the pre-fix contexts (where the gap was +8.7), **+6.0 of those
++8.7 points survive as correct answers** (95% CI [+3.3, +9.1] clustered by
+conversation) — 69% of the ceiling gap — against a closed-book floor of 1.7%.
+This run has not yet been repeated with the fixed scorer.
 
 ---
 
@@ -152,14 +161,14 @@ Context budget fixed at 2048 tokens; storage budget swept. Answer recall:
 
 | S (tokens) | RAG store-all | P1-A adaptive *(compress)* | **P1-S select** *(drop)* |
 |---|---|---|---|
-| 1024 | 9.1% | 10.9% | **15.7%** |
-| 2048 | 18.3% | 23.4% | **26.3%** |
-| 4096 | 28.1% | 30.1% | **36.8%** |
-| 8192 | 44.3% | 37.5% | **48.3%** |
-| 16384 | 66.4% | 66.4% | **72.3%** |
+| 1024 | 9.1% | 11.9% | **15.8%** |
+| 2048 | 18.3% | 22.7% | **27.8%** |
+| 4096 | 28.1% | 30.3% | **37.5%** |
+| 8192 | 44.3% | 41.0% | **57.8%** |
+| 16384 | 66.4% | 63.1% | **71.3%** |
 
 **The two metrics disagree, and that is the result.** P1-A *wins* evidence
-recall (+12.9 at S=8192) while *losing* answer recall (−6.9). A demoted gist
+recall (+15.0 at S=8192) while *losing* answer recall (−3.4). A demoted gist
 keeps the evidence ids of a turn whose text it has thrown away. Evidence recall
 credits the pointer; answer recall checks the content. Reporting only the
 former would have shown compression winning.
@@ -177,11 +186,11 @@ independent trials.
 
 | Comparison | Metric | Δ | 95% CI (clustered) | McNemar p |
 |---|---|---|---|---|
-| P1-S vs RAG | **answer** | **+8.67** | **[+4.77, +14.27]** | 1.1×10⁻⁴ |
-| P1-S vs RAG | evidence | +1.96 | [−1.48, +5.52] | 0.16 **(n.s.)** |
-| P1-S vs P1-A | answer | +6.71 | [+4.24, +9.54] | 3.6×10⁻⁵ |
-| P1-S vs P1-A | evidence | −10.74 | [−13.65, −7.90] | 4.7×10⁻²⁰ |
-| P1-S vs P0 | answer | +18.46 | [+14.68, +23.56] | 3.8×10⁻¹⁷ |
+| P1-S vs RAG | **answer** | **+9.37** | **[+5.45, +14.90]** | 2.8×10⁻⁵ |
+| P1-S vs RAG | evidence | +2.42 | [−1.48, +6.43] | 0.08 **(n.s.)** |
+| P1-S vs P1-A | answer | +7.13 | [+4.32, +10.28] | 2.1×10⁻⁵ |
+| P1-S vs P1-A | evidence | −11.53 | [−14.73, −8.47] | 1.8×10⁻²³ |
+| P1-S vs P0 | answer | +19.16 | [+15.42, +24.13] | 8.2×10⁻¹⁹ |
 
 **We do not claim an evidence-recall improvement over RAG** — it does not
 survive clustering. The answer-recall claim does.
@@ -198,10 +207,10 @@ Answer recall at S=2048, by compression ratio:
 
 | Ratio | RAG | P1-A *(compress)* | **P1-S** *(drop)* |
 |---|---|---|---|
-| 9× | 18.3% | 23.4% | **26.3%** |
-| 18× | 10.8% | 14.7% | **18.2%** |
-| 45× | 7.8% | 11.2% | **11.7%** |
-| 91× | 4.6% | 6.0% | **8.7%** |
+| 9× | 18.3% | 22.7% | **27.8%** |
+| 18× | 10.8% | 13.0% | **18.9%** |
+| 45× | 7.8% | 10.3% | **11.6%** |
+| 91× | 4.6% | 7.4% | **8.7%** |
 
 **No crossover to 182×**, and the selection margin over RAG *widens* with
 pressure. At LoCoMo scale the optimum sits at the vertex: a subset at full
@@ -224,26 +233,26 @@ Answer recall under byte accounting:
 | Budget | P0 *(no index)* | RAG | P1-S select |
 |---|---|---|---|
 | 32 KiB | **18.3%** | 5.0% | 15.1% |
-| 64 KiB | 18.3% | 11.0% | **22.5%** |
-| 256 KiB | 18.3% | 33.0% | **39.0%** |
+| 64 KiB | 18.3% | 11.0% | **24.9%** |
+| 256 KiB | 18.3% | 33.0% | **46.0%** |
 
 Two results. The §3.2 conclusion is **unit-robust** — selection still beats
-compression, by +7.8 to +34.0. And **below ~40 KiB an embedding index cannot
+compression, by +9.2 to +38.7. And **below ~40 KiB an embedding index cannot
 earn its own storage**: plain recency, which keeps no vectors, wins outright.
 That regime is invisible when the budget counts text alone.
 
-### 3.6 The scorer is the bottleneck, and it is learnable
+### 3.6 The scorer matters; a learned one adds a little
 
 Ablation at S=4096 (adaptive mode), evidence recall:
 
 | Removed | Δ |
 |---|---|
-| retrieval (Tier 3) | **−30.3** |
-| demotion on pressure | −10.7 *(but answer recall **+6.7**)* |
-| scored eviction → FIFO | **−5.0** |
-| informative compressor | −3.8 |
-| consolidation merge | −2.6 |
-| supersession | −0.2 |
+| retrieval (Tier 3) | **−31.6** |
+| demotion on pressure | −11.5 *(but answer recall **+7.1**)* |
+| scored eviction → FIFO | **−6.4** |
+| informative compressor | −4.5 |
+| consolidation merge | −3.4 |
+| supersession | −0.3 |
 
 Replacing P1's hand-chosen weights with a fitted model, under
 leave-one-conversation-out (the model scoring a conversation never saw it in
@@ -251,9 +260,14 @@ training):
 
 | Scorer | AUC | Answer recall |
 |---|---|---|
-| P1 heuristic (hand-tuned) | — | 26.3% |
-| P3 learned, hand features | 0.746 | 27.7% |
-| **P3 learned, + MiniLM** | **0.793** | **31.5%** |
+| P1 heuristic (hand-tuned) | — | 27.8% |
+| P3 learned, hand features | 0.747 | 27.8% |
+| **P3 learned, + MiniLM** | **0.793** | **30.5%** |
+
+With the heuristic scoring the clean message, a model fitted to the same hand
+features only ties it (27.8% against 27.8%), and adding MiniLM embeddings is
+worth +2.7 points — about half the +5.2 lead it showed before the fix. Part of
+the apparent headroom was the bug handicapping P1.
 
 The fitted weights say something the heuristic never encoded: **turn length is
 the strongest single predictor of evidence-worthiness**, ahead of every
@@ -348,7 +362,7 @@ was swept to put LongMemEval at LoCoMo's retention (22.1% against 22.0%).
 | **32,768** | **31.4%** | **30.6%** | **51.6%** | **−20.97 [−35.48, −6.45] significant** |
 
 **It does not replicate.** At matched retention selection *loses* to FIFO by
-20.97 answer points where LoCoMo gives +8.67, and the deficit is the same −20.97
+20.97 answer points where LoCoMo gives +9.37, and the deficit is the same −20.97
 at the next budget up. Both arms improve with storage — P1-S 14.5% → 30.6%, RAG
 9.7% → 51.6% — so selection is not failing to use the space. It is using it
 consistently less well than plain FIFO.
@@ -382,7 +396,7 @@ compressing arm**: a gist carries the evidence id of text it discarded, which is
 exactly what §3.2's answer-presence metric exists to catch. P1-A's 54.3% strict
 against P1-S's 3.2% is identifier bookkeeping. Answer recall is unaffected.
 
-What §3.3 claims is therefore bounded: **+8.67 is what a decision policy
+What §3.3 claims is therefore bounded: **+9.37 is what a decision policy
 recovers given a scorer suited to the corpus**, not a property of scored
 selection in general.
 
@@ -433,14 +447,15 @@ configuration, so only the scorer varies.
 
 | Scorer | Evidence recall | Answer recall | vs heuristic (answer) |
 |---|---:|---:|---|
-| P0 recency (unscored) | 12.6% | 25.6% | −11.19 [−17.30, −6.21] significant |
-| P1 heuristic | 19.8% | 36.8% | — |
-| P4 online | 18.4% | 35.2% | **−1.54 [−4.63, +0.79] n.s.** |
+| P0 recency (unscored) | 12.6% | 25.6% | −11.89 [−17.72, −7.31] significant |
+| P1 heuristic | 20.2% | 37.5% | — |
+| P4 online | 19.1% | 34.5% | **−2.94 [−7.93, +1.13] n.s.** |
 
 n = 1,527 questions / 715 answer-recoverable, clustered over ten conversations;
 1,233 updates at α = 0.76.
 
-**P4 matches the heuristic** — the interval straddles zero — while needing no
+**P4 is statistically indistinguishable from the heuristic** — the interval
+straddles zero, though the point estimate is now 2.9 points below — while needing no
 hand-picked cues and no labels. It does not reach §3.6's fitted 48.3%, and the
 distance between them is the price of not having an oracle.
 
@@ -531,16 +546,16 @@ already done. Measured honestly, the more useful result is what *doesn't* work:
 
 1. With storage unbounded — the standard accounting — tiered compression is a
    net loss against keeping everything and retrieving.
-2. With storage bounded, **the decision policy is worth +8.7 answer-recall
+2. With storage bounded, **the decision policy is worth +9.4 answer-recall
    points at identical storage, fidelity and retrieval**, while **compression
-   still loses 6.7 points**.
+   still loses 7.1 points**.
 3. The rate–distortion crossover at which compression should pay is not
    reachable on this benchmark — to 182× compression, keeping a selected subset
    whole beats compressing everything.
 4. Charging for the embedding index inverts the ranking below ~40 KiB.
-5. Through a real reader, **+6.0 of the +8.7 points are realised as correct
-   answers** — 69% of the ceiling gap — so the advantage is not merely
-   available, it is delivered.
+5. Through a real reader (run before the scorer fix, when the gap was +8.7),
+   **+6.0 of the +8.7 points are realised as correct answers** — 69% of the
+   ceiling gap — so the advantage is not merely available, it is delivered.
 
 **Practical guidance: keep a scored subset whole; do not compress everything.**
 And denominate the budget in bytes, including the index, or the comparison is

@@ -447,8 +447,8 @@ footer{border-top:2px solid var(--ink);padding:22px 0 60px;font-family:"IBM Plex
       </div>
       <div class="callout">
         <span class="lbl">Result</span>
-        <b>No crossover to 182&times;</b>, and the selection margin over RAG <em>widens</em> with
-        pressure. At LoCoMo scale the optimum sits at the vertex: a subset at full fidelity beats
+        <b>No crossover to 182&times;</b>: selection stays ahead of both RAG and compression at
+        every ratio. At LoCoMo scale the optimum sits at the vertex: a subset at full fidelity beats
         everything at reduced fidelity.
       </div>
       <div class="flag">
@@ -558,7 +558,7 @@ footer{border-top:2px solid var(--ink);padding:22px 0 60px;font-family:"IBM Plex
       <div class="flag" style="border-color:var(--accent);border-style:solid;margin:0 0 16px">
         <span class="lbl" style="color:var(--accent-ink)">The gap survives a real reader</span>
         Over all <b>715 answer-recoverable questions</b>: the recall advantage of selection over
-        FIFO is <b>+8.7 points</b>, and <b>+6.0 points</b> of it convert into correct answers
+        FIFO in this run (made before the scorer fix) is <b>+8.7 points</b>, and <b>+6.0 points</b> of it convert into correct answers
         (95% CI [+3.3, +9.1] clustered by conversation) &mdash; <b>69% of the ceiling gap</b>.
         Closed-book scores 1.7%, so almost everything the reader gets right, it gets right
         because the memory layer put it there.
@@ -1016,7 +1016,7 @@ function forest(host, rows){
   var work = [
     ["Harness, tiered store, policies P0/P1", "done", "Three tiers as a lifecycle; routing on eviction. 5,430 lines."],
     ["LoCoMo wired, leak-free evaluation", "done", "The fact_id leak found and pinned by a regression test."],
-    ["Ablation study", "done", "23 configurations; retrieval worth −30.3, scored eviction −5.0."],
+    ["Ablation study", "done", "23 configurations; retrieval worth −31.6, scored eviction −6.4."],
     ["Storage budget — the corrected accounting", "done", "35 configurations. Selection beats compression at every S."],
     ["Significance: clustered bootstrap + McNemar", "done", "Six comparisons. One reported as not significant."],
     ["Scaling to 182×, byte accounting, learned scorer", "done", "Rate–distortion crossover falsified; index charged for."],
@@ -1154,10 +1154,10 @@ function forest(host, rows){
     var c = document.getElementById("metricCallout");
     if (METRIC === "strict"){
       c.innerHTML = "<span class='lbl'>Read this switch carefully</span>" +
-        "On <b>evidence recall</b>, compression (P1-A) now appears to win — by +12.9 points at " +
+        "On <b>evidence recall</b>, compression (P1-A) now appears to win — by +15.0 points at " +
         "S = 8192. It does not. A demoted gist keeps the evidence <em>ids</em> of a turn whose text " +
         "it has thrown away, and evidence recall credits the pointer. Switch back to answer recall, " +
-        "which checks the content, and the same policy <b>loses 6.9 points</b>. " +
+        "which checks the content, and the same policy <b>loses 3.4 points</b>. " +
         "<b>Reporting only this metric would have shown compression winning.</b>";
     } else {
       c.innerHTML = "<span class='lbl'>The finding</span>" +
