@@ -5,6 +5,7 @@
     python3 live_demo.py --llm claude    # answer with Claude (ANTHROPIC_API_KEY)
     python3 live_demo.py --llm hf        # transformers, any OS
     python3 live_demo.py --no-llm        # no model: replies show the context only
+    python3 live_demo.py --scorer heuristic   # the P1 rule scorer instead of the learned one
     python3 live_demo.py --port 9000
 
 Conversations are saved under memgate/chats/ and survive a restart: each one
@@ -419,6 +420,7 @@ class App:
     def full_state(self):
         s = self.session.state()
         s.update(log=self.session.log[-80:], model=self.model.name,
+                 scorer=self.session.policy.scorer.name,
                  backends=backend_info(), chat_id=self.chat["id"],
                  title=self.chat["title"], transcript=self.session.transcript)
         return s
@@ -489,7 +491,14 @@ def main():
                     help="which model answers (default: auto)")
     ap.add_argument("--no-llm", action="store_true",
                     help="run without a chat model (memory still works)")
+    ap.add_argument("--scorer", choices=("learned", "heuristic"),
+                    default=os.environ.get("MEMGATE_SCORER", "learned"),
+                    help="what scores each message: the learned scorer trained on "
+                         "LoCoMo + REALTALK (default), or the P1 rule scorer")
     args = ap.parse_args()
+    # Read by MemGatePolicy when each chat's policy is built. The benchmark
+    # check pins its own scorer, so this does not move the committed numbers.
+    os.environ["MEMGATE_SCORER"] = args.scorer
 
     model = ChatModel("none" if args.no_llm else args.llm)
     print("MemGate")
@@ -497,6 +506,7 @@ def main():
     from memgate.utils import embed
     embed("warm up")
     print(f"  embedder: {backend_info()['embedder']}", flush=True)
+    print(f"  scorer: {MemGatePolicy().scorer.name}", flush=True)
     if model.enabled:
         print(f"  loading {model.name} ...", flush=True)
         try:

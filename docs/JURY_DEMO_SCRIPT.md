@@ -1,8 +1,14 @@
 # MemGate: jury demo script
 
-About 6 minutes, plus questions. It assumes all three PRs (chat app, scorer
-fix, Review 2 docs) are merged. Every score and decision below was checked by
-replaying these exact messages through the merged code.
+About 6 minutes, plus questions. It assumes all four PRs are merged: the chat
+app, the scorer fix, the Review 2 docs, and the learned scorer. Every score
+and decision below was checked by replaying these exact messages through the
+merged code.
+
+The app scores messages with the **learned scorer** by default. It was
+trained on LoCoMo plus REALTALK and is the one the app reports in the sidebar
+as `P3-learned`. To demo the hand-written P1 rules instead, start the app with
+`--scorer heuristic`.
 
 ## Before the jury walks in
 
@@ -11,8 +17,9 @@ replaying these exact messages through the merged code.
    cd MemGate/memgate && source .venv/bin/activate
    python3 live_demo.py
    ```
-   Open `http://localhost:8765` and make sure the terminal shows the
-   embedder as `all-MiniLM-L6-v2`, not `hash-bow`.
+   Open `http://localhost:8765` and make sure the terminal shows
+   `embedder: all-MiniLM-L6-v2` (not `hash-bow`) and `scorer: P3-learned`.
+   The learned scorer needs MiniLM; without it the app falls back to P1.
 2. In the left sidebar set **Sizes → Demo (evicts quickly)** and
    **Memory → P1-S · forget lowest score first**. Changing either starts a
    fresh chat, which is what you want.
@@ -56,13 +63,14 @@ preference.
 
 Open **Memory**, then **Decisions**. Point at three things:
 
-* **Small talk was forgotten first.** "Hi!", "ok thanks", "You're welcome!"
-  and "Sure." all scored about **u = 0.02**. Once the store went over its
-  budget (S = 150 tokens), they were the first to go: *store over budget:
-  lowest-score fact forgotten*.
-* **The facts stayed.** The review date (u = 0.80), the deadline correction
-  (u = 0.90), the name (u = 0.45) and the NMIMS-template preference
-  (u = 0.15) are all still in **Tiers → Tier 3**.
+* **Small talk was forgotten first.** "You're welcome!" (u = 0.01), "ok
+  thanks" (0.09), "Nice to meet you" (0.14), "Hi!" (0.19) and "Hello! How
+  can I help you today?" (0.28) were the five forgotten. Once the store went
+  over its budget (S = 150 tokens), the lowest score went first each time:
+  *store over budget: lowest-score fact forgotten*.
+* **The facts stayed.** The review date (u = 0.99), the deadline correction
+  (0.97), the name (0.96) and the NMIMS-template preference (0.76) are all
+  still in **Tiers → Tier 3**.
 * **The old deadline was retired.** The last decision on the list says the
   assistant's "Got it: report due 2 November" was *superseded: a newer fact
   about the same thing replaced it, and its space was reclaimed*. It is no
@@ -71,9 +79,12 @@ Open **Memory**, then **Decisions**. Point at three things:
 Then ask: `When is my report due?` The answer should be **4 November**.
 
 **Say:** "This is the headline policy, P1-S. When storage is full it forgets
-the lowest-scored messages first, instead of the oldest. On the LoCoMo
-benchmark, at the same storage, that is worth **+9.4 answer-recall points**
-over forgetting oldest-first."
+the lowest-scored messages first, instead of the oldest. The scores come from
+a small model trained on 20 real and generated conversations. With our
+hand-written rules, this policy beats forgetting oldest-first by **+9.4
+answer-recall points** on LoCoMo. With the learned scorer, on conversations
+it never trained on, it is **+14.6 points better again**: 52.0% against
+37.5%."
 
 ## 4. Why we don't compress (1 min)
 
@@ -109,7 +120,12 @@ Expected result:
 
 **Say:** "These are the slide 11 and 12 numbers, recomputed live from the raw
 benchmark. The 95% interval, clustered by conversation, is +5.4 to +14.9,
-p = 2.8 × 10⁻⁵."
+p = 2.8 × 10⁻⁵. This check uses the hand-written P1 rules on purpose,
+because that is what the slides report."
+
+If asked why it isn't the learned scorer: its 52.0% comes from a different
+protocol (each conversation scored by a model that never saw it), in
+`docs/SCORER_TRANSFER.md`.
 
 Switch to the dashboard tab if they want the other experiments.
 
@@ -127,11 +143,13 @@ they see their own messages being scored.
   every experiment was re-run. The learned scorer's lead over the
   hand-written one shrank from +5.2 to +2.7 points, because part of that lead
   was the bug."
-* **"Does it work on other data?"** "Not yet. On LongMemEval, which has long
+* **"Does it work on other data?"** "Partly. On LongMemEval, which has long
   prose turns, the hand-written scorer ranks evidence *below* other turns, so
-  selection loses to FIFO by 21 points (measured before the scorer fix; that
-  run is still to be repeated). The mechanism is fine; the scorer doesn't
-  transfer. A scorer that transfers is our remaining work."
+  selection lost to FIFO by 21 points (measured before the scorer fix). So we
+  trained a scorer on LoCoMo plus REALTALK, which is real people chatting.
+  On LoCoMo conversations it never saw, it beats the rules by +14.6 points.
+  On REALTALK it is +3.8 ahead, but with only 160 questions that isn't
+  significant. LongMemEval with the learned scorer is still to be run."
 * **"Why not just store everything?"** "With storage capped, which is the
   realistic case, storing everything means forgetting oldest-first. That is
   the RAG row in the benchmark check."

@@ -82,6 +82,7 @@ For the review, follow `docs/JURY_DEMO_SCRIPT.md`. Pick
 |---|---|
 | `--llm auto\|mlx\|hf\|claude\|none` | Which model answers. `auto` tries mlx, then transformers. Also settable as `MEMGATE_LLM`. |
 | `--no-llm` | No model. Memory still works; replies show what the model would see. |
+| `--scorer learned\|heuristic` | What scores each message. `learned` (default) is the scorer trained on LoCoMo + REALTALK; `heuristic` is the P1 rules. Also settable as `MEMGATE_SCORER`. |
 | `--port 9000` | Use another port if 8765 is taken. |
 | `--host 0.0.0.0` | Let other devices on the same network open it (e.g. a projector PC). |
 | `MEMGATE_CLAUDE_MODEL` | Claude model id (default `claude-opus-5-5`). |
