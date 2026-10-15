@@ -7,6 +7,8 @@ memgate/data/locomo/
 # from xiaowu0162/LongMemEval. The 265 MB file exceeds GitHub's per-file
 # limit on its own; both are downloaded artefacts, same as locomo/ above.
 memgate/data/longmemeval/
+# REALTALK Chat_*.json (10 files, 3.2 MB), from danny911kr/REALTALK data/.
+memgate/data/realtalk/
 
 # Results are committed: a reviewer should see fig1-fig5 and every number
 # REPORT.md cites without a 9-minute LoCoMo run. The judge/reader CACHES are

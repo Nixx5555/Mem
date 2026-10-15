@@ -54,16 +54,21 @@ RESULTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
 CONTEXT_BUDGET = 2048
 
 
-def build_xy(turns, questions, use_embedding):
-    """Feature matrix and evidence labels for one conversation."""
+def build_xy(turns, questions, use_embedding, message_only=False):
+    """Feature matrix and evidence labels for one conversation.
+
+    By default features see "[speaker] text", the string the policy hands the
+    scorer at inference. message_only=True drops the tag on both sides (see
+    MessageOnly in train_transfer.py)."""
     cited = set()
     for q in questions:
         cited.update(q.evidence_ids)
     X, y = [], []
     for t in turns:
-        f = features(f"[{t.speaker}] {t.text}", t.speaker)
+        text = t.text if message_only else f"[{t.speaker}] {t.text}"
+        f = features(text, t.speaker)
         if use_embedding:
-            f = list(f) + list(embed(f"[{t.speaker}] {t.text}"))
+            f = list(f) + list(embed(text))
         X.append(f)
         y.append(1 if t.fact_id in cited else 0)
     return np.asarray(X, dtype=np.float32), np.asarray(y, dtype=np.int8)

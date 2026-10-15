@@ -17,6 +17,7 @@ from .utils import count_tokens, embed, cosine
 from .compress import compress
 from .store import ThreeTierStore
 from .scoring import HeuristicScorer
+from .pretrained import default_scorer
 
 
 def _pack(items: List[MemoryItem], budget: int) -> ContextBundle:
@@ -332,7 +333,7 @@ class MemGatePolicy:
         # stored tokens on a 16384-token allowance.
         if write_mode == "adaptive" and store_budget is not None:
             working_capacity_tokens = max(64, int(store_budget * 0.5))
-        self.scorer = scorer or HeuristicScorer()
+        self.scorer = scorer or default_scorer()
         self.store = ThreeTierStore(short_capacity, working_capacity_tokens,
                                     promote_threshold=promote_threshold,
                                     supersede_threshold=supersede_threshold,

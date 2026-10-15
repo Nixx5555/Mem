@@ -393,6 +393,41 @@ try:
 except ImportError:
     print("  SKIP  sklearn not installed")
 
+print("\n-- REALTALK evidence and the scorer's input string --")
+from memgate.data import _realtalk_evidence
+check("REALTALK evidence ranges, separators and dots normalise",
+      _realtalk_evidence(["D12:3-D12:5", "D11:17; D16:1", "D5:3.", "D13:4. D14:4"])
+      == ["D12:3", "D12:4", "D12:5", "D11:17", "D16:1", "D5:3", "D13:4", "D14:4"])
+check("an unparseable REALTALK id is kept so the question is dropped",
+      _realtalk_evidence(["D13:45:D20:19"]) == ["D13:45:D20:19"])
+from train_transfer import MessageOnly
+_h = HeuristicScorer()
+check("MessageOnly scores the message, not the [speaker] tag",
+      MessageOnly(_h).score("[Maria] ok thanks", "Maria")
+      == _h.score("ok thanks", "Maria"))
+check("P1 itself now ignores the [speaker] tag",
+      _h.score("[Maria] ok thanks", "Maria") == _h.score("ok thanks", "Maria"))
+
+print("\n-- shipped learned scorer (MEMGATE_SCORER) --")
+import os as _os2
+from memgate.pretrained import load_learned, default_scorer
+check("the library default stays P1 when MEMGATE_SCORER is unset",
+      _os2.environ.get("MEMGATE_SCORER") is not None
+      or isinstance(default_scorer(), HeuristicScorer))
+_shipped = load_learned()
+if _shipped is None:
+    print("  SKIP  shipped scorer not loadable here (needs MiniLM)")
+else:
+    _hi = _shipped.score("[Caroline] I start my new job at the hospital on 3 March.")[0]
+    _lo = _shipped.score("[Melanie] haha yeah totally")[0]
+    check("shipped scorer ranks a dated plan above chit-chat", _hi > _lo,
+          f"{_hi:.3f} vs {_lo:.3f}")
+    check("shipped scorer is label-blind at inference",
+          _tier_fingerprint(turns, scorer=_shipped, store_budget=600,
+                            write_mode="adaptive")
+          == _tier_fingerprint(blind, scorer=_shipped, store_budget=600,
+                               write_mode="adaptive"))
+
 print("\n-- offline reproducibility --")
 # A run that can silently fetch a model is a run whose inputs are not pinned,
 # and this project has already lost a results table to a half-downloaded
