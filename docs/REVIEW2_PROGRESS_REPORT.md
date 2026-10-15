@@ -12,7 +12,7 @@
 | **Report date** | October 2026 (first issued 8 September 2026) |
 | **Covers** | Review 1 (25 July 2026) → present |
 | **Working sessions** | 12, 17, 24, 27 August; 17, 25–26, 29 September 2026 |
-| **Repository state** | branch `endtask-full-run`, 71 tests passing, ~7,400 lines of Python in `memgate/` |
+| **Repository state** | branch `endtask-full-run`, 78 tests passing, ~8,200 lines of Python in `memgate/` |
 | **Companion documents** | `REPORT.md` (paper-ready writeup) · `SESSION_RECORD.md` (full working record) · `frontend/index.html` (interactive results dashboard) |
 
 ---
@@ -27,7 +27,7 @@ itself to the test on a second benchmark, and it does not replicate (§4.8).
 
 | Workstream | State | Evidence |
 |---|---|---|
-| Harness, three-tier store, policies P0/P1 | **Complete** | `memgate/`, ~7,400 lines |
+| Harness, three-tier store, policies P0/P1 | **Complete** | `memgate/`, ~8,200 lines |
 | LoCoMo benchmark wired, evaluation leak removed | **Complete** | `run_locomo.py`, 3 label-blindness tests |
 | Ablation study (23 configurations) | **Complete** | `results/ablations_2048.csv` |
 | Storage budget — the corrected accounting | **Complete** | `results/storage_sweep.csv`, 35 configurations |
@@ -389,7 +389,7 @@ eviction order.
 |---|---|---|---|
 | **Language** | Python | 3.10 | Entire implementation; no framework dependency |
 | | NumPy | — | Vector maths, cosine retrieval, bootstrap resampling |
-| | `dataclasses` | stdlib | Typed records; the 71-test suite (`test_memgate.py`, self-contained runner) |
+| | `dataclasses` | stdlib | Typed records; the 78-test suite (`test_memgate.py`, self-contained runner) |
 | **Tokenisation** | `tiktoken` | `cl100k_base` | Exact token accounting — budgets are real tokens, not a word-count proxy |
 | **Embeddings** | `sentence-transformers` | all-MiniLM-L6-v2, 384-d | Retrieval ranking and semantic supersession |
 | | PyTorch | MPS backend | Local inference on Apple silicon |
@@ -471,7 +471,7 @@ Capstone Project/
     ├── run_experiment.py         synthetic sanity set
     ├── diagnose.py               attributes every miss to one swappable component
     ├── make_figures.py           fig1–fig5
-    ├── test_memgate.py           71 tests
+    ├── test_memgate.py           78 tests
     └── results/                  every CSV and figure quoted in this report
 ```
 
@@ -487,7 +487,7 @@ nine-minute benchmark run.
 
 | Guard | What it prevents |
 |---|---|
-| **71 tests** (`test_memgate.py`) | Regression across the store, scorers, policies, compressor and harness |
+| **78 tests** (`test_memgate.py`) | Regression across the store, scorers, policies, compressor and harness |
 | **3 label-blindness invariants** | The §5.1 leak, re-armed. Routing, eviction *and* demotion must produce a bit-identical store when every evaluation label is stripped |
 | **Offline pinning** on import | A silently fetched or half-downloaded model relabelling a whole results table — this already happened once, with MiniLM |
 | **Backend provenance** (`backend_info()`) | Reporting a MiniLM number that was actually produced by the hashed bag-of-words fallback |
@@ -533,7 +533,7 @@ Stated in full, because each one bounds a claim above.
 | 2 | ~~LongMemEval~~ | **Done** (§4.8). The headline does not replicate; the scorer's evidence separation reverses sign | completed 29 September 2026 | ✅ |
 | 3 | ~~Abstractive compression~~ | **Done** (§4.9). +4.1 over extractive; still 2.7 behind dropping | completed 29 September 2026 | ✅ |
 | 4 | ~~Online learning of the eviction policy~~ | **Done** (§4.10). Parity with the heuristic, without labels | completed 29 September 2026 | ✅ |
-| 5 | **A scorer that transfers across corpora** | The critical path: every other track is closed. First try: P4 online, re-learning per corpus, run on LongMemEval | — | final review |
+| 5 | **A scorer that transfers across corpora** | The critical path. Started: a scorer trained on LoCoMo + REALTALK beats P1 by +14.6 answer points on held-out LoCoMo, +3.8 (n.s.) on REALTALK (`docs/SCORER_TRANSFER.md`). Still to run: LongMemEval | — | final review |
 | 6 | **A larger summariser** | Whether a bigger model closes the last 2.7 points to dropping | 1 session | final review |
 | 7 | **A second reader model** | Separates the memory layer from this one reader | 1 session | final review |
 | 8 | **Final report and defence** | — | — | final review |
@@ -570,7 +570,7 @@ not the one you think you are making.**
 
 ```bash
 cd memgate
-python3 test_memgate.py          # 71 tests
+python3 test_memgate.py          # 78 tests
 python3 run_locomo.py            # context-budget frontier
 python3 run_storage_sweep.py     # §4.1 storage budget
 python3 run_significance.py      # §4.2 bootstrap + McNemar

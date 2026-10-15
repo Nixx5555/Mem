@@ -903,7 +903,7 @@ top = head(sl, "Verification and engineering discipline",
            "Each guard exists because the failure it prevents already happened once.")
 table(sl, [
     ["Guard", "What it prevents"],
-    ["71 tests (test_memgate.py)", "Regression across the store, scorers, policies, compressor and harness"],
+    ["78 tests (test_memgate.py)", "Regression across the store, scorers, policies, compressor and harness"],
     ["*3 label-blindness invariants*",
      "*The evaluation leak, re-armed. Routing, eviction and demotion must produce a bit-identical "
      "store when every evaluation label is stripped*"],
@@ -934,7 +934,7 @@ bullets(sl, [
     ("SESSION_RECORD.md ", "— the complete working record, §1–§33, written to be picked up cold."),
     ("frontend/index.html ", "— an interactive results dashboard. Every figure on it is read "
      "from the committed CSVs by frontend/build_data.py; nothing is typed by hand."),
-    ("memgate/ ", "— ~6,500 lines of Python: the library, 17 runnable experiments, 71 tests."),
+    ("memgate/ ", "— ~8,200 lines of Python: the library, 17 runnable experiments, 78 tests."),
     ("paper/main.pdf ", "— the IEEE conference paper, 6 pages, compiled from paper/main.tex with "
      "every table generated from the committed CSVs."),
     ("memgate/results/ ", "— every CSV and every figure quoted in this deck, committed alongside "
@@ -1169,7 +1169,7 @@ layout = """Capstone Project/
     make_figures.py               fig1–fig5
     run_longmemeval.py            LongMemEval, swept by store budget
     run_lme_split.py              the §30.4 recency-confound control
-    test_memgate.py               71 tests
+    test_memgate.py               78 tests
     results/                      every CSV and figure quoted in this deck"""
 for i, line in enumerate(layout.split("\n")):
     p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()

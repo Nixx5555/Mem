@@ -20,7 +20,7 @@ See `../REPORT.md` for the paper-ready writeup.
 
 ```bash
 cd memgate
-python3 test_memgate.py           # 71 tests
+python3 test_memgate.py           # 78 tests
 python3 run_locomo.py             # LoCoMo — the real benchmark
 python3 run_storage_sweep.py      # the storage-budget frontier (§23)
 python3 run_experiment.py         # synthetic sanity set
@@ -329,7 +329,7 @@ memgate/
   run_ablations.py     component attribution
   run_experiment.py    synthetic sanity set
   diagnose.py          miss analysis by cause
-  test_memgate.py      71 tests
+  test_memgate.py      78 tests
   data/locomo/         locomo10.json (2.7 MB)
   models/              vendored all-MiniLM-L6-v2
 ```

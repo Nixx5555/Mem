@@ -577,7 +577,7 @@ not the one you think you are making.
 
 ```bash
 cd memgate
-python3 test_memgate.py          # 71 tests
+python3 test_memgate.py          # 78 tests
 python3 run_locomo.py            # context-budget frontier
 python3 run_storage_sweep.py     # §3.2 storage budget
 python3 run_scaling.py           # §3.4 compression ratio to 182x

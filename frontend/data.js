@@ -3,9 +3,9 @@
 window.MEMGATE = {
  "meta": {
   "generated": "2026-10-15",
-  "commit": "5de4574",
-  "loc": 7474,
-  "tests": 71,
+  "commit": "d776326",
+  "loc": 8247,
+  "tests": 78,
   "turns": 5882,
   "questions": 1527,
   "answerable": 715,

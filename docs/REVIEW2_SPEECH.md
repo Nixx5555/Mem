@@ -357,7 +357,7 @@ affordable to re-run after every change.
 Every guard on this slide exists because the failure it prevents already
 happened once.
 
-There are 68 regression tests, plus three label-blindness checks that re-run
+There are 78 regression tests, plus three label-blindness checks that re-run
 the leak test whenever we add a decision point. Offline pinning stops a
 half-downloaded model from silently relabelling a results table; that
 happened once with MiniLM. Then there is provenance logging, the NaN guard,

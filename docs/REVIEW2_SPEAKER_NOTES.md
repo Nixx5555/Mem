@@ -718,7 +718,7 @@ because it brings its own retrieval and its own prompt assembly."
 **Say.** "Seven guards, and each exists because the failure it prevents already
 happened to us once.
 
-71 tests. Three of them are label-blindness invariants — strip every evaluation
+78 tests. Three of them are label-blindness invariants — strip every evaluation
 label and the store must come out bit-identical. That's the leak, re-armed.
 
 Offline pinning on import, because a run that can silently fetch a model is a
