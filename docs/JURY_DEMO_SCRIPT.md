@@ -12,15 +12,14 @@ as `P3-learned`. To demo the hand-written P1 rules instead, start the app with
 
 ## Before the jury walks in
 
-1. Start the app and leave it running (`docs/RUN_FOR_JURY.md` has the setup):
+1. Start the app and leave it running (`docs/RUNNING.md` has the setup):
    ```bash
-   cd MemGate/memgate && source .venv/bin/activate
-   python3 live_demo.py
+   cd MemGate && ./start.sh        # Windows: start.bat
    ```
    Open `http://localhost:8765` and make sure the terminal shows
    `embedder: all-MiniLM-L6-v2` (not `hash-bow`) and `scorer: P3-learned`.
    The learned scorer needs MiniLM; without it the app falls back to P1.
-2. In the left sidebar set **Sizes → Demo (evicts quickly)** and
+2. In the left sidebar set **Sizes → Compact (forgets quickly)** and
    **Memory → P1-S · forget lowest score first**. Changing either starts a
    fresh chat, which is what you want.
 3. Open `MemGate/frontend/index.html` in a second browser tab (the results
@@ -57,7 +56,7 @@ model takes 8 November."
 
 ## 3. Watch it decide (2 min)
 
-**Click** **＋ New chat** (still Demo sizes, P1-S), then **Load sample chat**.
+**Click** **＋ New chat** (still Compact sizes, P1-S), then **Load sample chat**.
 This is 18 messages: greetings, small talk, a deadline, a correction, and a
 preference.
 
@@ -161,7 +160,7 @@ they see their own messages being scored.
 
 ## If something breaks
 
-* **The model doesn't reply:** restart with `python3 live_demo.py --no-llm`.
+* **The model doesn't reply:** restart with `./start.sh --no-llm`.
   Steps 2–5 still work: the reply then shows what the model *would* see.
 * **Benchmark says DIFFERS:** check the embedder in the top-right info line.
   If it says `hash-bow`, MiniLM didn't load; restart.

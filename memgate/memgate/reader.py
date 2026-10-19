@@ -4,9 +4,10 @@ The model only ever sees the memory notes MemGate assembled plus the current
 message, never the raw history. That is the point of the system, so every
 backend here takes the same two strings.
 
-Backends, chosen with MEMGATE_LLM or `live_demo.py --llm`:
+Backends, chosen with MEMGATE_LLM or `app.py --llm`:
 
-    auto    mlx on an Apple-silicon Mac, else transformers, else none
+    auto    Claude when ANTHROPIC_API_KEY is set (setup can save it in .env),
+            else mlx on an Apple-silicon Mac, else transformers, else none
     mlx     mlx_lm, the reader the end-task run used (Apple silicon only)
     hf      transformers on CPU/GPU, any OS
     claude  the Anthropic API; needs ANTHROPIC_API_KEY and internet
@@ -22,8 +23,9 @@ import threading
 SYSTEM = ("You are a helpful assistant in a long-running chat. You do not see "
           "the conversation history. You only see the memory notes below, "
           "which a memory system selected for this message. Use them to "
-          "answer. If the notes do not contain what is asked, say you don't "
-          "remember it. Keep replies short: one or two sentences.")
+          "answer, and reply naturally to everything else. If the user asks "
+          "about something the notes do not contain, say you don't remember "
+          "it rather than guessing.")
 
 BACKENDS = ("auto", "mlx", "hf", "claude", "none")
 
@@ -49,11 +51,38 @@ def resolve(backend):
         raise ValueError(f"unknown model backend {backend!r}; one of {BACKENDS}")
     if backend != "auto":
         return backend
+    if _importable("anthropic") and _has_key():
+        return "claude"
+    return _local() or "none"
+
+
+def _has_key():
+    return bool(os.environ.get("ANTHROPIC_API_KEY")
+                or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+
+
+def _local(ready_only=False):
+    """The local backend this laptop can run, or None. With ready_only, only
+    one whose weights are already downloaded (so it needs no internet)."""
     if _apple_silicon() and _importable("mlx_lm"):
-        return "mlx"
+        if not ready_only or _mlx_ready():
+            return "mlx"
     if _importable("transformers") and _importable("torch"):
-        return "hf"
-    return "none"
+        if not ready_only or _hf_ready():
+            return "hf"
+    return None
+
+
+def _mlx_ready():
+    from memgate.llm_judge import LOCAL_CANDIDATES
+    return any(os.path.isfile(os.path.join(_MODELS_DIR, n, "config.json"))
+               for n in LOCAL_CANDIDATES)
+
+
+def _hf_ready():
+    """A local Qwen copy is downloaded (so `hf` won't need the internet)."""
+    return any(os.path.isfile(os.path.join(_MODELS_DIR, n, "config.json"))
+               for n in HF_LOCAL)
 
 
 def _hf_path():
@@ -62,6 +91,17 @@ def _hf_path():
         if os.path.isfile(os.path.join(d, "config.json")):
             return d
     return os.environ.get("MEMGATE_HF_MODEL", HF_HUB)
+
+
+def _path_for(backend):
+    if backend == "mlx":
+        from memgate.llm_judge import default_model
+        return default_model()
+    if backend == "hf":
+        return os.environ.get("MEMGATE_HF_MODEL") or _hf_path()
+    if backend == "claude":
+        return os.environ.get("MEMGATE_CLAUDE_MODEL", CLAUDE_MODEL)
+    return None
 
 
 def _prompt(notes, message):
@@ -75,15 +115,20 @@ class ChatModel:
         self.backend = resolve(backend)
         self.lock = threading.Lock()
         self._model = self._tok = self._client = None
-        if self.backend == "mlx":
-            from memgate.llm_judge import default_model
-            self.path = default_model()
-        elif self.backend == "hf":
-            self.path = os.environ.get("MEMGATE_HF_MODEL") or _hf_path()
-        elif self.backend == "claude":
-            self.path = os.environ.get("MEMGATE_CLAUDE_MODEL", CLAUDE_MODEL)
-        else:
-            self.path = None
+        self.path = _path_for(self.backend)
+        # Claude needs the internet. If it fails mid-chat (no Wi-Fi at the
+        # venue, an expired key), answer with the downloaded local model
+        # instead of showing an error.
+        self.fallback = (_local(ready_only=True)
+                         if self.backend == "claude" else None)
+        self.note = None        # why the backend changed, for the page
+
+    def _fall_back(self, exc):
+        why = f"{type(exc).__name__}: {str(exc)[:120]}"
+        self.backend, self.path = self.fallback, _path_for(self.fallback)
+        self.fallback, self._client = None, None
+        self.note = f"Claude failed ({why}); switched to the local model"
+        print(f"  [MemGate] {self.note}", flush=True)
 
     @property
     def enabled(self):
@@ -121,33 +166,50 @@ class ChatModel:
         if not self.enabled:
             return "(no model loaded: the context panel shows what it would see)"
         with self.lock:
-            self.load()
-            msgs = _prompt(notes, message)
-            if self.backend == "mlx":
-                from mlx_lm import generate
-                prompt = self._tok.apply_chat_template(
-                    msgs, tokenize=False, add_generation_prompt=True)
-                out = generate(self._model, self._tok, prompt=prompt,
-                               max_tokens=200, verbose=False)
-            elif self.backend == "hf":
-                import torch
-                ids = self._tok.apply_chat_template(
-                    msgs, add_generation_prompt=True, return_tensors="pt")
-                with torch.no_grad():
-                    gen = self._model.generate(ids, max_new_tokens=200,
-                                               do_sample=False)
-                out = self._tok.decode(gen[0, ids.shape[-1]:],
-                                       skip_special_tokens=True)
-            else:
-                # fallbacks="default": a policy decline is retried server-side
-                # on a fallback model instead of returning an empty reply
-                r = self._client.beta.messages.create(
-                    model=self.path, max_tokens=1024, system=SYSTEM,
-                    output_config={"effort": "low"},
-                    betas=["server-side-fallback-2026-07-01"],
-                    fallbacks="default",
-                    messages=msgs[1:])
-                if r.stop_reason == "refusal":
-                    return "(the model declined to answer this message)"
-                out = "".join(b.text for b in r.content if b.type == "text")
-        return " ".join(out.strip().split())
+            try:
+                return self._reply(notes, message)
+            except Exception as exc:
+                if self.backend != "claude":
+                    raise
+                if not self.fallback:
+                    if type(exc).__name__ in ("AuthenticationError",
+                                              "PermissionDeniedError"):
+                        raise RuntimeError(
+                            "Claude rejected the saved API key. Replace it "
+                            "with  python set_key.py  (inside memgate/) and "
+                            "restart.") from exc
+                    raise
+                self._fall_back(exc)
+                return self._reply(notes, message)
+
+    def _reply(self, notes, message):
+        self.load()
+        msgs = _prompt(notes, message)
+        if self.backend == "mlx":
+            from mlx_lm import generate
+            prompt = self._tok.apply_chat_template(
+                msgs, tokenize=False, add_generation_prompt=True)
+            out = generate(self._model, self._tok, prompt=prompt,
+                           max_tokens=512, verbose=False)
+        elif self.backend == "hf":
+            import torch
+            ids = self._tok.apply_chat_template(
+                msgs, add_generation_prompt=True, return_tensors="pt")
+            with torch.no_grad():
+                gen = self._model.generate(ids, max_new_tokens=512,
+                                           do_sample=False)
+            out = self._tok.decode(gen[0, ids.shape[-1]:],
+                                   skip_special_tokens=True)
+        else:
+            # fallbacks="default": a policy decline is retried server-side
+            # on a fallback model instead of returning an empty reply
+            r = self._client.beta.messages.create(
+                model=self.path, max_tokens=1024, system=SYSTEM,
+                output_config={"effort": "low"},
+                betas=["server-side-fallback-2026-07-01"],
+                fallbacks="default",
+                messages=msgs[1:])
+            if r.stop_reason == "refusal":
+                return "(the model declined to answer this message)"
+            out = "".join(b.text for b in r.content if b.type == "text")
+        return out.strip()

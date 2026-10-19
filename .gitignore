@@ -1,6 +1,11 @@
 # Office lock files
 ~$*
 
+# Private settings: the Anthropic key setup saves. Never commit it.
+.env
+.env.*
+!.env.example
+
 # Downloaded artefacts — reproducible, not source. See memgate/README.md.
 # all-MiniLM-L6-v2 (~90 MB) and Qwen2.5-0.5B-Instruct (~942 MB)
 memgate/models/
@@ -43,5 +48,5 @@ memgate/results/endtask_contexts.json
 paper/main.log
 paper/main.blg
 
-# Saved conversations from live_demo.py: personal, not source.
+# Saved conversations from app.py: personal, not source.
 memgate/chats/
