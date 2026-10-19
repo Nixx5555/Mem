@@ -33,6 +33,8 @@ SCALING = load("scaling.csv", ("store_budget", "ratio", "strict", "answer"))
 COST = load("cost_model.csv", ("strict", "answer", "store_budget"))
 JUDGE = load("judge_eval.csv", ("strict", "answer", "vs_p1", "ci_lo", "ci_hi"))
 ABL = load("ablations_2048.csv", ("strict_recall", "delta_pts", "answer_recall"))
+TRANSFER = load("transfer_locomo_realtalk_S4096.csv", ("auc", "strict", "answer"))
+TRANSFER_SIG = load("transfer_sig_locomo_realtalk_S4096.csv", ("delta", "lo", "hi"))
 ENDTASK = load("endtask.csv", ("n", "accuracy", "f1", "answer_recall",
                               "acc_when_present", "n_present",
                               "acc_when_absent", "n_absent"))
@@ -194,6 +196,48 @@ for rank, ratio in enumerate(sorted({r["ratio"] for r in SCALING
 write("scaling.tex", r"""\begin{tabular}{@{}rrrrr@{}}
 \toprule
 Ratio & RAG & P1-A & P1-S & P1-S $-$ P1-A \\
+\midrule
+""" + "\n".join(rows) + r"""
+\bottomrule
+\end{tabular}""")
+
+# ---------------------------------------------------------------- Table IX
+# The learned scorer across two corpora. Hand features + MiniLM, S = 4096; each
+# held-out conversation is scored by a model that never saw it. "Same corpus"
+# is the old leave-one-conversation-out protocol, "other corpus" is strict
+# transfer, "pooled" is every other conversation of both corpora (the shipped
+# scorer's recipe).
+tlabel = {"rag": "RAG (FIFO, no scorer)", "heuristic": "P1 heuristic",
+          "in-corpus": "P3, same corpus", "cross": "P3, other corpus only",
+          "pooled": "P3, pooled (shipped)"}
+cname = {"locomo": "LoCoMo", "realtalk": "REALTALK"}
+rows = []
+for corpus in ("locomo", "realtalk"):
+    sub = [r for r in TRANSFER if r["test_corpus"] == corpus]
+    n_ans = int(sub[0]["n_answer"])
+    rows.append("\\multicolumn{6}{@{}l}{\\emph{%s} (%d answer-recoverable questions)}%s"
+                % (cname[corpus], n_ans, EOL))
+    for sc in ("rag", "heuristic", "in-corpus", "cross", "pooled"):
+        feats = "hand" if sc == "rag" else "hand+MiniLM"
+        r = [x for x in sub if x["scorer"] == sc and x["features"] == feats][0]
+        auc = "--" if r["auc"] != r["auc"] else "%.3f" % r["auc"]   # nan for RAG
+        if sc in ("rag", "heuristic"):
+            delta, ci = "---", "---"
+        else:
+            g = [x for x in TRANSFER_SIG if x["test_corpus"] == corpus
+                 and x["features"] == "hand+MiniLM" and x["a"] == sc
+                 and x["b"] == "heuristic" and x["metric"] == "answer"][0]
+            ns = g["lo"] <= 0 <= g["hi"]
+            delta = "$%+.2f$" % g["delta"]
+            if not ns:
+                delta = "\\textbf{%s}" % delta
+            ci = "$[%s,\\, %s]$" % tuple(
+                "0.00" if abs(v) < 0.005 else "%+.2f" % v for v in (g["lo"], g["hi"]))
+        rows.append("\\quad %s & %s & %.1f & %.1f & %s & %s%s"
+                    % (tlabel[sc], auc, r["strict"], r["answer"], delta, ci, EOL))
+write("transfer.tex", r"""\begin{tabular}{@{}lrrrrc@{}}
+\toprule
+Scorer (trained on) & AUC & Evid. & Ans. & $\Delta$ vs.\ P1 & 95\% CI \\
 \midrule
 """ + "\n".join(rows) + r"""
 \bottomrule

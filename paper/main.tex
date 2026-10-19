@@ -51,11 +51,16 @@ of selection narrows. Charging the budget for the embedding index, which is
 normally left out, reverses the ranking below about 40\,KiB, where a policy
 that stores no index at all performs best. Finally, an LLM-judged salience
 scorer performs worse than a regular-expression heuristic by $5.87$ points,
-with the confidence interval excluding zero. Through a fixed local reader over
+with the confidence interval excluding zero, whereas a logistic scorer over
+shallow features and a sentence embedding, trained on LoCoMo and on REALTALK
+conversations between real people, beats the heuristic by $+14.55$ points on
+held-out LoCoMo conversations (95\% CI $[+10.40, +19.70]$); on REALTALK its
+gain is not significant. Through a fixed local reader over
 all 715 answer-recoverable questions, $+6.0$ points of the selection advantage
 convert into correct answers (95\% CI $[+3.3, +9.1]$), which is 69\% of the
-recall gap in that run. We also report three measurement errors that changed our own
-results, each found by an invariant rather than by inspection.
+recall gap in that run. We release the policy as a working chat application
+that runs offline on a laptop, and report three measurement errors that
+changed our own results, each found by an invariant rather than by inspection.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -111,12 +116,17 @@ accounting: the embedding index outweighs the text it indexes by about
 $12\times$ and reverses the policy ranking below roughly 40\,KiB
 (Section~\ref{sec:bytes}). (5)~A negative result for LLM-judged salience --- as
 a single-component swap, a 0.5B judge loses to a hand-written heuristic by
-$5.87$ points (Section~\ref{sec:scorer}). (6)~An end-task evaluation through a
+$5.87$ points (Section~\ref{sec:scorer}). (6)~A learned scorer trained on two
+corpora, one LLM-generated and one written by people, with the direction in
+which it transfers and the direction in which it does not
+(Section~\ref{sec:transfer}). (7)~An end-task evaluation through a
 fixed reader, measuring how much of the recall advantage becomes correct
-answers (Section~\ref{sec:endtask}). (7)~Three measurement errors in our own
-results, with the checks that caught them (Section~\ref{sec:threats}).
+answers (Section~\ref{sec:endtask}). (8)~A working application built on the
+same code paths as the experiments (Section~\ref{sec:system}). (9)~Three
+measurement errors in our own results, with the checks that caught them
+(Section~\ref{sec:threats}).
 
-Four of these seven results are negative or corrective. We consider this a useful
+Four of these nine results are negative or corrective. We consider this a useful
 outcome. Described only as a three-tier memory layer, the system would
 duplicate work that has already been done; measured against controls, it
 indicates which parts of that design actually pay for themselves.
@@ -149,7 +159,10 @@ LoCoMo \cite{maharana2024locomo} supplies multi-session dialogues annotated
 with gold evidence turn identifiers, which is what lets a retrieval-level
 metric be computed without a generative model; LongMemEval
 \cite{wu2024longmemeval} isolates several memory abilities and is the source of
-the gap quoted above. We propose neither a new architecture nor a new
+the gap quoted above. REALTALK \cite{lee2025realtalk} applies LoCoMo's
+annotation schema to 21 days of messaging between real people, which makes it
+the natural test of whether a scorer fitted on LoCoMo learned what matters or
+only what LLM-generated dialogue looks like. We propose neither a new architecture nor a new
 benchmark: the contribution is a measurement protocol and its results,
 including a case where correcting the protocol reverses the conclusion.
 
@@ -182,7 +195,7 @@ decision point separable, since it gives a single site in the pipeline that a
 controlled swap can target.
 
 \subsection{Policies}
-The arms are P0 (sliding window, recency, verbatim), RAG (store-all, FIFO, verbatim), P1 (threshold, scored at ingest), P1-A (adaptive: score orders eviction, compress), P1-S (select: score orders eviction, drop), P2 (0.5B judge), P3 (learned, cross-validated) and an oracle. Two require comment. RAG is the
+The arms are P0 (sliding window, recency, verbatim), RAG (store-all, FIFO, verbatim), P1 (threshold, scored at ingest), P1-A (adaptive: score orders eviction, compress), P1-S (select: score orders eviction, drop), P2 (0.5B judge), P3 (learned, never fitted on the conversation it scores) and an oracle. Two require comment. RAG is the
 no-policy control: it stores everything, retrieves the top $k$ items, and
 evicts FIFO when the store is full. It is not a weak baseline but the arm that
 a decision policy has to beat in order to have contributed anything. P0 is
@@ -425,18 +438,70 @@ isolation, and salience is not a property of a turn considered alone: a phone
 number matters because a later turn asks for it. The fitted scorer sees the
 same isolated text but absorbs corpus-level base rates a per-turn prompt cannot
 convey --- its strongest single feature is turn length, ahead of every
-hand-designed cue. It is an upper bound rather than a deployable component,
-since a live agent has no future questions to fit against.
+hand-designed cue. Under leave-one-conversation-out it never sees the
+questions of the conversation it scores, so it is deployable in the way any
+supervised component is: fitted offline on labelled conversations, then
+applied to new ones. What this does not establish is that the base rates it
+absorbs carry over to a different kind of conversation, which
+Section~\ref{sec:transfer} tests.
 
 \begin{table}[t]
 \caption{Single-component scorer swap at $S=4096$ with context 2048. Policy,
-retrieval and compression are fixed and only the scorer varies. P3 is an upper
-bound rather than a deployable component. Pre-fix run
-(Section~\ref{sec:threats}).}
+retrieval and compression are fixed and only the scorer varies. P3 is fitted
+on the other nine conversations. Pre-fix run (Section~\ref{sec:threats}).}
 \label{tab:scorers}
 \centering
 \small
 \resizebox{\columnwidth}{!}{\input{tables/scorers}}
+\end{table}
+
+\subsection{A learned scorer across two corpora}
+\label{sec:transfer}
+
+LoCoMo's dialogues are generated by an LLM, so a scorer fitted to them may
+learn the generator's style rather than what people later ask about. We test
+this on REALTALK \cite{lee2025realtalk}: ten conversations between real people
+over 21 days, 8{,}944 turns and 660 questions with turn-level evidence in
+LoCoMo's schema, of which 160 are answer-recoverable. The scorer is a logistic
+regression over 15 shallow features of the message (length, digits, dates,
+capitalisation, question and filler cues) concatenated with its 384-dimensional
+MiniLM embedding, labelled by whether any question cites the turn as evidence.
+Every held-out conversation is scored by three models that never saw it:
+trained on the other conversations of the same corpus, on the other corpus
+only, or on all 19 other conversations pooled. Policy, budgets and retrieval
+are those of Section~\ref{sec:selection} with the fixed heuristic
+(Section~\ref{sec:threats}); only the scorer varies.
+
+Table~\ref{tab:transfer} reports the result. On LoCoMo the pooled scorer
+reaches 52.0\% answer recall against the heuristic's 37.5\%, a gain of
+$+14.55$ points, and pooling beats same-corpus training by $+3.36$
+($[+0.27, +6.52]$), so adding a different corpus helped rather than diluted.
+Transfer works in one direction only. Trained on REALTALK alone, the scorer
+still beats the heuristic on LoCoMo by $+9.09$; trained on LoCoMo alone, it
+falls below the heuristic on REALTALK ($-4.38$, n.s.) and is significantly
+worse than same-corpus training there ($-10.62$, $[-18.31, -3.45]$). No gain
+over the heuristic on REALTALK is significant, which with 160 questions in ten
+clusters is a statement about power as much as about the scorer.
+
+The embedding is what carries across. With the hand features alone, the
+pooled scorer is significantly \emph{worse} than the heuristic on REALTALK
+($-8.75$, $[-17.45, -2.27]$): its feature weights encode LoCoMo's style, such
+as long turns ending in a period, which people messaging each other do not
+write. This is the same failure the heuristic shows on LongMemEval
+(Section~\ref{sec:limitations}). Logistic regression was kept after comparing
+it with boosted trees and a 64-unit MLP on the same folds: neither beat it by
+more than the spread between held-out conversations, and the trees were much
+slower both to fit and on the write path.
+
+\begin{table}[t]
+\caption{Learned scorer on held-out conversations of two corpora, hand
+features plus MiniLM, $S=4096$, context 2048. Policy P1-S; only the scorer
+varies. $\Delta$ is answer recall against P1, with 95\% intervals resampled by
+conversation; bold excludes zero.}
+\label{tab:transfer}
+\centering
+\small
+\resizebox{\columnwidth}{!}{\input{tables/transfer}}
 \end{table}
 
 \subsection{End-task accuracy}
@@ -490,6 +555,39 @@ oracle ceiling. The ordering matches the recall ordering, at a lower level.}
 \end{figure}
 
 %% ======================================================================
+\section{From Harness to Application}
+\label{sec:system}
+%% ======================================================================
+
+The policy is also a working system. A chat application wraps a reader model
+in the same \texttt{observe()} and \texttt{build\_context()} calls the
+experiments use: every message, the user's and the model's reply alike, is
+scored and routed when it arrives, and each question is answered from the
+context MemGate assembles, never from the raw history. The default
+configuration runs offline on an 8\,GB laptop with Qwen2.5-1.5B-Instruct as the
+reader; a hosted model can be substituted, or none, in which case the
+application shows the context the reader would have received. The scorer is
+the pooled model of Section~\ref{sec:transfer}, refitted on all 20
+conversations and shipped as 399 coefficients in plain JSON; scoring a message
+with it takes about 0.25\,ms once the embedding is computed, and if the MiniLM embedder is unavailable it falls back to
+the heuristic rather than scoring with the wrong features.
+
+Two properties follow from reusing the experimental code. First, persistence
+is exact: a conversation is saved as its messages and restored by replaying
+them through \texttt{observe()}, which is deterministic, so the tiers after a
+restart are the tiers before it. Second, the application can check itself:
+a built-in benchmark run recomputes the RAG and P1-S arms on all of LoCoMo at
+$S=4096$ on a CPU and compares them with the committed results, reproducing
+28.1\% and 37.5\% exactly. A side panel shows each message's utility $u$, the
+tier it was routed to or the reason it was forgotten, and the exact context
+sent to the reader, so every decision the paper measures in aggregate can be
+inspected one message at a time. The application runs at the experimental
+budgets by default and offers a reduced scale (Tier~1 of four messages, a
+512-token context and $S=150$) under which eviction becomes visible within a
+few messages; these sizes are the only settings that differ from the
+experiments.
+
+%% ======================================================================
 \section{Threats to Validity}
 \label{sec:threats}
 %% ======================================================================
@@ -520,17 +618,22 @@ scored \texttt{NaN} and inverted the eviction order.
 
 A fourth defect was found after the main runs: the heuristic scored each turn
 with its speaker tag, which blocked the filler rule and gave nearly every turn
-the proper-noun bonus. Recall tables use the fixed scorer; the judge, end-task,
-abstractive and LongMemEval runs predate it.
+the proper-noun bonus (5{,}863 of 5{,}882 LoCoMo turns were labelled facts).
+Recall tables and Table~\ref{tab:transfer} use the fixed scorer; the judge,
+end-task, abstractive and LongMemEval runs predate it. The fix moves the
+headline P1-S result from 36.8\% to 37.5\%, and it shrinks the learned
+scorer's lead over the heuristic at $S=2048$ from $+5.2$ to $+2.7$ points,
+because part of that lead was the defect handicapping the heuristic.
 
 %% ======================================================================
 \section{Limitations}
 \label{sec:limitations}
 %% ======================================================================
 
-\emph{Ten conversations.} Clustering by conversation is the correct unit and
-leaves few clusters, so intervals are wide; we report the one effect that does
-not survive as not significant.
+\emph{Few conversations.} Clustering by conversation is the correct unit and
+leaves few clusters, so intervals are wide; we report the effects that do not
+survive as not significant. REALTALK adds ten conversations but only 160
+answer-recoverable questions, too few to resolve most of its differences.
 
 \emph{A single reader model.} Section~\ref{sec:endtask} uses one 1.5B four-bit
 model decoding greedily. We claim the ordering of policies, not the absolute
@@ -554,6 +657,11 @@ LoCoMo's 32, the heuristic's separation between evidence and non-evidence turns
 reversed in sign and scored eviction lost to FIFO. Read the $+9.37$ of
 Section~\ref{sec:selection} as what a policy recovers \emph{given a scorer
 suited to the corpus}, not as a property of scored selection in general.
+The learned scorer of Section~\ref{sec:transfer} has been tested on LoCoMo and
+REALTALK only, and LongMemEval, where the heuristic's sign reversed, remains
+untested with it. Its labels are distant supervision (a turn is positive if
+any question cites it), and that supervision is twice as dense on LoCoMo
+(24\% of turns) as on REALTALK (12\%).
 
 \emph{Single embedder and single judge.} The negative result of
 Section~\ref{sec:scorer} is evidence about a 0.5B model prompted per turn, not
@@ -575,8 +683,12 @@ $7.13$. The crossover at which compression should begin to pay is not reached
 to $182\times$. Charging the budget for the embedding index reverses the
 ranking below about 40\,KiB. An LLM judge, the obvious route to a better
 scorer, loses to a regular expression, for an identifiable reason: salience is
-not a property of a turn in isolation. Through a fixed reader, $+6.0$ of the
-pre-fix $+8.7$ points survive as correct answers.
+not a property of a turn in isolation. A logistic scorer over a sentence
+embedding, trained on LLM-generated and human conversations together, beats
+the heuristic by $+14.55$ points on held-out LoCoMo conversations; it
+transfers from human dialogue to generated dialogue but not the other way.
+Through a fixed reader, $+6.0$ of the pre-fix $+8.7$ points survive as correct
+answers.
 
 The practical recommendation is narrow. Retain a scored subset at full fidelity
 rather than compressing everything, and denominate the budget in bytes with the
@@ -585,12 +697,14 @@ results above changed in sign or in magnitude once a measurement error was
 removed, and none of those errors was visible in the aggregate numbers they
 affected.
 
-Future work is now a single question. A scorer learned online from retrieval
-feedback is already statistically level with the heuristic on LoCoMo, without
-labels or future questions ($-2.94$, n.s.), but the cues it learns --- short turns, no
-sentence-final period --- are the ones LongMemEval inverts. Whether such a
-scorer, allowed to re-learn per corpus, closes the transfer gap is what this
-work leaves open.
+Two questions remain. The pooled scorer's gains on human conversation are
+not yet significant, and it is untested on LongMemEval, where hand-crafted
+cues inverted; more human-written evidence, rather than a larger model, is
+what would settle both. And a scorer learned online from retrieval feedback
+is already statistically level with the heuristic on LoCoMo without labels
+or future questions ($-2.94$, n.s.); whether it can be seeded with the
+pooled scorer and then adapt to each user is the step from a scorer fitted
+to benchmarks to one fitted to the person using the application.
 
 \section*{Acknowledgment}
 The authors thank the faculty of SVKM's NMIMS, Indore Campus, for their
