@@ -70,6 +70,7 @@
   .m.user { justify-content: flex-end; }
   .m.user .body { background: var(--bubble); border-radius: 18px; padding: 9px 15px; max-width: 78%; }
   .m.bot .body { max-width: calc(100% - 42px); padding-top: 3px; }
+  .m .body, .m .txt { white-space: pre-wrap; overflow-wrap: anywhere; }
   .m .meta { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; }
   .chip { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px;
           padding: 2px 9px; background: var(--bg); }
@@ -169,7 +170,7 @@
     <div class="row"><label for="scale">Sizes</label>
       <select id="scale">
         <option value="full">Full (as in experiments)</option>
-        <option value="demo">Demo (evicts quickly)</option>
+        <option value="compact">Compact (forgets quickly)</option>
       </select></div>
     <div class="row" id="sRow"><label for="S">Store S</label><input id="S" type="number" min="40" step="10" value="4096"></div>
     <div class="small">Changing these starts a new chat.</div>
@@ -236,7 +237,7 @@ committed results/storage_sweep.csv. About 20 seconds.</pre>
 
 <script>
 const $ = id => document.getElementById(id);
-const SCALE_S = {full: 4096, demo: 150};
+const SCALE_S = {full: 4096, compact: 150};
 let state = null, seen = new Set(), busy = false, tab = 'tiers', lastCtx = null;
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }

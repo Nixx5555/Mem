@@ -40,5 +40,5 @@ memgate/results/endtask_contexts.json
 paper/main.log
 paper/main.blg
 
-# Saved conversations from live_demo.py: personal, not source.
+# Saved conversations from app.py: personal, not source.
 memgate/chats/

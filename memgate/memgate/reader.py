@@ -4,9 +4,10 @@ The model only ever sees the memory notes MemGate assembled plus the current
 message, never the raw history. That is the point of the system, so every
 backend here takes the same two strings.
 
-Backends, chosen with MEMGATE_LLM or `live_demo.py --llm`:
+Backends, chosen with MEMGATE_LLM or `app.py --llm`:
 
-    auto    mlx on an Apple-silicon Mac, else transformers, else none
+    auto    mlx on an Apple-silicon Mac, else transformers, else Claude if
+            ANTHROPIC_API_KEY is set, else none
     mlx     mlx_lm, the reader the end-task run used (Apple silicon only)
     hf      transformers on CPU/GPU, any OS
     claude  the Anthropic API; needs ANTHROPIC_API_KEY and internet
@@ -22,8 +23,9 @@ import threading
 SYSTEM = ("You are a helpful assistant in a long-running chat. You do not see "
           "the conversation history. You only see the memory notes below, "
           "which a memory system selected for this message. Use them to "
-          "answer. If the notes do not contain what is asked, say you don't "
-          "remember it. Keep replies short: one or two sentences.")
+          "answer, and reply naturally to everything else. If the user asks "
+          "about something the notes do not contain, say you don't remember "
+          "it rather than guessing.")
 
 BACKENDS = ("auto", "mlx", "hf", "claude", "none")
 
@@ -51,9 +53,20 @@ def resolve(backend):
         return backend
     if _apple_silicon() and _importable("mlx_lm"):
         return "mlx"
+    if _importable("transformers") and _importable("torch") and _hf_ready():
+        return "hf"
+    if _importable("anthropic") and (os.environ.get("ANTHROPIC_API_KEY")
+                                     or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
+        return "claude"
     if _importable("transformers") and _importable("torch"):
         return "hf"
     return "none"
+
+
+def _hf_ready():
+    """A local Qwen copy is downloaded (so `hf` won't need the internet)."""
+    return any(os.path.isfile(os.path.join(_MODELS_DIR, n, "config.json"))
+               for n in HF_LOCAL)
 
 
 def _hf_path():
@@ -128,13 +141,13 @@ class ChatModel:
                 prompt = self._tok.apply_chat_template(
                     msgs, tokenize=False, add_generation_prompt=True)
                 out = generate(self._model, self._tok, prompt=prompt,
-                               max_tokens=200, verbose=False)
+                               max_tokens=512, verbose=False)
             elif self.backend == "hf":
                 import torch
                 ids = self._tok.apply_chat_template(
                     msgs, add_generation_prompt=True, return_tensors="pt")
                 with torch.no_grad():
-                    gen = self._model.generate(ids, max_new_tokens=200,
+                    gen = self._model.generate(ids, max_new_tokens=512,
                                                do_sample=False)
                 out = self._tok.decode(gen[0, ids.shape[-1]:],
                                        skip_special_tokens=True)
@@ -150,4 +163,4 @@ class ChatModel:
                 if r.stop_reason == "refusal":
                     return "(the model declined to answer this message)"
                 out = "".join(b.text for b in r.content if b.type == "text")
-        return " ".join(out.strip().split())
+        return out.strip()

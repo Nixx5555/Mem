@@ -122,7 +122,7 @@
   <div class="ctl">
     <select id="scale" title="sizes">
       <option value="full">Full scale (as in the experiments)</option>
-      <option value="demo">Demo scale (small, evicts quickly)</option>
+      <option value="compact">Compact (small, forgets quickly)</option>
     </select>
     <select id="mode" title="memory policy">
       <option value="p1">P1 · threshold routing (slide 6)</option>
@@ -197,7 +197,7 @@ function itemHTML(it, fresh) {
     <span>${it.tokens} tok</span>${it.superseded ? '<span class="chip">superseded</span>' : ''}</div></div>`;
 }
 
-const SCALE_S = {full: 4096, demo: 150};
+const SCALE_S = {full: 4096, compact: 150};
 
 async function refreshChats(current) {
   const c = await api('/api/chats');
