@@ -137,6 +137,52 @@ def _local_model_ok() -> bool:
     except OSError:
         return False
 
+# The same weights exported to ONNX, for machines that cannot reach the Hub.
+# Chroma publishes this export at
+#   https://chroma-onnx-models.s3.amazonaws.com/all-MiniLM-L6-v2/onnx.tar.gz
+# (untar its onnx/ folder here). Used only when the safetensors copy above is
+# absent; the backend label says "(onnx)" so a result can be traced to it.
+_LOCAL_ONNX = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "models", "all-MiniLM-L6-v2-onnx")
+
+
+class _OnnxMiniLM:
+    """all-MiniLM-L6-v2 on onnxruntime, matching SentenceTransformer.encode:
+    WordPiece to 256 tokens, mean pooling over the attention mask, then L2."""
+
+    def __init__(self, path):
+        import onnxruntime as ort
+        from tokenizers import Tokenizer
+        self._tok = Tokenizer.from_file(os.path.join(path, "tokenizer.json"))
+        self._tok.enable_truncation(max_length=256)
+        self._tok.enable_padding(pad_id=0, pad_token="[PAD]")
+        self._sess = ort.InferenceSession(os.path.join(path, "model.onnx"),
+                                          providers=["CPUExecutionProvider"])
+        self._inputs = {i.name for i in self._sess.get_inputs()}
+
+    def encode(self, texts, normalize_embeddings=True, batch_size=64, **_):
+        single = isinstance(texts, str)
+        texts = [texts] if single else list(texts)
+        out = []
+        for i in range(0, len(texts), batch_size):
+            enc = self._tok.encode_batch(texts[i:i + batch_size])
+            ids = _np.asarray([e.ids for e in enc], dtype="int64")
+            mask = _np.asarray([e.attention_mask for e in enc], dtype="int64")
+            feed = {"input_ids": ids, "attention_mask": mask,
+                    "token_type_ids": _np.zeros_like(ids)}
+            h = self._sess.run(None, {k: v for k, v in feed.items()
+                                      if k in self._inputs})[0]
+            m = mask[..., None].astype("float32")
+            v = (h * m).sum(1) / _np.clip(m.sum(1), 1e-9, None)
+            if normalize_embeddings:
+                v = v / _np.clip(_np.linalg.norm(v, axis=1, keepdims=True),
+                                 1e-12, None)
+            out.append(v.astype("float32"))
+        vecs = _np.concatenate(out) if out else _np.zeros((0, 384), "float32")
+        return vecs[0] if single else vecs
+
+
 _EMB_MODE = os.environ.get("MEMGATE_EMBEDDER", "auto").lower()
 _model = None
 _emb_backend = None
@@ -151,6 +197,17 @@ def _get_model():
     if _EMB_MODE == "hash":
         _emb_backend = f"hash-bow/{DIM}d"
         return None
+    if not _local_model_ok() and os.path.exists(
+            os.path.join(_LOCAL_ONNX, "model.onnx")):
+        try:
+            _model = _OnnxMiniLM(_LOCAL_ONNX)
+            _emb_backend = "all-MiniLM-L6-v2/384d (onnx)"
+            return _model
+        except Exception as exc:
+            if _EMB_MODE == "minilm":
+                raise
+            print(f"  [MemGate] WARNING: ONNX MiniLM failed to load "
+                  f"({type(exc).__name__}: {str(exc)[:90]}).", file=_sys.stderr)
     try:
         from sentence_transformers import SentenceTransformer
         src = _LOCAL_MODEL if _local_model_ok() else MINILM_NAME

@@ -26,12 +26,17 @@ import time
 from memgate.data import load_locomo
 from memgate.harness import run_policy
 from memgate.policies import RAGPolicy, MemGateSelectPolicy
+from memgate.scoring import HeuristicScorer
 from memgate.utils import backend_info, warm_cache, reset_cache
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SWEEP_CSV = os.path.join(HERE, "results", "storage_sweep.csv")
 CONTEXT_BUDGET = 2048
-ARMS = [("RAG store-all", RAGPolicy), ("P1-S MemGate select", MemGateSelectPolicy)]
+# P1-S is pinned to the heuristic: the committed sweep was made with it, and
+# MemGatePolicy otherwise follows MEMGATE_SCORER, which an app may set.
+ARMS = [("RAG store-all", RAGPolicy),
+        ("P1-S MemGate select",
+         lambda **kw: MemGateSelectPolicy(scorer=HeuristicScorer(), **kw))]
 
 
 def committed(store_budget):
