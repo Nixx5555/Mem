@@ -1,5 +1,4 @@
-"""The shipped learned scorer: logistic regression fitted on LoCoMo, REALTALK and
-BEAM, each dataset weighted equally (docs/BEAM_RESULTS.md).
+"""The shipped learned scorer: logistic regression fitted on LoCoMo + REALTALK.
 
 train_transfer.py showed a scorer fitted on OTHER conversations beats the P1
 heuristic on a conversation it has never seen (the "pooled" protocol), so a

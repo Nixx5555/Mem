@@ -2163,5 +2163,7 @@ Full write-up: `docs/BEAM_RESULTS.md`. Viva Q&A: `docs/VIVA_PREP.md`. In brief:
   `--balance` (equal weight per dataset family) removes that (−0.14, n.s.)
   and keeps the BEAM gain at S = 26,000 (+38.24, SIG). At S = 4096 (3% of a
   BEAM chat) the balanced gain is n.s.
-* Shipped scorer refitted with `export_scorer.py --with-beam --balance`.
+* Not shipped: the balanced model fails `test_scorer.py` (it scores "Hi!" 0.68
+  above a flight date 0.12; BEAM turns are long). `scorer_pooled_lr.json` stays
+  PR #4's; `export_scorer.py --with-beam --balance` rebuilds the BEAM model.
   Library default stays P1.

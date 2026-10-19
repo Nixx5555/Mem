@@ -144,9 +144,8 @@ blocked here.
 
 ## Using it
 
-*Superseded:* the shipped scorer is now fitted on LoCoMo, REALTALK and BEAM
-with equal weights (`export_scorer.py --with-beam --balance`); see
-`docs/BEAM_RESULTS.md`. The table above still describes PR #4's model.
+This is still the shipped scorer. A model that adds BEAM was tried and not
+shipped; see `docs/BEAM_RESULTS.md`.
 
 ```
 python3 export_scorer.py              # refit on all 20 conversations -> memgate/scorer_pooled_lr.json

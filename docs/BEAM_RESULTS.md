@@ -14,8 +14,11 @@ dataset, and does training on that data help?
   the heuristic (+38 to +41 points, significant).
 * Adding BEAM as-is hurt LoCoMo (−3.2 points, significant), because BEAM is
   75% of the training turns. Weighting each dataset equally removes that cost
-  (−0.1, n.s.) and keeps most of the BEAM gain. That balanced model is now the
-  shipped scorer.
+  (−0.1, n.s.) and keeps most of the BEAM gain.
+* The shipped scorer is still PR #4's. The balanced all-data model fails the
+  app's own sanity test: on short chat messages it scores "Hi!" (0.68) above
+  "My flight to Delhi is on 14 December at 6:40 am." (0.12). The benchmarks
+  don't contain messages like that; the app does.
 
 ## What was added
 
@@ -104,19 +107,32 @@ to 0.607, and the BEAM cross model is 0.357. As in PR #4, the embedding is
 what transfers. Full tables: the `transfer_locomo_realtalk_beam_beam500_*`
 CSVs in `memgate/results/` (`_balanced` for the weighted runs).
 
-## Shipped scorer
+## Shipped scorer: unchanged, and why
 
-`memgate/memgate/scorer_pooled_lr.json` is refitted on all 75 conversations
-with equal family weights:
+`export_scorer.py --with-beam --balance` builds the balanced all-data model.
+On the benchmarks it is the best of the three: it matches PR #4's scorer on
+LoCoMo (−0.14, n.s.), is ahead on REALTALK (+3.75, n.s.), and is the only one
+that works on BEAM's long chats (+38 at S = 26,000, SIG).
 
-```
-python3 export_scorer.py --with-beam --balance
-```
+It is not shipped, because it fails `test_scorer.py`'s check that every fact
+outscores every greeting (scores as the user speaker):
 
-Why the balanced all-data model and not PR #4's: it matches PR #4 on LoCoMo
-(−0.14, n.s.), is ahead on REALTALK (+3.75, n.s.), and is the only one that
-works on BEAM-style long chats (+38 at S = 26,000, SIG). `MEMGATE_SCORER=learned`
-selects it as before; the library default is still P1.
+| Message | PR #4 scorer | balanced all-data |
+|---|---|---|
+| My flight to Delhi is on 14 December at 6:40 am. | 0.72 | 0.12 |
+| My budget for the laptop is 85,000 rupees. | 0.66 | 0.39 |
+| Actually the review moved to 8 November. | 0.91 | 0.52 |
+| My sister Priya lives in Pune and works at Infosys. | 0.80 | 0.87 |
+| Hi! | 0.48 | 0.68 |
+| lol yes | 0.15 | 0.46 |
+| ok thanks | 0.01 | 0.06 |
+
+BEAM turns average 452 tokens, and 77% of its evidence turns are long user
+messages. Short, fact-dense sentences, which are what people type
+into the app, barely occur in it, so the model learned "long and descriptive"
+rather than "has a date, amount or name". The benchmark average hides this,
+and the app's hand-written test catches it. The library default is still P1
+either way, so REPORT.md numbers are unaffected.
 
 ## Reproducing
 

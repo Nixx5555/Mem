@@ -130,11 +130,14 @@ retention is still 73.5% against 35.3% for the heuristic (+38.24 [+15.15,
 +63.33] SIG). The cost: at 3% retention the BEAM gain shrinks to +8.8 n.s.
 
 **Q: Which scorer ships, then?**
-The balanced model trained on all 75 conversations (58,616 turns). It's
-no worse on LoCoMo, ahead on REALTALK, and the only one that works on long
-BEAM chats. Command: `python3 export_scorer.py --with-beam --balance`.
-The library default is still the heuristic, so every REPORT.md number still
-means what it says. (docs/BEAM_RESULTS.md)
+Still the LoCoMo + REALTALK one from PR #4. The balanced all-data model wins
+on the benchmarks, but it fails the app's sanity test: it scores "Hi!" (0.68)
+above "My flight to Delhi is on 14 December at 6:40 am." (0.12). BEAM's turns
+average 452 tokens, so the model learned "long and descriptive",
+which is wrong for short chat messages. A benchmark average can hide a
+failure that one hand-written test catches, and we kept the scorer that
+passes. The library default is still the heuristic, so every REPORT.md
+number still means what it says. (docs/BEAM_RESULTS.md, "Shipped scorer")
 
 ---
 
