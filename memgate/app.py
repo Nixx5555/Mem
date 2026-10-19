@@ -48,6 +48,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PAGE = os.path.join(HERE, "web", "chat.html")          # the chat app
 INSPECT = os.path.join(HERE, "web", "index.html")    # all tiers at once
 CHATS = os.path.join(HERE, "chats")
+# Longest message accepted, about 5,000 tokens: a long paste fits, and the
+# local model still answers in reasonable time.
+MAX_CHARS = 20000
 TIER_KEY = {SHORT_TERM: "t1", WORKING: "t2", LONG_TERM: "t3"}
 
 # (Tier 1 capacity, context budget, default store budget S), in messages and
@@ -145,6 +148,10 @@ class Session:
 
     # -- the write path, with every decision it made written to the log
     def add(self, speaker, text):
+        # The transcript keeps the message as written (line breaks in code and
+        # pasted paragraphs survive a reload); memory gets it on one line, the
+        # form every experiment scored.
+        shown = text.replace("\r\n", "\n").strip()
         text = " ".join(text.split())
         if not text:
             return []
@@ -154,7 +161,7 @@ class Session:
         c0 = dict(p.routed, dropped=st.dropped, demoted=st.demoted,
                   merges=st.merges, reclaimed=st.reclaimed)
 
-        self.transcript.append({"speaker": speaker, "text": text})
+        self.transcript.append({"speaker": speaker, "text": shown})
         turn = Turn(session=1, index=self.n, speaker=speaker, text=text)
         self.n += 1
         p.observe(turn)                      # exactly the experiments' code path
@@ -355,11 +362,12 @@ def make_handler(app):
             self.wfile.write(data)
 
         def _body(self):
-            n = int(self.headers.get("Content-Length") or 0)
             try:
-                return json.loads(self.rfile.read(n) or b"{}")
+                n = int(self.headers.get("Content-Length") or 0)
+                b = json.loads(self.rfile.read(n) or b"{}")
             except ValueError:
                 return {}
+            return b if isinstance(b, dict) else {}
 
         def do_GET(self):
             if self.path in ("/", "/index.html"):
@@ -381,7 +389,15 @@ def make_handler(app):
             b = self._body()
             try:
                 if self.path == "/api/chat":
-                    return self._send(200, app.say(str(b.get("text", ""))))
+                    text = b.get("text")
+                    text = text if isinstance(text, str) else ""
+                    if not text.strip():
+                        return self._send(400, {"error": "the message is empty"})
+                    if len(text) > MAX_CHARS:
+                        return self._send(413, {"error": (
+                            f"that message is {len(text):,} characters; the "
+                            f"limit is {MAX_CHARS:,}. Send it in parts.")})
+                    return self._send(200, app.say(text))
                 if self.path == "/api/sample":
                     return self._send(200, app.sample())
                 if self.path in ("/api/reset", "/api/chats/new"):
@@ -476,6 +492,7 @@ class App:
                 self._title(text)
                 self.chats.save(self.chat)   # the message is in memory; keep disk in step
                 raise
+            reply = reply or "(the model returned an empty reply)"
             events += sess.add("assistant", reply)
             self._title(text)
             self.chats.save(self.chat)

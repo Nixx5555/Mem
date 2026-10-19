@@ -241,6 +241,7 @@ const SCALE_S = {full: 4096, compact: 150};
 let state = null, seen = new Set(), busy = false, tab = 'tiers', lastCtx = null;
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const MAX_CHARS = 20000;   // app.py MAX_CHARS
 async function api(path, body) {
   const r = await fetch(path, body === undefined ? {} :
     {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
@@ -355,6 +356,10 @@ async function refreshChats() {
 async function send(text) {
   text = text.trim();
   if (!text || busy) return;
+  if (text.length > MAX_CHARS) {
+    addNote(`That message is ${text.length.toLocaleString()} characters; the limit is ${MAX_CHARS.toLocaleString()}. Send it in parts.`);
+    return;
+  }
   busy = true; $('send').disabled = true; $('text').value = ''; grow();
   addMsg('user', text);
   const bot = addMsg('bot', '');

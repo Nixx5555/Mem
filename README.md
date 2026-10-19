@@ -34,5 +34,7 @@ REALTALK adds **+14.6** more on conversations it never saw.
 | `frontend/index.html` | The interactive results dashboard (opens offline) |
 | `memgate/` | The library, the app (`app.py`), 17 experiment scripts and the tests |
 
-Run the tests with `cd memgate && python test_memgate.py`. There are 78
-tests, and they need the downloaded models.
+Run the tests inside `memgate/`: `python test_memgate.py` (78 tests, they
+need the downloaded models), `python test_scorer.py` and `python test_app.py`
+(the chat app against odd input: empty, very long, non-English, emoji, code,
+malformed requests, rapid messages).
