@@ -426,8 +426,8 @@ Table~\ref{tab:scorers} varies only the scorer, everything else fixed at the
 configuration of Section~\ref{sec:selection}. Three results follow, all
 significant under clustering. Scoring is worth doing: the hand-written
 heuristic gains $+11.19$ answer points over unscored recency. The LLM judge
-nonetheless loses: Qwen2.5-0.5B-Instruct reaches 30.9\% against the
-heuristic's 36.8\%, $-5.87$ points with the interval excluding zero, at some
+nonetheless loses: in the pre-fix run, Qwen2.5-0.5B-Instruct reaches 30.9\%
+against the heuristic's 36.8\%, $-5.87$ points with the interval excluding zero, at some
 fifteen minutes of GPU time per corpus against microseconds for a regular
 expression. And the headroom is real: a logistic scorer fitted under
 leave-one-conversation-out reaches 48.3\%, $+11.47$ over the heuristic, so the
@@ -539,7 +539,7 @@ locates the remaining headroom in the reader rather than in the memory layer.
 \caption{End-task accuracy through one fixed reader at $S=4096$ with context
 2048, over all 715 answer-recoverable questions. Acc.$\mid$present is accuracy
 restricted to the questions whose answer reached the context; it is undefined
-for the arms that never place one.}
+for the arms that never place one. Pre-fix run (Section~\ref{sec:threats}).}
 \label{tab:endtask}
 \centering
 \small
@@ -644,7 +644,7 @@ margins.
 \emph{Compression was tested in both forms.} Replacing P1-A's word-selection
 with a 1.5B model rewriting each evicted turn is worth $+4.06$ answer points
 (CI $[+0.84, +6.66]$), so part of the negative result was the compressor rather
-than compression. Selection still wins: 36.8\% against 34.1\%, at 2.1\,s
+than compression. Selection still wins (pre-fix run): 36.8\% against 34.1\%, at 2.1\,s
 against 3{,}892\,s and 4{,}879 generations. The claim narrows to: a better
 compressor helps, and does not overtake dropping.
 
