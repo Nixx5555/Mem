@@ -2,6 +2,7 @@
 """App tests: whatever a person types, the chat answers or says why not.
 Run: python test_app.py"""
 import json
+import os
 import sys
 import tempfile
 import threading
@@ -100,6 +101,118 @@ check("reload replays the same transcript", re.transcript == tr)
 check("reload rebuilds the same memory",
       [i["text"] for i in re.state()["t3"]]
       == [i["text"] for i in app.session.state()["t3"]])
+
+print("\n-- pages and endpoints --")
+BASE = URL.rsplit("/api/", 1)[0]
+
+
+def get(path):
+    try:
+        with urllib.request.urlopen(BASE + path) as r:
+            return r.status, r.read(), r.headers.get("Content-Type")
+    except urllib.error.HTTPError as e:
+        return e.code, e.read(), e.headers.get("Content-Type")
+
+
+def api(path, body=None):
+    if body is None:
+        code, raw, _ = get(path)
+        return code, json.loads(raw)
+    req = urllib.request.Request(BASE + path, data=json.dumps(body).encode(),
+                                 method="POST")
+    try:
+        with urllib.request.urlopen(req) as r:
+            return r.status, json.load(r)
+    except urllib.error.HTTPError as e:
+        return e.code, json.load(e)
+
+
+code, raw, ctype = get("/")
+check("the chat page is served", code == 200 and b"MemGate" in raw
+      and ctype.startswith("text/html"))
+code, raw, _ = get("/inspect")
+check("the all-tiers page is served", code == 200 and b"<html" in raw.lower())
+check("unknown paths are 404",
+      get("/nope")[0] == 404 and api("/api/nope", {})[0] == 404)
+code, st = api("/api/state")
+check("state carries what the page shows",
+      code == 200 and {"t1", "t2", "t3", "log", "transcript", "model", "scorer",
+                       "backends", "chat_id", "title", "counts",
+                       "stored_tokens", "context_budget"} <= set(st), str(set(st)))
+check("the chat title is the first message, cut at 48 characters",
+      st["title"] == "?")
+
+print("\n-- chats --")
+code, st = api("/api/chats/new", {"mode": "p1a", "scale": "compact"})
+first = st["chat_id"]
+check("a new chat takes the chosen policy and sizes",
+      code == 200 and st["mode"] == "p1a" and st["scale"] == "compact"
+      and st["store_budget"] == A.SCALES["compact"][2] and st["messages"] == 0)
+code, st2 = api("/api/chats/new", {"mode": "p1s", "scale": "full"})
+check("an empty chat is not kept when another is started",
+      first not in [c["id"] for c in api("/api/chats")[1]["chats"]])
+check("the old size name 'demo' opens as compact",
+      api("/api/chats/new", {"scale": "demo"})[1]["scale"] == "compact")
+check("unknown policy and size fall back to the defaults",
+      (lambda s: (s["mode"], s["scale"]))(
+          api("/api/chats/new", {"mode": "zzz", "scale": "huge"})[1])
+      == ("p1s", "full"))
+check("a custom store budget is used",
+      api("/api/chats/new", {"mode": "p1s", "store_budget": 777})[1]
+      ["store_budget"] == 777)
+long_title = "My capstone final review is on 6 November and the report is late"
+say(long_title)
+c = api("/api/state")[1]
+check("titles longer than 48 characters end with an ellipsis",
+      c["title"] == long_title[:48] + "…")
+code, st = api("/api/sample", {})
+check("the sample chat loads all its messages",
+      code == 200 and st["messages"] == 1 + 1 + len(A.SAMPLE)
+      and len(st["transcript"]) == st["messages"])
+cid = st["chat_id"]
+api("/api/chats/new", {"mode": "p1s", "scale": "compact"})
+say("second chat")
+listed = api("/api/chats")[1]
+check("chats are listed newest first with their sizes",
+      listed["chats"][0]["id"] == listed["current"]
+      and {"id", "title", "mode", "scale", "messages"} <= set(listed["chats"][0]))
+code, st = api("/api/chats/open", {"id": cid})
+check("opening a saved chat brings back its memory",
+      code == 200 and st["chat_id"] == cid and st["messages"] == 1 + 1 + len(A.SAMPLE)
+      and len(st["t3"]) > 0)
+check("opening a missing chat is an error, not a crash",
+      api("/api/chats/open", {"id": "doesnotexist"})[0] == 500
+      and api("/api/state")[0] == 200)
+check("a chat id cannot reach outside the chats folder",
+      api("/api/chats/open", {"id": "../../etc/passwd"})[0] == 500
+      and "bad chat id" in api("/api/chats/open", {"id": "../x"})[1]["error"])
+before = len(api("/api/chats")[1]["chats"])
+code, st = api("/api/chats/delete", {"id": cid})
+check("deleting the open chat removes it and opens another",
+      code == 200 and st["chat_id"] != cid
+      and len(api("/api/chats")[1]["chats"]) == before - 1)
+check("deleting a chat that is already gone is harmless",
+      api("/api/chats/delete", {"id": cid})[0] == 200)
+
+print("\n-- restart --")
+folder = app.chats.folder
+cur = app.chat["id"]
+app2 = A.App(Echo(), A.Chats(folder))
+check("a restart reopens the most recent chat", app2.chat["id"] == cur)
+with open(os.path.join(folder, "broken.json"), "w") as fh:
+    fh.write("{not json")
+check("a corrupt chat file is skipped, not fatal",
+      "broken" not in [c["id"] for c in A.Chats(folder).list()]
+      and A.App(Echo(), A.Chats(folder)).chat is not None)
+empty = tempfile.mkdtemp()
+check("a first start with no chats opens a new one",
+      A.App(Echo(), A.Chats(empty)).chat["title"] == "New chat")
+for name in os.listdir(folder):
+    if name.endswith(".tmp"):
+        check("saves leave no temp files behind", False, name)
+        break
+else:
+    check("saves leave no temp files behind", True)
 
 srv.shutdown()
 print(f"\n{'='*46}\n  {passed} passed, {failed} failed\n{'='*46}")

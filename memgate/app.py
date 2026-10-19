@@ -440,6 +440,7 @@ class App:
     def full_state(self):
         s = self.session.state()
         s.update(log=self.session.log[-80:], model=self.model.name,
+                 model_note=self.model.note,
                  scorer=self.session.policy.scorer.name,
                  backends=backend_info(), chat_id=self.chat["id"],
                  title=self.chat["title"], transcript=self.session.transcript)
@@ -503,6 +504,10 @@ class App:
 
 
 def main():
+    # The private settings setup saved (the Anthropic key), before anything
+    # reads the environment. A key exported in the terminal still wins.
+    from memgate.envfile import ENV_PATH, load_env
+    loaded = load_env()
     ap = argparse.ArgumentParser(description="MemGate app")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--host", default="127.0.0.1",
@@ -525,6 +530,8 @@ def main():
 
     model = ChatModel("none" if args.no_llm else args.llm)
     print("MemGate")
+    if loaded:
+        print(f"  settings from {ENV_PATH}: {', '.join(loaded)}")
     print("  warming the embedder ...", flush=True)
     from memgate.utils import embed
     embed("warm up")
@@ -533,7 +540,13 @@ def main():
     if model.enabled:
         print(f"  loading {model.name} ...", flush=True)
         try:
-            model.load()
+            try:
+                model.load()
+            except Exception as exc:
+                if not model.fallback:
+                    raise
+                model._fall_back(exc)
+                model.load()
         except Exception as exc:
             print(f"  [MemGate] WARNING: chat model did not load "
                   f"({type(exc).__name__}: {str(exc)[:120]}); continuing "

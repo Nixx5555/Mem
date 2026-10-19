@@ -15,7 +15,8 @@ cd MemGate
 ```
 
 The browser opens at `http://localhost:8765`. You need no API keys; the chat
-model runs on your laptop. [docs/RUNNING.md](docs/RUNNING.md) has the full
+model runs on your laptop. Setup offers to save an optional Anthropic key in a
+private `.env` file, and then Claude writes the replies. [docs/RUNNING.md](docs/RUNNING.md) has the full
 guide: options, the one optional key (`ANTHROPIC_API_KEY`, for Claude
 replies), and troubleshooting.
 

@@ -98,21 +98,27 @@ You need **no keys** to run MemGate.
 The models and the benchmark are public, so you don't need a Hugging Face
 token or a GitHub login.
 
-If you use Claude, set the key **on your own laptop**, never in a chat or a
-file you commit:
+**Adding the key.** At the end of setup you're asked for it once. Paste it
+(the typing is hidden) or press Enter to skip. It's saved in `.env` at the top
+of the project, and `start.sh` / `start.bat` read it on every start. `.env` is
+in `.gitignore`, so the key stays on your laptop and never goes to GitHub.
+Never paste the key into a chat or into a file you commit.
+
+To add, change or remove it later, inside `memgate/` with the environment
+active (or via `.venv/bin/python` / `.venv\Scripts\python.exe`):
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...      # macOS / Linux, this terminal only
-./start.sh --llm claude
+python set_key.py            # add or replace
+python set_key.py --remove   # forget it
 ```
 
-```powershell
-setx ANTHROPIC_API_KEY "sk-ant-..."      # Windows, then open a new terminal
-start.bat --llm claude
-```
+You can also edit `.env` by hand; `.env.example` shows the format.
 
-If no local chat model is downloaded and the key is set, MemGate picks Claude
-on its own.
+**With a key saved, the app answers with Claude.** If Claude can't be reached
+(no Wi-Fi at the venue, a revoked key), it switches to the local model on its
+own and carries on; the info line in the sidebar then says *(fallback)*. To
+force the local model even with a key saved, start with `--llm mlx` (Mac) or
+`--llm hf`.
 
 ## Options
 
@@ -120,7 +126,7 @@ Pass these to `start.sh` / `start.bat` (or `python app.py` inside `memgate/`):
 
 | Option | |
 |---|---|
-| `--llm auto\|mlx\|hf\|claude\|none` | Which model answers. `auto` picks one: mlx on an Apple-silicon Mac, then the downloaded Qwen, then Claude if the key is set. Also settable as `MEMGATE_LLM`. |
+| `--llm auto\|mlx\|hf\|claude\|none` | Which model answers. `auto` picks Claude when a key is saved, else mlx on an Apple-silicon Mac, else the downloaded Qwen. Also settable as `MEMGATE_LLM`. |
 | `--no-llm` | No model. Memory still works, and replies show what the model would see. |
 | `--scorer learned\|heuristic` | What scores each message. `learned` (the default) is the scorer trained on LoCoMo + REALTALK. `heuristic` is the hand-written P1 rules. Also settable as `MEMGATE_SCORER`. |
 | `--port 9000` | Use another port if 8765 is taken. |
