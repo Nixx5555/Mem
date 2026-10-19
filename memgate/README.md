@@ -31,7 +31,8 @@ python3 run_cost_model.py         # byte-denominated storage (charges for the in
 python3 run_significance.py       # bootstrap CIs + exact McNemar
 python3 train_scorer.py           # the learned scorer
 python3 train_transfer.py         # ... on LoCoMo + REALTALK: in-corpus / cross / pooled
-python3 export_scorer.py          # ship the pooled scorer; MEMGATE_SCORER=learned to use it
+python3 train_transfer.py --corpora locomo,realtalk,beam,beam500 --test-corpora locomo,realtalk,beam --balance  # + BEAM
+python3 export_scorer.py --with-beam --balance  # ship the scorer (docs/BEAM_RESULTS.md); MEMGATE_SCORER=learned to use it
 python3 run_judge_eval.py         # the scorer comparison, with clustered CIs
 python3 run_endtask.py            # end-task accuracy through a real reader
 python3 run_longmemeval.py        # LongMemEval, swept by store budget (§30)

@@ -1,8 +1,9 @@
-"""The shipped learned scorer: logistic regression fitted on LoCoMo + REALTALK.
+"""The shipped learned scorer: logistic regression fitted on LoCoMo, REALTALK and
+BEAM, each dataset weighted equally (docs/BEAM_RESULTS.md).
 
 train_transfer.py showed a scorer fitted on OTHER conversations beats the P1
 heuristic on a conversation it has never seen (the "pooled" protocol), so a
-model fitted once on all 20 conversations is usable on a new chat with no
+model fitted once on every conversation is usable on a new chat with no
 labels at run time. `export_scorer.py` writes it to memgate/scorer_pooled_lr.json
 as plain numbers -- scaler mean/scale, coefficients, intercept -- rather than a
 pickle, so loading it runs no code and the file diffs readably.

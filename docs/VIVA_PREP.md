@@ -123,10 +123,18 @@ turn, not just these 34 questions, and tells the same story (0.372 → 0.675).
 Yes, when BEAM was added without weighting. BEAM is 75% of all training
 turns, so it pulled the model towards BEAM's style. On LoCoMo, answer recall
 fell from 52.0% to 48.8% (−3.22 [−6.50, −0.16] SIG). It was still +11.33
-over the heuristic. BALANCED_PLACEHOLDER
+over the heuristic. Weighting each dataset equally in training fixes it:
+LoCoMo goes back to 51.0% against 51.2% without BEAM (−0.14 [−2.96,
++2.56] n.s.), REALTALK is 40.0% against 36.2% (n.s.), and BEAM at 20%
+retention is still 73.5% against 35.3% for the heuristic (+38.24 [+15.15,
++63.33] SIG). The cost: at 3% retention the BEAM gain shrinks to +8.8 n.s.
 
 **Q: Which scorer ships, then?**
-SHIPPED_PLACEHOLDER
+The balanced model trained on all 75 conversations (58,616 turns). It's
+no worse on LoCoMo, ahead on REALTALK, and the only one that works on long
+BEAM chats. Command: `python3 export_scorer.py --with-beam --balance`.
+The library default is still the heuristic, so every REPORT.md number still
+means what it says. (docs/BEAM_RESULTS.md)
 
 ---
 

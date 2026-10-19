@@ -144,6 +144,10 @@ blocked here.
 
 ## Using it
 
+*Superseded:* the shipped scorer is now fitted on LoCoMo, REALTALK and BEAM
+with equal weights (`export_scorer.py --with-beam --balance`); see
+`docs/BEAM_RESULTS.md`. The table above still describes PR #4's model.
+
 ```
 python3 export_scorer.py              # refit on all 20 conversations -> memgate/scorer_pooled_lr.json
 MEMGATE_SCORER=learned python3 ...    # MemGatePolicy() then uses it; unset = P1

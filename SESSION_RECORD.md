@@ -2148,3 +2148,20 @@ Full write-up: `docs/SCORER_TRANSFER.md`. In brief:
 
 Item 1 of §39's list is now partly answered: the pooled scorer is the one that
 transfers to a new conversation, but not yet shown on LongMemEval.
+
+## 41. A 4× larger training set: BEAM, and a rebalanced shipped scorer
+
+Full write-up: `docs/BEAM_RESULTS.md`. Viva Q&A: `docs/VIVA_PREP.md`. In brief:
+
+* BEAM 100K (20 chats) and 500K (35 chats) added (`data.load_beam`), bringing
+  the scorer's data to 75 conversations and 58,616 turns, 4× §40.
+* Trained only on LoCoMo + REALTALK, the scorer ranks BEAM evidence below
+  chance (AUC 0.372; P1 0.447). §3.9's LongMemEval sign flip replicates.
+* With BEAM in the pool, at 20% retention (S = 26,000) answer recall on BEAM is
+  76.5% vs P1's 35.3% (+41.18 [+20.51, +63.64], SIG; 34 answerable questions).
+* Unweighted, BEAM (75% of turns) costs LoCoMo −3.22 [−6.50, −0.16] (SIG).
+  `--balance` (equal weight per dataset family) removes that (−0.14, n.s.)
+  and keeps the BEAM gain at S = 26,000 (+38.24, SIG). At S = 4096 (3% of a
+  BEAM chat) the balanced gain is n.s.
+* Shipped scorer refitted with `export_scorer.py --with-beam --balance`.
+  Library default stays P1.
