@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
-"""Live demo: chat through MemGate and watch what each tier holds.
+"""MemGate app: chat through MemGate and watch what each tier holds.
 
     python3 live_demo.py                 # then open http://localhost:8765
+    python3 live_demo.py --llm claude    # answer with Claude (ANTHROPIC_API_KEY)
+    python3 live_demo.py --llm hf        # transformers, any OS
     python3 live_demo.py --no-llm        # no model: replies show the context only
+    python3 live_demo.py --scorer heuristic   # the P1 rule scorer instead of the learned one
     python3 live_demo.py --port 9000
+
+Conversations are saved under memgate/chats/ and survive a restart: each one
+is stored as its messages and rebuilt by replaying them through observe(),
+which is deterministic, so the tiers come back exactly as they were.
 
 Every message -- yours and the model's reply -- goes through the same
 `policy.observe()` the experiments use, and every question is answered from
@@ -26,33 +33,36 @@ import os
 import subprocess
 import sys
 import threading
+import time
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from memgate.types import Turn, SHORT_TERM, WORKING, LONG_TERM
 from memgate.policies import (MemGatePolicy, MemGateAdaptivePolicy,
                               MemGateSelectPolicy)
+from memgate.reader import ChatModel, BACKENDS
 from memgate.utils import backend_info, count_tokens
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PAGE = os.path.join(HERE, "demo", "index.html")
+PAGE = os.path.join(HERE, "demo", "chat.html")          # the chat app
+INSPECT = os.path.join(HERE, "demo", "index.html")    # all tiers at once
+CHATS = os.path.join(HERE, "chats")
 TIER_KEY = {SHORT_TERM: "t1", WORKING: "t2", LONG_TERM: "t3"}
 
-# Demo-scale settings. The experiments use the same classes at LoCoMo scale.
-SHORT_CAPACITY = 4          # Tier 1 holds the last 4 messages (2 exchanges)
-CONTEXT_BUDGET = 512        # tokens of memory sent with each question
-DEFAULT_STORE = 150         # store budget S for P1-S / P1-A, in tokens
+# (Tier 1 capacity, context budget, default store budget S), in messages and
+# tokens. "full" is what the experiments ran with (policies.py defaults, the
+# 2048-token context and S = 4096 of the headline result). "demo" shrinks them
+# so that eviction is visible within a few messages instead of a few hundred.
+SCALES = {
+    "full": (6, 2048, 4096),
+    "demo": (4, 512, 150),
+}
 
 MODES = {
     "p1": "P1 MemGate · threshold routing (slide 6)",
     "p1s": "P1-S select · scored eviction under a store budget",
     "p1a": "P1-A adaptive · demote to a gist under pressure",
 }
-
-SYSTEM = ("You are a helpful assistant in a long-running chat. You do not see "
-          "the conversation history. You only see the memory notes below, "
-          "which a memory system selected for this message. Use them to "
-          "answer. If the notes do not contain what is asked, say you don't "
-          "remember it. Keep replies short: one or two sentences.")
 
 SAMPLE = [  # A scripted opening, loaded instantly, for asking questions about.
     ("user", "Hi!"),
@@ -76,41 +86,6 @@ SAMPLE = [  # A scripted opening, loaded instantly, for asking questions about.
 ]
 
 
-# ------------------------------------------------------------------ model
-class ChatModel:
-    """The local reader the end-task run uses, sampled greedily."""
-
-    def __init__(self, enabled=True):
-        self.enabled = enabled
-        self.name = "none (--no-llm)"
-        self._model = self._tok = None
-        self.lock = threading.Lock()
-        if enabled:
-            from memgate.llm_judge import default_model
-            self.path = default_model()
-            self.name = os.path.basename(self.path)
-
-    def load(self):
-        if self.enabled and self._model is None:
-            from mlx_lm import load
-            self._model, self._tok = load(self.path)
-
-    def reply(self, notes: str, message: str) -> str:
-        if not self.enabled:
-            return "(no model loaded: the memory notes above are what it would see)"
-        with self.lock:
-            self.load()
-            from mlx_lm import generate
-            msgs = [{"role": "system", "content": SYSTEM},
-                    {"role": "user", "content":
-                     f"Memory notes:\n{notes or '(empty)'}\n\nMessage: {message}"}]
-            prompt = self._tok.apply_chat_template(msgs, tokenize=False,
-                                                   add_generation_prompt=True)
-            out = generate(self._model, self._tok, prompt=prompt,
-                           max_tokens=100, verbose=False)
-        return " ".join(out.strip().split())
-
-
 # ---------------------------------------------------------------- session
 def _item(it):
     return {"id": it.id, "text": it.text, "tier": TIER_KEY[it.tier],
@@ -121,10 +96,12 @@ def _item(it):
 
 
 class Session:
-    def __init__(self, mode="p1", store_budget=DEFAULT_STORE):
-        self.mode = mode if mode in MODES else "p1"
-        self.store_budget = int(store_budget)
-        kw = dict(short_capacity=SHORT_CAPACITY, budget=CONTEXT_BUDGET)
+    def __init__(self, mode="p1s", store_budget=None, scale="full"):
+        self.mode = mode if mode in MODES else "p1s"
+        self.scale = scale if scale in SCALES else "full"
+        self.short_capacity, self.context_budget, s_default = SCALES[self.scale]
+        self.store_budget = int(store_budget or s_default)
+        kw = dict(short_capacity=self.short_capacity, budget=self.context_budget)
         if self.mode == "p1":
             self.policy = MemGatePolicy(**kw)
         elif self.mode == "p1s":
@@ -133,6 +110,7 @@ class Session:
             self.policy = MemGateAdaptivePolicy(store_budget=self.store_budget, **kw)
         self.n = 0
         self.log = []          # every routing event, newest last
+        self.transcript = []   # what was said, in order: the saved form
         self.lock = threading.Lock()
 
     # -- what the store holds right now
@@ -147,7 +125,9 @@ class Session:
         return {
             "mode": self.mode, "mode_label": MODES[self.mode],
             "store_budget": self.store_budget if self.mode != "p1" else None,
-            "short_capacity": SHORT_CAPACITY, "context_budget": CONTEXT_BUDGET,
+            "scale": self.scale,
+            "short_capacity": self.short_capacity,
+            "context_budget": self.context_budget,
             "tau_fact": self.policy.tau_fact, "tau_low": self.policy.tau_low,
             "t1": [_item(i) for i in st.short],
             "t2": [_item(i) for i in st.working],
@@ -170,6 +150,7 @@ class Session:
         c0 = dict(p.routed, dropped=st.dropped, demoted=st.demoted,
                   merges=st.merges, reclaimed=st.reclaimed)
 
+        self.transcript.append({"speaker": speaker, "text": text})
         turn = Turn(session=1, index=self.n, speaker=speaker, text=text)
         self.n += 1
         p.observe(turn)                      # exactly the experiments' code path
@@ -178,7 +159,7 @@ class Session:
         new = next(i for i in st.short if i.id not in s0)
         ev = [{"type": "enter", "tier": "t1", "text": new.text,
                "msg": f"entered Tier 1 (short-term buffer, holds the last "
-                      f"{SHORT_CAPACITY} messages)"}]
+                      f"{self.short_capacity} messages)"}]
 
         out = [s0[k] for k in s0 if k not in s1]
         if out:
@@ -262,7 +243,7 @@ class Session:
 
     # -- the read path
     def context(self, query):
-        ctx = self.policy.build_context(query, CONTEXT_BUDGET)
+        ctx = self.policy.build_context(query, self.context_budget)
         return ctx, [_item(i) for i in ctx.items]
 
 
@@ -299,6 +280,61 @@ class Bench:
         return {"running": running, "lines": self.lines[-40:], "code": self.code}
 
 
+# ------------------------------------------------------------------ chats
+class Chats:
+    """Saved conversations, one JSON file each, rebuilt by replay."""
+
+    def __init__(self, folder=CHATS):
+        self.folder = folder
+        os.makedirs(folder, exist_ok=True)
+
+    def _path(self, cid):
+        if not cid or not all(c.isalnum() or c == "-" for c in cid):
+            raise ValueError(f"bad chat id {cid!r}")
+        return os.path.join(self.folder, cid + ".json")
+
+    def list(self):
+        out = []
+        for f in os.listdir(self.folder):
+            if f.endswith(".json"):
+                try:
+                    with open(os.path.join(self.folder, f), encoding="utf-8") as fh:
+                        d = json.load(fh)
+                    row = {k: d.get(k) for k in
+                           ("id", "title", "mode", "scale", "updated")}
+                    row["messages"] = len(d.get("transcript", []))
+                    out.append(row)
+                except (OSError, ValueError):
+                    continue
+        return sorted(out, key=lambda c: c["updated"] or 0, reverse=True)
+
+    def save(self, chat):
+        sess = chat["session"]
+        d = {"id": chat["id"], "title": chat["title"], "mode": sess.mode,
+             "scale": sess.scale, "store_budget": sess.store_budget,
+             "created": chat["created"], "updated": time.time(),
+             "transcript": sess.transcript}
+        tmp = self._path(chat["id"]) + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(d, fh, ensure_ascii=False, indent=1)
+        os.replace(tmp, self._path(chat["id"]))   # a crash can't truncate it
+
+    def load(self, cid):
+        with open(self._path(cid), encoding="utf-8") as fh:
+            d = json.load(fh)
+        sess = Session(d.get("mode"), d.get("store_budget"), d.get("scale"))
+        for m in d.get("transcript", []):
+            sess.add(m["speaker"], m["text"])        # same observe() path
+        return {"id": d["id"], "title": d.get("title") or "Untitled",
+                "created": d.get("created") or time.time(), "session": sess}
+
+    def delete(self, cid):
+        try:
+            os.remove(self._path(cid))
+        except FileNotFoundError:
+            pass
+
+
 # ---------------------------------------------------------------- server
 def make_handler(app):
     class H(BaseHTTPRequestHandler):
@@ -325,8 +361,14 @@ def make_handler(app):
             if self.path in ("/", "/index.html"):
                 with open(PAGE, "rb") as fh:
                     return self._send(200, fh.read(), "text/html; charset=utf-8")
+            if self.path == "/inspect":
+                with open(INSPECT, "rb") as fh:
+                    return self._send(200, fh.read(), "text/html; charset=utf-8")
             if self.path == "/api/state":
                 return self._send(200, app.full_state())
+            if self.path == "/api/chats":
+                return self._send(200, {"chats": app.chats.list(),
+                                        "current": app.chat["id"]})
             if self.path == "/api/bench":
                 return self._send(200, app.bench.state())
             self._send(404, {"error": "not found"})
@@ -335,12 +377,17 @@ def make_handler(app):
             b = self._body()
             try:
                 if self.path == "/api/chat":
-                    return self._send(200, app.chat(str(b.get("text", ""))))
+                    return self._send(200, app.say(str(b.get("text", ""))))
                 if self.path == "/api/sample":
                     return self._send(200, app.sample())
-                if self.path == "/api/reset":
-                    return self._send(200, app.reset(b.get("mode", "p1"),
-                                                     b.get("store_budget", DEFAULT_STORE)))
+                if self.path in ("/api/reset", "/api/chats/new"):
+                    return self._send(200, app.new(b.get("mode"),
+                                                   b.get("store_budget"),
+                                                   b.get("scale")))
+                if self.path == "/api/chats/open":
+                    return self._send(200, app.open(str(b.get("id", ""))))
+                if self.path == "/api/chats/delete":
+                    return self._send(200, app.delete(str(b.get("id", ""))))
                 if self.path == "/api/bench":
                     app.bench.start(b.get("store", 4096))
                     return self._send(200, app.bench.state())
@@ -351,34 +398,83 @@ def make_handler(app):
 
 
 class App:
-    def __init__(self, model):
+    def __init__(self, model, chats=None):
         self.model = model
-        self.session = Session()
+        self.chats = chats or Chats()
         self.bench = Bench()
+        self.lock = threading.Lock()
+        saved = self.chats.list()
+        self.chat = None
+        if saved:                              # pick up where it was left
+            try:
+                self.chat = self.chats.load(saved[0]["id"])
+            except (OSError, ValueError, KeyError):
+                self.chat = None
+        if self.chat is None:
+            self.new()
+
+    @property
+    def session(self):
+        return self.chat["session"]
 
     def full_state(self):
         s = self.session.state()
         s.update(log=self.session.log[-80:], model=self.model.name,
-                 backends=backend_info())
+                 scorer=self.session.policy.scorer.name,
+                 backends=backend_info(), chat_id=self.chat["id"],
+                 title=self.chat["title"], transcript=self.session.transcript)
         return s
 
-    def reset(self, mode, store_budget):
-        self.session = Session(mode, store_budget)
+    def new(self, mode=None, store_budget=None, scale=None):
+        with self.lock:
+            if self.chat and not self.chat["session"].transcript:
+                self.chats.delete(self.chat["id"])   # don't pile up empties
+            self.chat = {"id": uuid.uuid4().hex[:12], "title": "New chat",
+                         "created": time.time(),
+                         "session": Session(mode or "p1s", store_budget, scale)}
+            self.chats.save(self.chat)
         return self.full_state()
+
+    def open(self, cid):
+        with self.lock:
+            self.chat = self.chats.load(cid)
+        return self.full_state()
+
+    def delete(self, cid):
+        self.chats.delete(cid)
+        if cid == self.chat["id"]:
+            rest = self.chats.list()
+            return self.open(rest[0]["id"]) if rest else self.new()
+        return self.full_state()
+
+    def _title(self, text):
+        if self.chat["title"] == "New chat":
+            t = " ".join(text.split())
+            self.chat["title"] = t[:48] + ("…" if len(t) > 48 else "")
 
     def sample(self):
-        with self.session.lock:
+        sess = self.session
+        with sess.lock:
             for spk, txt in SAMPLE:
-                self.session.add(spk, txt)
+                sess.add(spk, txt)
+            self._title("Sample chat")
+            self.chats.save(self.chat)
         return self.full_state()
 
-    def chat(self, text):
+    def say(self, text):
         sess = self.session
         with sess.lock:
             events = sess.add("user", text)
             ctx, items = sess.context(text)
-            reply = self.model.reply(ctx.text, text)
+            try:
+                reply = self.model.reply(ctx.text, text)
+            except Exception:
+                self._title(text)
+                self.chats.save(self.chat)   # the message is in memory; keep disk in step
+                raise
             events += sess.add("assistant", reply)
+            self._title(text)
+            self.chats.save(self.chat)
         out = self.full_state()
         out.update(reply=reply, context=items, context_tokens=ctx.tokens,
                    events=events)
@@ -386,23 +482,46 @@ class App:
 
 
 def main():
-    ap = argparse.ArgumentParser(description="MemGate live demo")
+    ap = argparse.ArgumentParser(description="MemGate app")
     ap.add_argument("--port", type=int, default=8765)
+    ap.add_argument("--host", default="127.0.0.1",
+                    help="0.0.0.0 to let other devices on the network open it")
+    ap.add_argument("--llm", choices=BACKENDS,
+                    default=os.environ.get("MEMGATE_LLM", "auto"),
+                    help="which model answers (default: auto)")
     ap.add_argument("--no-llm", action="store_true",
-                    help="run without the chat model (memory still works)")
+                    help="run without a chat model (memory still works)")
+    ap.add_argument("--scorer", choices=("learned", "heuristic"),
+                    default=os.environ.get("MEMGATE_SCORER", "learned"),
+                    help="what scores each message: the learned scorer trained on "
+                         "LoCoMo + REALTALK (default), or the P1 rule scorer")
     args = ap.parse_args()
+    # Read by MemGatePolicy when each chat's policy is built. The benchmark
+    # check pins its own scorer, so this does not move the committed numbers.
+    os.environ["MEMGATE_SCORER"] = args.scorer
 
-    model = ChatModel(enabled=not args.no_llm)
-    print("MemGate live demo")
+    model = ChatModel("none" if args.no_llm else args.llm)
+    print("MemGate")
     print("  warming the embedder ...", flush=True)
     from memgate.utils import embed
     embed("warm up")
     print(f"  embedder: {backend_info()['embedder']}", flush=True)
+    print(f"  scorer: {MemGatePolicy().scorer.name}", flush=True)
     if model.enabled:
         print(f"  loading {model.name} ...", flush=True)
-        model.load()
+        try:
+            model.load()
+        except Exception as exc:
+            print(f"  [MemGate] WARNING: chat model did not load "
+                  f"({type(exc).__name__}: {str(exc)[:120]}); continuing "
+                  f"without it. The memory side works unchanged.", flush=True)
+            model.disable()
+    else:
+        print("  no chat model: replies will show what it would have been sent")
     app = App(model)
-    srv = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(app))
+    srv = ThreadingHTTPServer((args.host, args.port), make_handler(app))
+    print(f"\n  model: {model.name}")
+    print(f"  chats saved in {CHATS}")
     print(f"\n  open http://localhost:{args.port}   (Ctrl+C to stop)\n", flush=True)
     try:
         srv.serve_forever()

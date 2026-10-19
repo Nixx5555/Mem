@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MemGate</title>
+<style>
+  :root {
+    --ink: #1d1d1b; --muted: #6b6b66; --faint: #9a9a94; --line: #e6e5df;
+    --bg: #ffffff; --side: #f6f5f1; --bubble: #f1f0eb; --accent: #c1272d;
+    --accent-ink: #ffffff; --hover: #ecebe5;
+    --t1: #34617c; --t1-soft: #e7eef5; --t2: #8a6d1f; --t2-soft: #f7f0dc;
+    --t3: #2e6b4a; --t3-soft: #e7f2eb; --drop: #9a1f24;
+    font-family: -apple-system, "Segoe UI", Inter, Roboto, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px;
+         display: grid; grid-template-columns: 260px 1fr auto; overflow: hidden; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+
+  /* sidebar */
+  #side { background: var(--side); border-right: 1px solid var(--line);
+          display: flex; flex-direction: column; min-height: 0; }
+  .brand { padding: 16px 16px 8px; font: 700 21px/1 Georgia, "Times New Roman", serif; }
+  .brand span { color: var(--accent); }
+  #newChat { margin: 8px 12px; padding: 10px 12px; border: 1px solid var(--line);
+             border-radius: 10px; background: var(--bg); text-align: left; font-weight: 600; }
+  #newChat:hover { background: var(--hover); }
+  .label { padding: 12px 16px 4px; font-size: 11px; letter-spacing: .06em;
+           text-transform: uppercase; color: var(--faint); }
+  #chatList { flex: 1; overflow-y: auto; padding: 0 8px; }
+  .ci { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 8px;
+        cursor: pointer; font-size: 14px; }
+  .ci:hover { background: var(--hover); }
+  .ci.on { background: var(--hover); font-weight: 600; }
+  .ci .t { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .ci .x { visibility: hidden; border: 0; background: none; color: var(--faint); padding: 0 4px; }
+  .ci:hover .x { visibility: visible; }
+  #settings { border-top: 1px solid var(--line); padding: 10px 12px 14px;
+              display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+  #settings select, #settings input { width: 100%; padding: 6px 8px; border: 1px solid var(--line);
+              border-radius: 8px; background: var(--bg); }
+  #settings .row { display: flex; gap: 8px; align-items: center; }
+  #settings .row label { white-space: nowrap; color: var(--muted); }
+  .small { color: var(--faint); font-size: 11.5px; line-height: 1.4; }
+  .linkbtn { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 6px 8px; }
+  .linkbtn:hover { background: var(--hover); }
+
+  /* main chat */
+  #main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  #top { display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+         border-bottom: 1px solid var(--line); min-height: 52px; }
+  #menuBtn { display: none; border: 0; background: none; font-size: 20px; }
+  #title { font-weight: 600; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .pill { font-size: 12px; color: var(--muted); border: 1px solid var(--line);
+          border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+  #memBtn { border: 1px solid var(--line); background: var(--bg); border-radius: 999px;
+            padding: 5px 12px; font-size: 13px; font-weight: 600; }
+  #memBtn.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  #scroll { flex: 1; overflow-y: auto; }
+  #msgs { max-width: 760px; margin: 0 auto; padding: 24px 20px 12px;
+          display: flex; flex-direction: column; gap: 18px; }
+  .m { display: flex; gap: 12px; line-height: 1.55; }
+  .m .av { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid;
+           place-items: center; font-size: 13px; font-weight: 700; }
+  .m.bot .av { background: var(--accent); color: var(--accent-ink); }
+  .m.user { justify-content: flex-end; }
+  .m.user .body { background: var(--bubble); border-radius: 18px; padding: 9px 15px; max-width: 78%; }
+  .m.bot .body { max-width: calc(100% - 42px); padding-top: 3px; }
+  .m .meta { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px;
+          padding: 2px 9px; background: var(--bg); }
+  button.chip:hover { background: var(--hover); }
+  .note { align-self: center; color: var(--faint); font-size: 12.5px; text-align: center; }
+  .dots span { display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 50%;
+               background: var(--faint); animation: blink 1.2s infinite both; }
+  .dots span:nth-child(2) { animation-delay: .2s; } .dots span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+
+  #welcome { max-width: 640px; margin: 12vh auto 0; padding: 0 20px; text-align: center; }
+  #welcome h2 { font: 600 28px/1.25 Georgia, "Times New Roman", serif; margin: 0 0 8px; }
+  #welcome p { color: var(--muted); margin: 0 0 22px; }
+  .sugg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
+  .sugg button { border: 1px solid var(--line); background: var(--bg); border-radius: 12px;
+                 padding: 12px 14px; font-size: 14px; }
+  .sugg button:hover { background: var(--side); }
+  .sugg small { display: block; color: var(--faint); margin-top: 2px; }
+
+  #composer { padding: 8px 16px 18px; }
+  #form { max-width: 760px; margin: 0 auto; display: flex; align-items: flex-end; gap: 8px;
+          border: 1px solid #d6d5cf; border-radius: 22px; padding: 8px 8px 8px 16px;
+          box-shadow: 0 2px 10px rgba(0,0,0,.05); background: var(--bg); }
+  #text { flex: 1; border: 0; outline: none; resize: none; max-height: 180px; padding: 6px 0;
+          line-height: 1.45; background: transparent; }
+  #send { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 0;
+          background: var(--accent); color: var(--accent-ink); font-size: 18px; font-weight: 700; }
+  #send:disabled { opacity: .35; cursor: default; }
+  .hint { max-width: 760px; margin: 6px auto 0; text-align: center; color: var(--faint); font-size: 11.5px; }
+
+  /* memory panel */
+  #mem { width: 0; overflow: hidden; border-left: 1px solid var(--line); background: var(--side);
+         display: flex; flex-direction: column; transition: width .2s; min-height: 0; }
+  body.memOpen #mem { width: 400px; }
+  #mem .head { padding: 12px 14px 0; }
+  #mem .head b { font-size: 15px; }
+  .stats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 6px 0 10px; }
+  .stats b { color: var(--ink); font-size: 16px; margin-right: 3px; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); padding: 0 10px; }
+  .tabs button { border: 0; background: none; padding: 8px 10px; font-size: 13px; color: var(--muted);
+                 border-bottom: 2px solid transparent; }
+  .tabs button.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+  .pane { flex: 1; overflow-y: auto; padding: 10px 12px; min-height: 0; }
+  .tierh { font-size: 12px; font-weight: 700; margin: 10px 0 6px; display: flex; justify-content: space-between; }
+  .tierh small { font-weight: 400; color: var(--faint); }
+  .tierh.t1 { color: var(--t1); } .tierh.t2 { color: var(--t2); } .tierh.t3 { color: var(--t3); }
+  .it { background: var(--bg); border: 1px solid var(--line); border-left: 3px solid var(--line);
+        border-radius: 7px; padding: 6px 8px; font-size: 13px; line-height: 1.35; margin-bottom: 5px; }
+  .it.t1 { border-left-color: var(--t1); } .it.t2 { border-left-color: var(--t2); } .it.t3 { border-left-color: var(--t3); }
+  .it.fresh { animation: flash 1.6s ease-out; }
+  @keyframes flash { from { background: #fff4b8; } to { background: var(--bg); } }
+  .it.gone { text-decoration: line-through; color: var(--faint); }
+  .it .mt { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; gap: 6px; align-items: center; }
+  .bar { width: 44px; height: 4px; background: #e5e5e0; border-radius: 2px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  .ev { font-size: 12.5px; line-height: 1.35; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  .tg { font-weight: 700; font-size: 10.5px; text-transform: uppercase; margin-right: 6px; }
+  .tg.t1 { color: var(--t1); } .tg.t2 { color: var(--t2); } .tg.t3 { color: var(--t3); }
+  .tg.drop, .tg.supersede { color: var(--drop); }
+  .ev .q { color: var(--muted); font-style: italic; margin-top: 2px; }
+  .empty { color: var(--faint); font-size: 13px; padding: 6px 0; }
+
+  /* benchmark dialog */
+  dialog { border: 1px solid var(--line); border-radius: 14px; padding: 0; width: min(760px, 94vw); }
+  dialog .dh { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  dialog pre { margin: 0; padding: 12px 16px; height: 46vh; overflow: auto; font-size: 12px; background: #fafaf8; }
+  dialog .res { padding: 10px 16px; font-size: 14px; border-top: 1px solid var(--line); }
+  .ok { color: var(--t3); font-weight: 700; } .bad { color: var(--drop); font-weight: 700; }
+  .primary { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 6px 12px; font-weight: 600; }
+
+  @media (max-width: 860px) {
+    body { grid-template-columns: 1fr; }
+    #side { position: fixed; inset: 0 auto 0 0; width: 270px; z-index: 5; transform: translateX(-100%);
+            transition: transform .2s; box-shadow: 4px 0 20px rgba(0,0,0,.1); }
+    body.sideOpen #side { transform: none; }
+    #menuBtn { display: block; }
+    #mem { position: fixed; inset: 0 0 0 auto; z-index: 5; box-shadow: -4px 0 20px rgba(0,0,0,.1); }
+    body.memOpen #mem { width: min(400px, 100vw); }
+    .sugg { grid-template-columns: 1fr; }
+    .pill { display: none; }
+  }
+</style>
+</head>
+<body>
+<aside id="side">
+  <div class="brand">Mem<span>Gate</span></div>
+  <button id="newChat">＋ New chat</button>
+  <div class="label">Chats</div>
+  <div id="chatList"></div>
+  <div id="settings">
+    <div class="row"><label for="mode">Memory</label>
+      <select id="mode">
+        <option value="p1s">P1-S · forget lowest score first</option>
+        <option value="p1">P1 · threshold routing</option>
+        <option value="p1a">P1-A · demote to a gist</option>
+      </select></div>
+    <div class="row"><label for="scale">Sizes</label>
+      <select id="scale">
+        <option value="full">Full (as in experiments)</option>
+        <option value="demo">Demo (evicts quickly)</option>
+      </select></div>
+    <div class="row" id="sRow"><label for="S">Store S</label><input id="S" type="number" min="40" step="10" value="4096"></div>
+    <div class="small">Changing these starts a new chat.</div>
+    <div class="row">
+      <button class="linkbtn" id="sample" style="flex:1">Load sample chat</button>
+      <button class="linkbtn" id="benchBtn" style="flex:1">Benchmark check</button>
+    </div>
+    <a class="small" href="/inspect" target="_blank" style="color:var(--muted)">Open the full memory view (all three tiers side by side) ↗</a>
+    <div class="small" id="info"></div>
+  </div>
+</aside>
+
+<main id="main">
+  <div id="top">
+    <button id="menuBtn" aria-label="chats">☰</button>
+    <div id="title">New chat</div>
+    <span class="pill" id="modePill"></span>
+    <button id="memBtn" title="what MemGate is holding">Memory</button>
+  </div>
+  <div id="scroll">
+    <div id="welcome" hidden>
+      <h2>What should I remember?</h2>
+      <p>Chat normally. MemGate decides what to keep, compress or forget, and the model
+         only ever sees what MemGate sends it. Open <b>Memory</b> to watch it happen.</p>
+      <div class="sugg">
+        <button data-t="My name is Simar and my capstone final review is on 6 November.">Tell it a fact<small>“My final review is on 6 November.”</small></button>
+        <button data-t="Actually the review moved to 8 November.">Correct yourself<small>“Actually it moved to 8 November.”</small></button>
+        <button data-t="When is my final review?">Ask about it later<small>“When is my final review?”</small></button>
+        <button data-sample="1">Load a sample chat<small>18 messages to ask questions about</small></button>
+      </div>
+    </div>
+    <div id="msgs"></div>
+  </div>
+  <div id="composer">
+    <form id="form" autocomplete="off">
+      <textarea id="text" rows="1" placeholder="Message MemGate…"></textarea>
+      <button id="send" title="Send" disabled>↑</button>
+    </form>
+    <div class="hint" id="hint">Enter to send · Shift+Enter for a new line</div>
+  </div>
+</main>
+
+<aside id="mem">
+  <div class="head"><b>Memory</b><div class="stats" id="stats"></div></div>
+  <div class="tabs">
+    <button data-tab="tiers" class="on">Tiers</button>
+    <button data-tab="log">Decisions</button>
+    <button data-tab="ctx">Sent to model</button>
+  </div>
+  <div class="pane" id="pane"></div>
+</aside>
+
+<dialog id="bench">
+  <div class="dh"><b>Benchmark check</b>
+    <label class="small">S <input id="benchS" type="number" value="4096" step="1024" min="512" style="width:80px"></label>
+    <button class="primary" id="benchRun">Run</button>
+    <span id="benchStatus" class="small"></span>
+    <button class="linkbtn" id="benchClose" style="margin-left:auto">Close</button></div>
+  <pre id="benchOut">Replays all 10 LoCoMo conversations (1,527 questions) through RAG store-all and
+P1-S select at the same storage budget, and compares the result with the
+committed results/storage_sweep.csv. About 20 seconds.</pre>
+  <div class="res" id="benchRes" hidden></div>
+</dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const SCALE_S = {full: 4096, demo: 150};
+let state = null, seen = new Set(), busy = false, tab = 'tiers', lastCtx = null;
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} :
+    {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+const strip = t => t.replace(/^\[(user|assistant)\]\s*/, '');
+
+// ---------------------------------------------------------------- messages
+function bottom() { $('scroll').scrollTop = $('scroll').scrollHeight; }
+function addMsg(who, text) {
+  $('welcome').hidden = true;
+  const d = document.createElement('div');
+  d.className = 'm ' + (who === 'user' ? 'user' : 'bot');
+  d.innerHTML = who === 'user' ? `<div class="body"></div>`
+                               : `<div class="av">M</div><div class="body"><div class="txt"></div></div>`;
+  d.querySelector(who === 'user' ? '.body' : '.txt').textContent = text;
+  $('msgs').appendChild(d); bottom();
+  return d;
+}
+function addNote(text) {
+  const d = document.createElement('div'); d.className = 'note'; d.textContent = text;
+  $('msgs').appendChild(d); bottom();
+}
+function typeInto(el, text) {          // reveal the reply word by word
+  return new Promise(res => {
+    const words = text.split(/(\s+)/); let i = 0; el.textContent = '';
+    const step = () => {
+      el.textContent += words.slice(i, i + 3).join(''); i += 3; bottom();
+      if (i < words.length) setTimeout(step, 22); else res();
+    };
+    step();
+  });
+}
+function showTranscript(s) {
+  $('msgs').innerHTML = '';
+  for (const m of s.transcript) addMsg(m.speaker, m.text);
+  $('welcome').hidden = s.transcript.length > 0;
+  lastCtx = null;
+}
+
+// ---------------------------------------------------------------- memory panel
+function itemHTML(it, fresh) {
+  const sc = it.tier !== 't1';
+  return `<div class="it ${it.tier} ${fresh ? 'fresh' : ''} ${it.superseded ? 'gone' : ''}">${esc(it.text)}
+    <div class="mt">${sc ? `<span class="bar"><i style="width:${Math.round(it.utility * 100)}%"></i></span>
+      <span>u ${it.utility.toFixed(2)}</span><span>${esc(it.label)}</span>` : `<span>#${it.turn}</span>`}
+      <span>${it.tokens} tok</span>${it.superseded ? '<span>superseded</span>' : ''}</div></div>`;
+}
+const TAG = {enter: 't1', t3: 't3', t2: 't2', dup: 't3', drop: 'drop', demote: 't2', merge: 't2', supersede: 'supersede'};
+const TAGNAME = {enter: 'Tier 1', t3: 'Tier 3', t2: 'Tier 2', dup: 'Tier 3', drop: 'forgot', demote: 'demoted', merge: 'merged', supersede: 'replaced'};
+
+function renderPane() {
+  const s = state; if (!s) return;
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  let h = '';
+  if (tab === 'tiers') {
+    const heads = {t1: ['Tier 1 · short-term', `last ${s.short_capacity} messages, verbatim`],
+                   t2: ['Tier 2 · working', 'compressed gists'],
+                   t3: ['Tier 3 · long-term', 'facts, retrieved by meaning']};
+    for (const k of ['t3', 't2', 't1']) {
+      const items = s[k];
+      const why = (k === 't2' && s.mode === 'p1s') ? 'P1-S never compresses: kept whole or forgotten.' : 'empty';
+      h += `<div class="tierh ${k}">${heads[k][0]} <small>${heads[k][1]}</small></div>` +
+        (items.length ? items.slice().reverse().map(it => itemHTML(it, !seen.has(it.id))).join('')
+                      : `<div class="empty">${why}</div>`);
+    }
+  } else if (tab === 'log') {
+    const ev = s.log.slice().reverse().filter(e => e.type !== 'enter');
+    h = ev.length ? ev.map(e => `<div class="ev"><span class="tg ${TAG[e.type]}">${TAGNAME[e.type]}</span>${esc(e.msg)}
+          <div class="q">“${esc(e.text.length > 110 ? e.text.slice(0, 110) + '…' : e.text)}”</div></div>`).join('')
+        : '<div class="empty">Nothing has left Tier 1 yet. Decisions happen when a message is pushed out of it.</div>';
+  } else {
+    const name = {t1: 'TIER 1', t2: 'TIER 2', t3: 'TIER 3'};
+    h = lastCtx ? `<div class="small" style="margin-bottom:8px">${lastCtx.tokens} of ${s.context_budget} tokens.
+          The model saw only these notes, not the chat history.</div>` +
+        (lastCtx.items.length ? lastCtx.items.map(it =>
+          `<div class="it ${it.tier}"><span class="tg ${it.tier}">${name[it.tier]}</span>${esc(it.text)}</div>`).join('')
+          : '<div class="empty">Nothing retrieved.</div>')
+      : '<div class="empty">Send a message to see exactly what MemGate puts in the prompt.</div>';
+  }
+  $('pane').innerHTML = h;
+}
+
+function render(s) {
+  state = s;
+  $('mode').value = s.mode; $('scale').value = s.scale;
+  if (s.store_budget) $('S').value = s.store_budget;
+  $('sRow').style.display = s.mode === 'p1' ? 'none' : '';
+  $('title').textContent = s.title;
+  $('modePill').textContent = `${s.mode.toUpperCase().replace('P1S', 'P1-S').replace('P1A', 'P1-A')} · ${s.scale} sizes`;
+  $('info').innerHTML = `Model: ${esc(s.model)}<br>Scorer: ${esc(s.scorer || '')}<br>Embedder: ${esc(s.backends.embedder)}`;
+  const c = s.counts;
+  $('stats').innerHTML = `<span><b>${s.messages}</b>messages</span>
+    <span><b>${s.stored_tokens}</b>tokens kept${s.store_budget ? ` / ${s.store_budget}` : ''}</span>
+    <span><b>${c.dropped}</b>forgotten</span>
+    ${s.mode !== 'p1s' ? `<span><b>${c.compressed}</b>compressed</span>` : ''}`;
+  renderPane();
+  seen = new Set([...s.t1, ...s.t2, ...s.t3].map(i => i.id));
+}
+
+async function refreshChats() {
+  const c = await api('/api/chats');
+  $('chatList').innerHTML = c.chats.map(ch =>
+    `<div class="ci ${ch.id === c.current ? 'on' : ''}" data-id="${esc(ch.id)}">
+       <span class="t">${esc(ch.title || 'Untitled')}</span>
+       <button class="x" data-del="${esc(ch.id)}" title="delete">✕</button></div>`).join('');
+}
+
+// ---------------------------------------------------------------- actions
+async function send(text) {
+  text = text.trim();
+  if (!text || busy) return;
+  busy = true; $('send').disabled = true; $('text').value = ''; grow();
+  addMsg('user', text);
+  const bot = addMsg('bot', '');
+  const txt = bot.querySelector('.txt');
+  txt.innerHTML = '<span class="dots"><span></span><span></span><span></span></span>';
+  try {
+    const s = await api('/api/chat', {text});
+    lastCtx = {items: s.context, tokens: s.context_tokens};
+    await typeInto(txt, s.reply);
+    const used = s.context.filter(i => i.tier !== 't1').length;
+    const meta = document.createElement('div'); meta.className = 'meta';
+    meta.innerHTML = `<button class="chip">${s.context.length} notes from memory${used ? ` · ${used} recalled` : ''}</button>`;
+    meta.querySelector('button').onclick = () => openMem('ctx');
+    bot.querySelector('.body').appendChild(meta); bottom();
+    render(s); refreshChats();
+  } catch (err) { txt.textContent = 'Error: ' + err.message; }
+  busy = false; $('send').disabled = !$('text').value.trim(); $('text').focus();
+}
+
+async function newChat() {
+  const scale = $('scale').value;
+  const s = await api('/api/chats/new', {mode: $('mode').value, scale,
+                                         store_budget: +$('S').value || SCALE_S[scale]});
+  seen = new Set(); showTranscript(s); render(s); refreshChats();
+  document.body.classList.remove('sideOpen'); $('text').focus();
+}
+async function openChat(id) {
+  const s = await api('/api/chats/open', {id});
+  seen = new Set(); showTranscript(s); render(s); refreshChats();
+  document.body.classList.remove('sideOpen');
+}
+async function sample() {
+  const s = await api('/api/sample', {});
+  showTranscript(s);
+  addNote('Sample conversation loaded. Try asking: “When is my report due?”');
+  render(s); refreshChats();
+}
+function openMem(t) { if (t) tab = t; document.body.classList.add('memOpen'); $('memBtn').classList.add('on'); renderPane(); }
+
+function grow() { const t = $('text'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 180) + 'px'; }
+$('text').addEventListener('input', () => { grow(); $('send').disabled = busy || !$('text').value.trim(); });
+$('text').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send($('text').value); }
+});
+$('form').addEventListener('submit', e => { e.preventDefault(); send($('text').value); });
+$('newChat').onclick = newChat;
+$('mode').onchange = newChat;
+$('scale').onchange = () => { $('S').value = SCALE_S[$('scale').value]; newChat(); };
+$('S').onchange = newChat;
+$('sample').onclick = sample;
+$('chatList').onclick = async e => {
+  const del = e.target.closest('[data-del]');
+  if (del) {
+    e.stopPropagation();
+    if (!confirm('Delete this chat and its memory?')) return;
+    const s = await api('/api/chats/delete', {id: del.dataset.del});
+    seen = new Set(); showTranscript(s); render(s); refreshChats(); return;
+  }
+  const ci = e.target.closest('.ci'); if (ci) openChat(ci.dataset.id);
+};
+$('welcome').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.sample) sample(); else { $('text').value = b.dataset.t; grow(); $('send').disabled = false; $('text').focus(); }
+};
+$('memBtn').onclick = () => {
+  const open = document.body.classList.toggle('memOpen');
+  $('memBtn').classList.toggle('on', open); renderPane();
+};
+$('menuBtn').onclick = () => document.body.classList.toggle('sideOpen');
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; renderPane(); });
+
+// benchmark
+let benchTimer = null;
+$('benchBtn').onclick = () => $('bench').showModal();
+$('benchClose').onclick = () => $('bench').close();
+function showBench(b) {
+  if (b.lines.length) $('benchOut').textContent = b.lines.join('\n');
+  $('benchOut').scrollTop = 1e9;
+  $('benchStatus').textContent = b.running ? 'running…' : (b.code === null ? '' : 'done');
+  $('benchRun').disabled = b.running;
+  const res = b.lines.filter(l => /live .*committed/.test(l));
+  if (!b.running && res.length) {
+    $('benchRes').hidden = false;
+    $('benchRes').innerHTML = res.map(l => esc(l.trim()).replace('MATCH', '<span class="ok">MATCH</span>')
+      .replace('DIFFERS', '<span class="bad">DIFFERS</span>')).join('<br>') +
+      '<br>' + esc((b.lines.find(l => l.includes('selection over FIFO')) || '').trim());
+  }
+}
+$('benchRun').onclick = async () => {
+  $('benchRes').hidden = true; $('benchOut').textContent = 'starting…';
+  showBench(await api('/api/bench', {store: +$('benchS').value || 4096}));
+  clearInterval(benchTimer);
+  benchTimer = setInterval(async () => {
+    const b = await api('/api/bench'); showBench(b);
+    if (!b.running) clearInterval(benchTimer);
+  }, 700);
+};
+
+api('/api/state').then(s => { showTranscript(s); render(s); refreshChats(); $('text').focus(); });
+</script>
+</body>
+</html>
