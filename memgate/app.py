@@ -19,6 +19,12 @@ assembled, never the raw history. The page shows the three tiers as they are,
 an event log of each routing decision (score, label, destination), and the
 exact context sent with each question.
 
+Each chat also feeds every message to the two baselines MemGate is measured
+against, P0 sliding window and RAG store-all, at the same store budget S, so
+the page can show the same question answered from all three memories. Any
+note's score can be broken down into the parts that add up to it
+(memgate/explain.py).
+
 The benchmark panel runs `run_live_check.py` in a subprocess and streams its
 output: the LoCoMo answer-recall numbers re-computed in front of the panel and
 compared with the committed CSV.
@@ -40,7 +46,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from memgate.types import Turn, SHORT_TERM, WORKING, LONG_TERM
 from memgate.policies import (MemGatePolicy, MemGateAdaptivePolicy,
-                              MemGateSelectPolicy)
+                              MemGateSelectPolicy, SlidingWindowPolicy,
+                              RAGPolicy)
+from memgate.explain import explain
 from memgate.reader import ChatModel, BACKENDS
 from memgate.utils import backend_info, count_tokens
 
@@ -52,6 +60,10 @@ CHATS = os.path.join(HERE, "chats")
 # local model still answers in reasonable time.
 MAX_CHARS = 20000
 TIER_KEY = {SHORT_TERM: "t1", WORKING: "t2", LONG_TERM: "t3"}
+
+
+class NotFound(Exception):
+    """A request the page can fix (unknown note, nothing asked yet): a 404."""
 
 # (Tier 1 capacity, context budget, default store budget S), in messages and
 # tokens. "full" is what the experiments ran with (policies.py defaults, the
@@ -115,6 +127,17 @@ class Session:
             self.policy = MemGateSelectPolicy(store_budget=self.store_budget, **kw)
         else:
             self.policy = MemGateAdaptivePolicy(store_budget=self.store_budget, **kw)
+        # The two baselines MemGate is measured against, fed the same messages
+        # under the same store budget S and asked with the same context budget,
+        # so a question can be answered from each memory side by side. They
+        # are the experiments' own classes: P0 keeps the most recent S tokens,
+        # RAG keeps every message verbatim and forgets the oldest past S.
+        self.rivals = {"window": SlidingWindowPolicy(store_budget=self.store_budget),
+                       "rag": RAGPolicy(store_budget=self.store_budget)}
+        self.said_tokens = 0   # everything said so far, as memory sees it
+        self.raw = {}          # message number -> (scored text, speaker), for "why"
+        self.turn_of = {}      # item id -> the message numbers it was made from
+        self.last_compare = None
         self.n = 0
         self.log = []          # every routing event, newest last
         self.transcript = []   # what was said, in order: the saved form
@@ -144,6 +167,7 @@ class Session:
                                                "merges", "consolidations")},
                            compressed=self.policy.routed["working"] + s["demoted"]),
             "messages": self.n,
+            "said_tokens": self.said_tokens,
         }
 
     # -- the write path, with every decision it made written to the log
@@ -165,9 +189,20 @@ class Session:
         turn = Turn(session=1, index=self.n, speaker=speaker, text=text)
         self.n += 1
         p.observe(turn)                      # exactly the experiments' code path
+        for r in self.rivals.values():
+            r.observe(turn)
 
         s1, w1, l1 = self._held()
         new = next(i for i in st.short if i.id not in s0)
+        self.raw[turn.index] = (new.text, speaker)
+        self.turn_of[new.id] = {turn.index}
+        # a gist or fact made just now inherits its sources' message numbers,
+        # so a gist of three merged gists still names all the messages in it
+        for it in list(w1.values()) + list(l1.values()):
+            if it.id not in self.turn_of:
+                src = [self.turn_of[k] for k in it.source_ids if k in self.turn_of]
+                self.turn_of[it.id] = set().union(*src) if src else {it.turn_index}
+        self.said_tokens += count_tokens(new.text)
         ev = [{"type": "enter", "tier": "t1", "text": new.text,
                "msg": f"entered Tier 1 (short-term buffer, holds the last "
                       f"{self.short_capacity} messages)"}]
@@ -256,6 +291,58 @@ class Session:
     def context(self, query):
         ctx = self.policy.build_context(query, self.context_budget)
         return ctx, [_item(i) for i in ctx.items]
+
+    def compare(self, query, ctx):
+        """The same question asked of each memory, at the same budgets.
+
+        `ctx` is MemGate's context for `query`, already built. Each row lists
+        which messages (by number) its context draws on; a MemGate gist
+        counts for every message it was made from. `only` marks notes whose
+        messages none of the baselines sent.
+        """
+        def turns(it):
+            return self.turn_of.get(it.id) or {it.turn_index}
+        rows = {"memgate": (ctx, self.policy.stats()["stored_tokens"])}
+        for k, r in self.rivals.items():
+            rows[k] = (r.build_context(query, self.context_budget), r.stored_tokens())
+        cover = {k: set().union(*[turns(i) for i in c.items]) if c.items else set()
+                 for k, (c, _) in rows.items()}
+        theirs = cover["window"] | cover["rag"]
+        out = {"query": query, "said_tokens": self.said_tokens,
+               "store_budget": self.store_budget,
+               "context_budget": self.context_budget, "rows": {}}
+        for k, (c, stored) in rows.items():
+            notes = []
+            for i in c.items:
+                d = {"text": i.text, "tier": TIER_KEY.get(i.tier, "t1"),
+                     "turns": sorted(turns(i))}
+                if k == "memgate":
+                    d["only"] = not (set(d["turns"]) & theirs)
+                notes.append(d)
+            out["rows"][k] = {"tokens": c.tokens, "stored_tokens": stored,
+                              "messages": len(cover[k]), "notes": notes,
+                              "text": c.text}
+        self.last_compare = out
+        return out
+
+    def why(self, item_id):
+        """Explain the score an item in memory got, from the message it was
+        made from: a gist is scored on its original, not on the gist, and a
+        merged gist is shown by its earliest message."""
+        st = self.policy.store
+        it = next((i for i in list(st.short) + list(st.working) + list(st.long)
+                   if i.id == item_id), None)
+        if it is None:
+            raise NotFound("that note is no longer in memory")
+        made_from = sorted(self.turn_of.get(it.id) or {it.turn_index})
+        src = self.raw.get(made_from[0])
+        if src is None:
+            raise NotFound("the message this note came from is not on record")
+        out = explain(self.policy.scorer, *src)
+        if out is None:
+            raise NotFound(f"{self.policy.scorer.name} cannot be broken down")
+        out.update(tier=TIER_KEY[it.tier], made_from=made_from)
+        return out
 
 
 # ----------------------------------------------------------------- bench
@@ -408,9 +495,16 @@ def make_handler(app):
                     return self._send(200, app.open(str(b.get("id", ""))))
                 if self.path == "/api/chats/delete":
                     return self._send(200, app.delete(str(b.get("id", ""))))
+                if self.path == "/api/why":
+                    return self._send(200, app.why(b.get("id"), b.get("text"),
+                                                   b.get("speaker", "user")))
+                if self.path == "/api/rival":
+                    return self._send(200, app.ask_rival(str(b.get("rival", ""))))
                 if self.path == "/api/bench":
                     app.bench.start(b.get("store", 4096))
                     return self._send(200, app.bench.state())
+            except NotFound as exc:
+                return self._send(404, {"error": str(exc)})
             except Exception as exc:          # show it on the page, keep serving
                 return self._send(500, {"error": f"{type(exc).__name__}: {exc}"})
             self._send(404, {"error": "not found"})
@@ -441,6 +535,7 @@ class App:
         s = self.session.state()
         s.update(log=self.session.log[-80:], model=self.model.name,
                  model_note=self.model.note,
+                 model_enabled=bool(self.model.enabled),
                  scorer=self.session.policy.scorer.name,
                  backends=backend_info(), chat_id=self.chat["id"],
                  title=self.chat["title"], transcript=self.session.transcript)
@@ -487,6 +582,7 @@ class App:
         with sess.lock:
             events = sess.add("user", text)
             ctx, items = sess.context(text)
+            compare = sess.compare(text, ctx)
             try:
                 reply = self.model.reply(ctx.text, text)
             except Exception:
@@ -499,8 +595,42 @@ class App:
             self.chats.save(self.chat)
         out = self.full_state()
         out.update(reply=reply, context=items, context_tokens=ctx.tokens,
-                   events=events)
+                   events=events, compare=_public(compare))
         return out
+
+    def ask_rival(self, rival):
+        """Answer the last question again from a baseline's memory instead.
+
+        Nothing is stored: the chat and every memory stay as they were, so
+        this only shows what the model would have said without MemGate."""
+        sess = self.session
+        with sess.lock:
+            cmp = sess.last_compare
+            if not cmp:
+                raise NotFound("ask something first")
+            if rival not in cmp["rows"] or rival == "memgate":
+                raise NotFound(f"no baseline called {rival!r}")
+            row = cmp["rows"][rival]
+            reply = self.model.reply(row["text"], cmp["query"])
+        return {"rival": rival, "query": cmp["query"],
+                "reply": reply or "(the model returned an empty reply)"}
+
+    def why(self, item_id=None, text=None, speaker="user"):
+        sess = self.session
+        with sess.lock:
+            if item_id:
+                return sess.why(item_id)
+            t = " ".join((text or "").split())
+            if not t:
+                raise NotFound("nothing to score")
+            spk = speaker if speaker in ("user", "assistant") else "user"
+            return explain(sess.policy.scorer, f"[{spk}] {t}", spk)
+
+
+def _public(cmp):
+    """The comparison without the raw context strings (the notes carry them)."""
+    return {**cmp, "rows": {k: {f: v for f, v in r.items() if f != "text"}
+                            for k, r in cmp["rows"].items()}}
 
 
 def main():

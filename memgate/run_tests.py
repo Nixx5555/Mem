@@ -17,6 +17,7 @@ SUITES = [
     ("test_policy.py", "Memory policy: keep, forget, recall under a budget"),
     ("test_reader.py", "Chat model: backends, fallback, saved key"),
     ("test_app.py", "Chat app: any input, endpoints, saved chats"),
+    ("test_insights.py", "Score breakdown and the baseline comparison"),
     ("test_bench.py", "Benchmark check"),
 ]
 

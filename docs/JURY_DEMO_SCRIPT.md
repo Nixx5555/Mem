@@ -85,6 +85,37 @@ answer-recall points** on LoCoMo. With the learned scorer, on conversations
 it never trained on, it is **+14.6 points better again**: 52.0% against
 37.5%."
 
+## 3b. Same question, three memories (1 min)
+
+Still in the sample chat, ask: `What is my name?`
+
+**Click** the second chip under the reply, **"2 the baselines forgot"**. It
+opens **Memory → Compare**: the same question answered from three memories
+that each hold at most S = 150 tokens and may send 512.
+
+* **MemGate** sent 11 notes, 140 tokens. Two are green, *only MemGate*: the
+  name ("My name is Simar…", message 2) and the review date (message 4).
+* **Sliding window (P0)** and **RAG store-all** each sent 14 notes, 137
+  tokens: "lol yes", "ok thanks", "You're welcome!"… and no name. Both had
+  already forgotten messages 0 to 4 because they were the oldest.
+* Click **Answer from this memory** under either baseline. The model answers
+  from that memory only, and should say it doesn't remember. Nothing is
+  saved, so the chat is unchanged.
+
+**Say:** "Same model, same budget, same question. The only difference is what
+each memory chose to keep. Forgetting by age loses the name; forgetting by
+score keeps it."
+
+Then **click** any Tier 3 note in **Tiers**. It opens *why this score*: the
+starting point, then each part that pushed the score up (green) or down
+(red), largest first, adding up exactly to the u shown. For "My name is
+Simar…" the largest part is what the message is about (MiniLM meaning),
+then that it names someone. **Decisions** has a box to score any message:
+`My exam is on 3 May` gives u = 0.98, `lol ok` gives 0.08.
+
+**Say:** "The learned scorer is a logistic regression, so every score breaks
+down exactly into its parts. Nothing here is a black box."
+
 ## 4. Why we don't compress (1 min)
 
 **Change** **Memory → P1-A · demote to a gist** (this starts a new chat), then

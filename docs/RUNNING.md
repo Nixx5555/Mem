@@ -76,6 +76,14 @@ To stop it, press Ctrl+C in the terminal.
   * **Tiers**: what MemGate is holding right now.
   * **Decisions**: every keep, compress or forget decision, with its score.
   * **Sent to model**: the exact notes behind the last reply.
+  * **Compare**: the last question answered from three memories with the
+    same budgets: MemGate, a sliding window and RAG store-all. Notes from
+    messages both baselines had forgotten are green. **Answer from this
+    memory** asks the model again from a baseline's memory (nothing is
+    saved).
+  * Click any Tier 2 or Tier 3 note to see **why it got its score**: each
+    part that raised or lowered it, adding up exactly to the number.
+    **Decisions** also has a box to score any message you type.
 * **Settings** (bottom left) apply to new chats:
   * **Memory**: the policy. P1-S, which forgets the lowest-scored message
     first, is the default and the best one.
