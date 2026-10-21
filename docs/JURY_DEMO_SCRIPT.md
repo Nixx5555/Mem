@@ -26,8 +26,9 @@ as `P3-learned`. To demo the hand-written P1 rules instead, start the app with
    dashboard).
 4. Run **Benchmark check** once now, so you know it ends in two MATCH lines
    on this laptop.
-5. Close other heavy apps. Keep a screen recording of one clean run as a
-   backup.
+5. Close other heavy apps. Keep the 96-second recorded walkthrough
+   (`memgate_demo.mp4`, made with `docs/demo/record_demo.js`) open in a player
+   as the backup.
 
 ## 1. What MemGate is (30 s, no clicking)
 

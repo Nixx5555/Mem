@@ -19,6 +19,7 @@ SUITES = [
     ("test_app.py", "Chat app: any input, endpoints, saved chats"),
     ("test_ingest.py", "Any text: long pastes, files, other languages, code"),
     ("test_insights.py", "Score breakdown and the baseline comparison"),
+    ("test_baselines.py", "MemGPT-style and Mem0-style baselines"),
     ("test_bench.py", "Benchmark check"),
 ]
 
