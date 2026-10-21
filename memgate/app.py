@@ -42,15 +42,23 @@ from memgate.types import Turn, SHORT_TERM, WORKING, LONG_TERM
 from memgate.policies import (MemGatePolicy, MemGateAdaptivePolicy,
                               MemGateSelectPolicy)
 from memgate.reader import ChatModel, BACKENDS
-from memgate.utils import backend_info, count_tokens
+from memgate.utils import backend_info, count_tokens, embed_many
+from memgate.ingest import (GuardedScorer, ExtractError, chunk, clean, focus,
+                            extract, decode_upload, one_line, MAX_DOC_CHARS)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PAGE = os.path.join(HERE, "web", "chat.html")          # the chat app
 INSPECT = os.path.join(HERE, "web", "index.html")    # all tiers at once
 CHATS = os.path.join(HERE, "chats")
-# Longest message accepted, about 5,000 tokens: a long paste fits, and the
-# local model still answers in reasonable time.
-MAX_CHARS = 20000
+# Longest message accepted, about 50,000 tokens. A long message is split into
+# turn-sized pieces before it reaches memory (memgate/ingest.py), so its size
+# only sets how long ingesting takes. The model is sent its questions, not
+# the whole paste: see LONG_MESSAGE.
+MAX_CHARS = 200_000
+# Past this many tokens a message is stored in memory piece by piece, and the
+# model gets the notes MemGate recalls for it plus the message's own
+# questions (or its opening and closing lines) instead of all of it.
+LONG_MESSAGE = 1500
 TIER_KEY = {SHORT_TERM: "t1", WORKING: "t2", LONG_TERM: "t3"}
 
 # (Tier 1 capacity, context budget, default store budget S), in messages and
@@ -115,7 +123,11 @@ class Session:
             self.policy = MemGateSelectPolicy(store_budget=self.store_budget, **kw)
         else:
             self.policy = MemGateAdaptivePolicy(store_budget=self.store_budget, **kw)
-        self.n = 0
+        # Every chat sees open-ended input the scorers were not trained on;
+        # GuardedScorer covers those cases and leaves ordinary English
+        # messages to the scorer unchanged (memgate/ingest.py).
+        self.policy.scorer = GuardedScorer(self.policy.scorer)
+        self.n = 0             # memory turns observed (pieces of messages)
         self.log = []          # every routing event, newest last
         self.transcript = []   # what was said, in order: the saved form
         self.lock = threading.Lock()
@@ -143,25 +155,46 @@ class Session:
             "counts": dict({k: s[k] for k in ("dropped", "evicted", "demoted",
                                                "merges", "consolidations")},
                            compressed=self.policy.routed["working"] + s["demoted"]),
-            "messages": self.n,
+            "messages": len(self.transcript),
+            "pieces": self.n,
         }
 
     # -- the write path, with every decision it made written to the log
-    def add(self, speaker, text):
-        # The transcript keeps the message as written (line breaks in code and
-        # pasted paragraphs survive a reload); memory gets it on one line, the
-        # form every experiment scored.
-        shown = text.replace("\r\n", "\n").strip()
-        text = " ".join(text.split())
-        if not text:
+    def add(self, speaker, text, file=None):
+        """Put one message (or one uploaded file's text) into memory.
+
+        The transcript keeps it as written (line breaks in code and pasted
+        paragraphs survive a reload). Memory gets it on one line, the form
+        every experiment scored, and a long one in turn-sized pieces
+        (ingest.chunk), each observed as a turn of its own. Pieces of a file
+        are tagged with its name, so a recalled piece says where it came from.
+        """
+        shown = clean(text)
+        pieces = chunk(shown)
+        if not pieces:
             return []
+        entry = {"speaker": speaker, "text": shown}
+        tag = speaker
+        if file:
+            name = one_line("".join(c for c in str(file.get("name") or "file")
+                                    if c not in "[]"))[:32] or "file"
+            entry["file"] = dict(file, name=name)
+            tag = f"file {name}"
+        self.transcript.append(entry)
+        if len(pieces) > 1:          # one batched embedder pass, not one per piece
+            embed_many([f"[{tag}] {x}" for x in pieces])
+        ev = []
+        for x in pieces:
+            ev += self._observe(tag, x)
+        return ev
+
+    def _observe(self, speaker, text):
         p, st = self.policy, self.policy.store
         s0, w0, l0 = self._held()
         live0 = {i.id for i in st.long if i.is_active}
         c0 = dict(p.routed, dropped=st.dropped, demoted=st.demoted,
                   merges=st.merges, reclaimed=st.reclaimed)
 
-        self.transcript.append({"speaker": speaker, "text": shown})
         turn = Turn(session=1, index=self.n, speaker=speaker, text=text)
         self.n += 1
         p.observe(turn)                      # exactly the experiments' code path
@@ -254,8 +287,20 @@ class Session:
 
     # -- the read path
     def context(self, query):
-        ctx = self.policy.build_context(query, self.context_budget)
+        # A long message would be embedded by its first 256 word pieces only;
+        # retrieve with its questions instead (ingest.focus).
+        ctx = self.policy.build_context(focus(query), self.context_budget)
         return ctx, [_item(i) for i in ctx.items]
+
+
+def _shown(m):
+    """A transcript entry as the page gets it: an uploaded file is sent as
+    its name, size and opening, not its whole text, on every refresh."""
+    if "file" not in m:
+        return m
+    t = m["text"]
+    return {"speaker": m["speaker"], "file": m["file"],
+            "text": t[:400] + ("…" if len(t) > 400 else "")}
 
 
 # ----------------------------------------------------------------- bench
@@ -335,7 +380,7 @@ class Chats:
             d = json.load(fh)
         sess = Session(d.get("mode"), d.get("store_budget"), d.get("scale"))
         for m in d.get("transcript", []):
-            sess.add(m["speaker"], m["text"])        # same observe() path
+            sess.add(m["speaker"], m["text"], m.get("file"))   # same observe() path
         return {"id": d["id"], "title": d.get("title") or "Untitled",
                 "created": d.get("created") or time.time(), "session": sess}
 
@@ -398,6 +443,12 @@ def make_handler(app):
                             f"that message is {len(text):,} characters; the "
                             f"limit is {MAX_CHARS:,}. Send it in parts.")})
                     return self._send(200, app.say(text))
+                if self.path == "/api/upload":
+                    try:
+                        return self._send(200, app.upload(
+                            str(b.get("name") or "file"), b.get("data")))
+                    except ExtractError as exc:
+                        return self._send(422, {"error": str(exc)})
                 if self.path == "/api/sample":
                     return self._send(200, app.sample())
                 if self.path in ("/api/reset", "/api/chats/new"):
@@ -443,7 +494,8 @@ class App:
                  model_note=self.model.note,
                  scorer=self.session.policy.scorer.name,
                  backends=backend_info(), chat_id=self.chat["id"],
-                 title=self.chat["title"], transcript=self.session.transcript)
+                 title=self.chat["title"], transcript=[
+                     _shown(m) for m in self.session.transcript])
         return s
 
     def new(self, mode=None, store_budget=None, scale=None):
@@ -482,13 +534,54 @@ class App:
             self.chats.save(self.chat)
         return self.full_state()
 
+    def upload(self, name, data):
+        """A file's text into memory, piece by piece. No model call: the
+        person asks about it next, and recall finds the pieces."""
+        text = extract(name, decode_upload(data))
+        if len(text) > MAX_DOC_CHARS:
+            raise ExtractError(
+                f"{name} has {len(text):,} characters of text; the limit is "
+                f"{MAX_DOC_CHARS:,} per file. Split it and upload the parts.")
+        sess = self.session
+        with sess.lock:
+            n0 = sess.n
+            info = {"name": name, "chars": len(text),
+                    "words": len(text.split()), "tokens": count_tokens(text)}
+            events = sess.add("user", text, info)
+            pieces = sess.n - n0
+            self._title(name)
+            self.chats.save(self.chat)
+        out = self.full_state()
+        tag = f"[file {sess.transcript[-1]['file']['name']}]"
+        held = [i for k in ("t1", "t2", "t3") for i in out[k]
+                if i["text"].startswith(tag)]
+        mine = [e for e in events if e["text"].startswith(tag)]
+        # Where the pieces that are not held went: near-duplicates of a piece
+        # already stored reinforce it instead (store dedupe), and the rest
+        # were forgotten for space or scored as filler.
+        out["upload"] = dict(info, name=sess.transcript[-1]["file"]["name"],
+                             pieces=pieces, held=len(held),
+                             held_tokens=sum(i["tokens"] for i in held),
+                             duplicates=sum(e["type"] == "dup" for e in mine),
+                             forgotten=sum(e["type"] == "drop" for e in mine))
+        return out
+
     def say(self, text):
         sess = self.session
         with sess.lock:
+            n0 = sess.n
             events = sess.add("user", text)
+            pieces = sess.n - n0
             ctx, items = sess.context(text)
+            message = text
+            if count_tokens(text) > LONG_MESSAGE:
+                message = (f"[The user sent a long text, {len(text.split()):,} "
+                           f"words. MemGate stored it in memory in pieces; the "
+                           f"notes hold the pieces relevant to this message. "
+                           f"Its questions, or its opening and closing lines:]"
+                           f"\n\n{focus(text)}")
             try:
-                reply = self.model.reply(ctx.text, text)
+                reply = self.model.reply(ctx.text, message)
             except Exception:
                 self._title(text)
                 self.chats.save(self.chat)   # the message is in memory; keep disk in step
@@ -499,7 +592,7 @@ class App:
             self.chats.save(self.chat)
         out = self.full_state()
         out.update(reply=reply, context=items, context_tokens=ctx.tokens,
-                   events=events)
+                   events=events, message_pieces=pieces)
         return out
 
 
