@@ -1,0 +1,7 @@
+# Everything requirements.txt installs, plus what the experiment scripts need:
+# train_scorer.py, train_transfer.py, compare_scorers.py, export_scorer.py and
+# run_judge_eval.py fit with scikit-learn; make_figures.py draws with matplotlib.
+#   pip install -r requirements-research.txt
+-r requirements.txt
+scikit-learn
+matplotlib

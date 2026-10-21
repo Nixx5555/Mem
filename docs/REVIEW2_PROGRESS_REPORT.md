@@ -217,8 +217,9 @@ ratio, **answer recall at S = 2048:**
 | 45× | 7.8% | 10.3% | **11.6%** |
 | 91× | 4.6% | 7.4% | **8.7%** |
 
-**No crossover to 182×**, and the selection margin over RAG *widens* with
-pressure.
+**No crossover to 182×**: selection stays ahead at every ratio. The margin
+over RAG narrows in points (+9.5 to +4.1) as every arm nears the floor, and
+grows as a ratio (1.5× to 1.9× RAG's recall).
 
 ### 4.4 The index is not free (§3.5)
 

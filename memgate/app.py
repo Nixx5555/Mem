@@ -7,6 +7,10 @@
     python3 app.py --no-llm        # no model: replies show the context only
     python3 app.py --scorer heuristic   # the P1 rule scorer instead of the learned one
     python3 app.py --port 9000
+    python3 app.py --public --passcode XYZ   # a public link: own chats per visitor
+
+Online (a Hugging Face Space) it is configured by environment instead:
+HOST, PORT, MEMGATE_PUBLIC=1, MEMGATE_PASSCODE. See deploy/huggingface/.
 
 Conversations are saved under memgate/chats/ and survive a restart: each one
 is stored as its messages and rebuilt by replaying them through observe(),
@@ -35,13 +39,17 @@ happens within a few messages instead of a few hundred; those are the only
 settings that differ from the experiments.
 """
 import argparse
+import hmac
 import json
 import os
+import secrets
 import subprocess
 import sys
 import threading
 import time
 import uuid
+from collections import OrderedDict
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from memgate.types import Turn, SHORT_TERM, WORKING, LONG_TERM
@@ -50,15 +58,24 @@ from memgate.policies import (MemGatePolicy, MemGateAdaptivePolicy,
                               RAGPolicy)
 from memgate.explain import explain
 from memgate.reader import ChatModel, BACKENDS
-from memgate.utils import backend_info, count_tokens
+from memgate.utils import backend_info, count_tokens, embed_many
+from memgate.ingest import (GuardedScorer, ExtractError, chunk, clean, focus,
+                            extract, decode_upload, one_line, MAX_DOC_CHARS)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PAGE = os.path.join(HERE, "web", "chat.html")          # the chat app
 INSPECT = os.path.join(HERE, "web", "index.html")    # all tiers at once
 CHATS = os.path.join(HERE, "chats")
-# Longest message accepted, about 5,000 tokens: a long paste fits, and the
-# local model still answers in reasonable time.
-MAX_CHARS = 20000
+# Longest message accepted, about 50,000 tokens. A long message is split into
+# turn-sized pieces before it reaches memory (memgate/ingest.py), so its size
+# only sets how long ingesting takes. The model is sent its questions, not
+# the whole paste: see LONG_MESSAGE.
+MAX_CHARS = 200_000
+# Past this many tokens a message is stored in memory piece by piece, and the
+# model gets the notes MemGate recalls for it plus the message's own
+# questions (or its opening and closing lines) instead of all of it.
+LONG_MESSAGE = 1500
+STORE_RANGE = (40, 1_000_000)   # tokens; the page's Store S box starts at 40
 TIER_KEY = {SHORT_TERM: "t1", WORKING: "t2", LONG_TERM: "t3"}
 
 
@@ -113,13 +130,34 @@ def _item(it):
             "superseded": it.superseded_by is not None}
 
 
+class BadRequest(ValueError):
+    """Input the page or a caller got wrong: answered 400, not 500."""
+
+
+def store_budget_from(value, default):
+    """A store budget as sent by the page: a whole number of tokens in
+    STORE_RANGE, or the default when none was given."""
+    if value in (None, "", 0):
+        return default
+    try:
+        n = int(value)
+    except (TypeError, ValueError, OverflowError):
+        raise BadRequest(f"the store budget must be a number of tokens, "
+                         f"not {value!r}") from None
+    lo, hi = STORE_RANGE
+    if isinstance(value, bool) or not lo <= n <= hi:
+        raise BadRequest(f"the store budget must be between {lo:,} and "
+                         f"{hi:,} tokens")
+    return n
+
+
 class Session:
     def __init__(self, mode="p1s", store_budget=None, scale="full"):
         self.mode = mode if mode in MODES else "p1s"
         scale = SCALE_ALIASES.get(scale, scale)
         self.scale = scale if scale in SCALES else "full"
         self.short_capacity, self.context_budget, s_default = SCALES[self.scale]
-        self.store_budget = int(store_budget or s_default)
+        self.store_budget = store_budget_from(store_budget, s_default)
         kw = dict(short_capacity=self.short_capacity, budget=self.context_budget)
         if self.mode == "p1":
             self.policy = MemGatePolicy(**kw)
@@ -127,6 +165,10 @@ class Session:
             self.policy = MemGateSelectPolicy(store_budget=self.store_budget, **kw)
         else:
             self.policy = MemGateAdaptivePolicy(store_budget=self.store_budget, **kw)
+        # Every chat sees open-ended input the scorers were not trained on;
+        # GuardedScorer covers those cases and leaves ordinary English
+        # messages to the scorer unchanged (memgate/ingest.py).
+        self.policy.scorer = GuardedScorer(self.policy.scorer)
         # The two baselines MemGate is measured against, fed the same messages
         # under the same store budget S and asked with the same context budget,
         # so a question can be answered from each memory side by side. They
@@ -138,7 +180,7 @@ class Session:
         self.raw = {}          # message number -> (scored text, speaker), for "why"
         self.turn_of = {}      # item id -> the message numbers it was made from
         self.last_compare = None
-        self.n = 0
+        self.n = 0             # memory turns observed (pieces of messages)
         self.log = []          # every routing event, newest last
         self.transcript = []   # what was said, in order: the saved form
         self.lock = threading.Lock()
@@ -166,26 +208,47 @@ class Session:
             "counts": dict({k: s[k] for k in ("dropped", "evicted", "demoted",
                                                "merges", "consolidations")},
                            compressed=self.policy.routed["working"] + s["demoted"]),
-            "messages": self.n,
+            "messages": len(self.transcript),
+            "pieces": self.n,
             "said_tokens": self.said_tokens,
         }
 
     # -- the write path, with every decision it made written to the log
-    def add(self, speaker, text):
-        # The transcript keeps the message as written (line breaks in code and
-        # pasted paragraphs survive a reload); memory gets it on one line, the
-        # form every experiment scored.
-        shown = text.replace("\r\n", "\n").strip()
-        text = " ".join(text.split())
-        if not text:
+    def add(self, speaker, text, file=None):
+        """Put one message (or one uploaded file's text) into memory.
+
+        The transcript keeps it as written (line breaks in code and pasted
+        paragraphs survive a reload). Memory gets it on one line, the form
+        every experiment scored, and a long one in turn-sized pieces
+        (ingest.chunk), each observed as a turn of its own. Pieces of a file
+        are tagged with its name, so a recalled piece says where it came from.
+        """
+        shown = clean(text)
+        pieces = chunk(shown)
+        if not pieces:
             return []
+        entry = {"speaker": speaker, "text": shown}
+        tag = speaker
+        if file:
+            name = one_line("".join(c for c in str(file.get("name") or "file")
+                                    if c not in "[]"))[:32] or "file"
+            entry["file"] = dict(file, name=name)
+            tag = f"file {name}"
+        self.transcript.append(entry)
+        if len(pieces) > 1:          # one batched embedder pass, not one per piece
+            embed_many([f"[{tag}] {x}" for x in pieces])
+        ev = []
+        for x in pieces:
+            ev += self._observe(tag, x)
+        return ev
+
+    def _observe(self, speaker, text):
         p, st = self.policy, self.policy.store
         s0, w0, l0 = self._held()
         live0 = {i.id for i in st.long if i.is_active}
         c0 = dict(p.routed, dropped=st.dropped, demoted=st.demoted,
                   merges=st.merges, reclaimed=st.reclaimed)
 
-        self.transcript.append({"speaker": speaker, "text": shown})
         turn = Turn(session=1, index=self.n, speaker=speaker, text=text)
         self.n += 1
         p.observe(turn)                      # exactly the experiments' code path
@@ -289,7 +352,9 @@ class Session:
 
     # -- the read path
     def context(self, query):
-        ctx = self.policy.build_context(query, self.context_budget)
+        # A long message would be embedded by its first 256 word pieces only;
+        # retrieve with its questions instead (ingest.focus).
+        ctx = self.policy.build_context(focus(query), self.context_budget)
         return ctx, [_item(i) for i in ctx.items]
 
     def compare(self, query, ctx):
@@ -304,7 +369,8 @@ class Session:
             return self.turn_of.get(it.id) or {it.turn_index}
         rows = {"memgate": (ctx, self.policy.stats()["stored_tokens"])}
         for k, r in self.rivals.items():
-            rows[k] = (r.build_context(query, self.context_budget), r.stored_tokens())
+            rows[k] = (r.build_context(focus(query), self.context_budget),
+                       r.stored_tokens())
         cover = {k: set().union(*[turns(i) for i in c.items]) if c.items else set()
                  for k, (c, _) in rows.items()}
         theirs = cover["window"] | cover["rag"]
@@ -343,6 +409,16 @@ class Session:
             raise NotFound(f"{self.policy.scorer.name} cannot be broken down")
         out.update(tier=TIER_KEY[it.tier], made_from=made_from)
         return out
+
+
+def _shown(m):
+    """A transcript entry as the page gets it: an uploaded file is sent as
+    its name, size and opening, not its whole text, on every refresh."""
+    if "file" not in m:
+        return m
+    t = m["text"]
+    return {"speaker": m["speaker"], "file": m["file"],
+            "text": t[:400] + ("…" if len(t) > 400 else "")}
 
 
 # ----------------------------------------------------------------- bench
@@ -422,7 +498,7 @@ class Chats:
             d = json.load(fh)
         sess = Session(d.get("mode"), d.get("store_budget"), d.get("scale"))
         for m in d.get("transcript", []):
-            sess.add(m["speaker"], m["text"])        # same observe() path
+            sess.add(m["speaker"], m["text"], m.get("file"))   # same observe() path
         return {"id": d["id"], "title": d.get("title") or "Untitled",
                 "created": d.get("created") or time.time(), "session": sess}
 
@@ -433,20 +509,128 @@ class Chats:
             pass
 
 
+class Visitors:
+    """One App per visitor, for a public link (`--public`).
+
+    Each browser gets a random id in a cookie and its own chats folder, so two
+    people on the same link never see or overwrite each other's chats. The
+    chat model and the benchmark runner are shared.
+    """
+    KEEP = 200                 # visitors held in memory; the rest reload from disk
+
+    def __init__(self, model, folder=CHATS):
+        self.model, self.folder, self.bench = model, folder, Bench()
+        self.apps = OrderedDict()
+        self.lock = threading.Lock()
+
+    @staticmethod
+    def valid(vid):
+        return bool(vid) and len(vid) == 32 and all(
+            c in "0123456789abcdef" for c in vid)
+
+    def get(self, vid):
+        with self.lock:
+            app = self.apps.pop(vid, None)
+            if app is None:
+                app = App(self.model, Chats(os.path.join(self.folder, vid)),
+                          bench=self.bench)
+            self.apps[vid] = app
+            while len(self.apps) > self.KEEP:
+                self.apps.popitem(last=False)
+            return app
+
+
+LOGIN = """<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MemGate</title><style>
+body{font-family:system-ui,sans-serif;background:#f6f7f9;color:#1d2430;margin:0;
+display:grid;place-items:center;min-height:100vh}
+form{background:#fff;padding:28px;border-radius:14px;box-shadow:0 2px 12px #0001;
+width:min(320px,calc(100vw - 32px));box-sizing:border-box}
+h1{font-size:20px;margin:0 0 6px}p{margin:0 0 16px;color:#5b6573;font-size:14px}
+input,button{width:100%;box-sizing:border-box;font:inherit;padding:10px;
+border-radius:8px;border:1px solid #cdd3dc}
+button{margin-top:10px;background:#2f5bea;color:#fff;border:0;cursor:pointer}
+.err{color:#c0392b;font-size:14px;margin-top:10px}
+@media (prefers-color-scheme:dark){body{background:#14171c;color:#e6e9ee}
+form{background:#1d2128}input{background:#14171c;color:inherit;border-color:#39404b}
+p{color:#9aa4b2}}
+</style></head><body><form method="post" action="/login">
+<h1>MemGate</h1><p>Enter the passcode to open the app.</p>
+<input type="password" name="passcode" autofocus autocomplete="current-password">
+<button>Open</button>{error}</form></body></html>"""
+
+
 # ---------------------------------------------------------------- server
-def make_handler(app):
+def make_handler(app, passcode=None):
+    """`app` is an App, or Visitors for a public link. With a passcode, every
+    page and API call needs it first (it is kept in a cookie)."""
+    public = isinstance(app, Visitors)
+    pass_tag = (hmac.new(passcode.encode(), b"memgate", "sha256").hexdigest()
+                if passcode else None)
+
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a):
             pass
 
-        def _send(self, code, body, ctype="application/json"):
+        def _cookie(self, name):
+            c = SimpleCookie()
+            try:
+                c.load(self.headers.get("Cookie") or "")
+            except Exception:
+                return None
+            return c[name].value if name in c else None
+
+        def _app(self):
+            """The App this request talks to; for a public link, this
+            browser's own, with a new visitor id when it has none."""
+            if not public:
+                return app
+            vid = (self.headers.get("X-MemGate-Visitor")
+                   or self._cookie("mg_visitor"))
+            if not Visitors.valid(vid):
+                vid = secrets.token_hex(16)
+                self._set_cookie = f"mg_visitor={vid}"
+            return app.get(vid)
+
+        def _allowed(self):
+            if not pass_tag:
+                return True
+            got = self._cookie("mg_pass") or ""
+            return hmac.compare_digest(got, pass_tag)
+
+        def _send(self, code, body, ctype="application/json", headers=()):
             data = body if isinstance(body, bytes) else json.dumps(body).encode()
             self.send_response(code)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
+            cookie = getattr(self, "_set_cookie", None)
+            if cookie:
+                # Behind https (a Hugging Face Space shows the app in an
+                # iframe on another site) the cookie has to be cross-site.
+                https = self.headers.get("X-Forwarded-Proto") == "https"
+                self.send_header("Set-Cookie", f"{cookie}; Path=/; Max-Age=31536000; "
+                                 "HttpOnly; " + ("SameSite=None; Secure" if https
+                                                 else "SameSite=Lax"))
+                self._set_cookie = None
+            for k, v in headers:
+                self.send_header(k, v)
             self.end_headers()
             self.wfile.write(data)
+
+        def _login(self, error=""):
+            page = LOGIN.replace(
+                "{error}", f'<div class="err">{error}</div>' if error else "")
+            return self._send(401 if error else 200, page.encode(),
+                              "text/html; charset=utf-8")
+
+        def _locked(self):
+            """Answer a request made without the passcode."""
+            if self.path.startswith("/api/"):
+                return self._send(401, {"error": "enter the passcode first: "
+                                        "reload the page"})
+            return self._login()
 
         def _body(self):
             try:
@@ -457,6 +641,11 @@ def make_handler(app):
             return b if isinstance(b, dict) else {}
 
         def do_GET(self):
+            if self.path == "/healthz":
+                return self._send(200, {"ok": True})
+            if not self._allowed():
+                return self._locked()
+            app = self._app()
             if self.path in ("/", "/index.html"):
                 with open(PAGE, "rb") as fh:
                     return self._send(200, fh.read(), "text/html; charset=utf-8")
@@ -473,6 +662,18 @@ def make_handler(app):
             self._send(404, {"error": "not found"})
 
         def do_POST(self):
+            if self.path == "/login" and pass_tag:
+                from urllib.parse import parse_qs
+                n = min(int(self.headers.get("Content-Length") or 0), 4096)
+                got = parse_qs(self.rfile.read(n).decode("utf-8", "replace"))
+                if not hmac.compare_digest(
+                        (got.get("passcode") or [""])[0].strip(), passcode):
+                    return self._login("That passcode is not right.")
+                self._set_cookie = f"mg_pass={pass_tag}"
+                return self._send(303, b"", "text/plain", [("Location", "/")])
+            if not self._allowed():
+                return self._locked()
+            app = self._app()
             b = self._body()
             try:
                 if self.path == "/api/chat":
@@ -485,6 +686,12 @@ def make_handler(app):
                             f"that message is {len(text):,} characters; the "
                             f"limit is {MAX_CHARS:,}. Send it in parts.")})
                     return self._send(200, app.say(text))
+                if self.path == "/api/upload":
+                    try:
+                        return self._send(200, app.upload(
+                            str(b.get("name") or "file"), b.get("data")))
+                    except ExtractError as exc:
+                        return self._send(422, {"error": str(exc)})
                 if self.path == "/api/sample":
                     return self._send(200, app.sample())
                 if self.path in ("/api/reset", "/api/chats/new"):
@@ -501,10 +708,12 @@ def make_handler(app):
                 if self.path == "/api/rival":
                     return self._send(200, app.ask_rival(str(b.get("rival", ""))))
                 if self.path == "/api/bench":
-                    app.bench.start(b.get("store", 4096))
+                    app.bench.start(store_budget_from(b.get("store"), 4096))
                     return self._send(200, app.bench.state())
             except NotFound as exc:
                 return self._send(404, {"error": str(exc)})
+            except BadRequest as exc:
+                return self._send(400, {"error": str(exc)})
             except Exception as exc:          # show it on the page, keep serving
                 return self._send(500, {"error": f"{type(exc).__name__}: {exc}"})
             self._send(404, {"error": "not found"})
@@ -512,10 +721,10 @@ def make_handler(app):
 
 
 class App:
-    def __init__(self, model, chats=None):
+    def __init__(self, model, chats=None, bench=None):
         self.model = model
         self.chats = chats or Chats()
-        self.bench = Bench()
+        self.bench = bench or Bench()
         self.lock = threading.Lock()
         saved = self.chats.list()
         self.chat = None
@@ -538,7 +747,8 @@ class App:
                  model_enabled=bool(self.model.enabled),
                  scorer=self.session.policy.scorer.name,
                  backends=backend_info(), chat_id=self.chat["id"],
-                 title=self.chat["title"], transcript=self.session.transcript)
+                 title=self.chat["title"], transcript=[
+                     _shown(m) for m in self.session.transcript])
         return s
 
     def new(self, mode=None, store_budget=None, scale=None):
@@ -577,14 +787,56 @@ class App:
             self.chats.save(self.chat)
         return self.full_state()
 
+    def upload(self, name, data):
+        """A file's text into memory, piece by piece. No model call: the
+        person asks about it next, and recall finds the pieces."""
+        text = extract(name, decode_upload(data))
+        if len(text) > MAX_DOC_CHARS:
+            raise ExtractError(
+                f"{name} has {len(text):,} characters of text; the limit is "
+                f"{MAX_DOC_CHARS:,} per file. Split it and upload the parts.")
+        sess = self.session
+        with sess.lock:
+            n0 = sess.n
+            info = {"name": name, "chars": len(text),
+                    "words": len(text.split()), "tokens": count_tokens(text)}
+            events = sess.add("user", text, info)
+            pieces = sess.n - n0
+            self._title(name)
+            self.chats.save(self.chat)
+        out = self.full_state()
+        tag = f"[file {sess.transcript[-1]['file']['name']}]"
+        held = [i for k in ("t1", "t2", "t3") for i in out[k]
+                if i["text"].startswith(tag)]
+        mine = [e for e in events if e["text"].startswith(tag)]
+        # Where the pieces that are not held went: near-duplicates of a piece
+        # already stored reinforce it instead (store dedupe), and the rest
+        # were forgotten for space or scored as filler.
+        out["upload"] = dict(info, name=sess.transcript[-1]["file"]["name"],
+                             pieces=pieces, held=len(held),
+                             held_tokens=sum(i["tokens"] for i in held),
+                             duplicates=sum(e["type"] == "dup" for e in mine),
+                             forgotten=sum(e["type"] == "drop" for e in mine))
+        return out
+
     def say(self, text):
         sess = self.session
         with sess.lock:
+            n0 = sess.n
             events = sess.add("user", text)
+            pieces = sess.n - n0
             ctx, items = sess.context(text)
+            message = text
+            if count_tokens(text) > LONG_MESSAGE:
+                message = (f"[The user sent a long text, {len(text.split()):,} "
+                           f"words. MemGate stored it in memory in pieces; the "
+                           f"notes hold the pieces relevant to this message. "
+                           f"Its questions, or its opening and closing lines:]"
+                           f"\n\n{focus(text)}")
             compare = sess.compare(text, ctx)
+            compare["message"] = message   # what ask_rival sends the model
             try:
-                reply = self.model.reply(ctx.text, text)
+                reply = self.model.reply(ctx.text, message)
             except Exception:
                 self._title(text)
                 self.chats.save(self.chat)   # the message is in memory; keep disk in step
@@ -595,7 +847,8 @@ class App:
             self.chats.save(self.chat)
         out = self.full_state()
         out.update(reply=reply, context=items, context_tokens=ctx.tokens,
-                   events=events, compare=_public(compare))
+                   events=events, message_pieces=pieces,
+                   compare=_public(compare))
         return out
 
     def ask_rival(self, rival):
@@ -611,7 +864,7 @@ class App:
             if rival not in cmp["rows"] or rival == "memgate":
                 raise NotFound(f"no baseline called {rival!r}")
             row = cmp["rows"][rival]
-            reply = self.model.reply(row["text"], cmp["query"])
+            reply = self.model.reply(row["text"], cmp.get("message", cmp["query"]))
         return {"rival": rival, "query": cmp["query"],
                 "reply": reply or "(the model returned an empty reply)"}
 
@@ -628,9 +881,17 @@ class App:
 
 
 def _public(cmp):
-    """The comparison without the raw context strings (the notes carry them)."""
-    return {**cmp, "rows": {k: {f: v for f, v in r.items() if f != "text"}
-                            for k, r in cmp["rows"].items()}}
+    """The comparison without the raw context strings (the notes carry them),
+    and with a long pasted question cut to its opening."""
+    q = cmp["query"]
+    return {**{k: v for k, v in cmp.items() if k != "message"},
+            "query": q[:400] + ("…" if len(q) > 400 else ""),
+            "rows": {k: {f: v for f, v in r.items() if f != "text"}
+                     for k, r in cmp["rows"].items()}}
+
+
+def _on(value):
+    return (value or "").lower() in ("1", "true", "yes")
 
 
 def main():
@@ -639,9 +900,15 @@ def main():
     from memgate.envfile import ENV_PATH, load_env
     loaded = load_env()
     ap = argparse.ArgumentParser(description="MemGate app")
-    ap.add_argument("--port", type=int, default=8765)
-    ap.add_argument("--host", default="127.0.0.1",
+    ap.add_argument("--port", type=int,
+                    default=int(os.environ.get("PORT") or 8765))
+    ap.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"),
                     help="0.0.0.0 to let other devices on the network open it")
+    ap.add_argument("--public", action="store_true",
+                    default=_on(os.environ.get("MEMGATE_PUBLIC")),
+                    help="for a public link: each visitor gets their own chats")
+    ap.add_argument("--passcode", default=os.environ.get("MEMGATE_PASSCODE"),
+                    help="ask for this passcode before opening the app")
     ap.add_argument("--llm", choices=BACKENDS,
                     default=os.environ.get("MEMGATE_LLM", "auto"),
                     help="which model answers (default: auto)")
@@ -684,10 +951,19 @@ def main():
             model.disable()
     else:
         print("  no chat model: replies will show what it would have been sent")
-    app = App(model)
-    srv = ThreadingHTTPServer((args.host, args.port), make_handler(app))
+    if args.public:
+        app = Visitors(model)
+        print("  public: each visitor gets their own chats")
+    else:
+        app = App(model)
+    if args.passcode:
+        print("  passcode required to open the app")
+    srv = ThreadingHTTPServer((args.host, args.port),
+                              make_handler(app, args.passcode or None))
     print(f"\n  model: {model.name}")
     print(f"  chats saved in {CHATS}")
+    if args.public:
+        args.no_browser = True
     url = f"http://localhost:{args.port}"
     print(f"\n  open {url}   (Ctrl+C to stop)\n", flush=True)
     if not args.no_browser:

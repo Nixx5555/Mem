@@ -53,6 +53,15 @@ restart. *New chat* starts a fresh memory; the dropdown next to it switches
 between saved chats. Every decision on screen comes from the same `observe()` and
 `build_context()` code the results came from.
 
+### Any text, not just chat turns
+
+The composer takes anything: a long paste, another language, code, emoji. The
+**＋** button (or dropping a file on the page) adds a whole file to memory:
+PDF, Word (.docx), PowerPoint (.pptx), Markdown, plain text in any encoding,
+CSV, JSON, HTML, notebooks and code. Long input is cut into sentence-sized
+pieces, each scored, stored and recalled on its own, and the file's pieces are
+tagged with its name. See `docs/ANY_INPUT.md` for how and what was measured.
+
 ## The script
 
 Follow `docs/JURY_DEMO_SCRIPT.md`: what to click, what to type and what to say

@@ -99,6 +99,18 @@
   #send { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 0;
           background: var(--accent); color: var(--accent-ink); font-size: 18px; font-weight: 700; }
   #send:disabled { opacity: .35; cursor: default; }
+  #attach { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 0; background: none;
+            color: var(--muted); font-size: 20px; line-height: 1; }
+  #attach:hover { background: var(--hover); }
+  #form.drag { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(193,39,45,.15); }
+  .file { display: flex; gap: 10px; align-items: center; }
+  .file .ic { flex: none; width: 34px; height: 40px; border-radius: 6px; background: var(--accent);
+              color: var(--accent-ink); display: grid; place-items: center; font-size: 10px; font-weight: 700;
+              text-transform: uppercase; }
+  .file .fn { font-weight: 600; overflow-wrap: anywhere; }
+  .file .fs { font-size: 12px; color: var(--muted); }
+  .m.user .body details { margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+  .m.user .body details div { max-height: 220px; overflow: auto; margin-top: 4px; }
   .hint { max-width: 760px; margin: 6px auto 0; text-align: center; color: var(--faint); font-size: 11.5px; }
 
   /* memory panel */
@@ -233,10 +245,13 @@
   </div>
   <div id="composer">
     <form id="form" autocomplete="off">
+      <button type="button" id="attach" title="Add a file: text, Markdown, code, CSV, JSON, HTML, PDF, Word, PowerPoint">＋</button>
+      <input type="file" id="fileIn" multiple hidden
+             accept=".txt,.md,.markdown,.csv,.tsv,.json,.jsonl,.html,.htm,.xml,.yaml,.yml,.log,.pdf,.docx,.pptx,.ipynb,.tex,.srt,.py,.js,.ts,.java,.c,.cpp,.h,.go,.rs,.rb,.php,.sql,.sh,.css,text/*">
       <textarea id="text" rows="1" placeholder="Message MemGate…"></textarea>
       <button id="send" title="Send" disabled>↑</button>
     </form>
-    <div class="hint" id="hint">Enter to send · Shift+Enter for a new line</div>
+    <div class="hint" id="hint">Enter to send · Shift+Enter for a new line · ＋ or drop a file (PDF, Word, PowerPoint, text, code) to add it to memory</div>
   </div>
 </main>
 
@@ -270,15 +285,31 @@ let state = null, seen = new Set(), busy = false, tab = 'tiers', lastCtx = null;
 let lastCmp = null, rivalAns = {}, whyOpen = null, whyData = null, tryData = null;
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-const MAX_CHARS = 20000;   // app.py MAX_CHARS
+const MAX_CHARS = 200000;  // app.py MAX_CHARS
+const MAX_FILE_MB = 15;    // ingest.py MAX_UPLOAD_BYTES
+// Which visitor this browser is, for a public link (app.py --public). Sent as
+// a header as well as the cookie, because a page shown inside another site (a
+// Hugging Face Space) may not get its cookies.
+const VISITOR = (() => {
+  try {
+    let v = localStorage.getItem('mg_visitor');
+    if (!/^[0-9a-f]{32}$/.test(v || '')) {
+      v = Array.from(crypto.getRandomValues(new Uint8Array(16)),
+                     b => b.toString(16).padStart(2, '0')).join('');
+      localStorage.setItem('mg_visitor', v);
+    }
+    return v;
+  } catch (e) { return ''; }
+})();
 async function api(path, body) {
-  const r = await fetch(path, body === undefined ? {} :
-    {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  const hdr = VISITOR ? {'X-MemGate-Visitor': VISITOR} : {};
+  const r = await fetch(path, body === undefined ? {headers: hdr} :
+    {method: 'POST', headers: {...hdr, 'Content-Type': 'application/json'}, body: JSON.stringify(body)});
   const j = await r.json();
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
 }
-const strip = t => t.replace(/^\[(user|assistant)\]\s*/, '');
+const strip = t => t.replace(/^\[(user|assistant|file [^\]]*)\]\s*/, '');
 
 // ---------------------------------------------------------------- messages
 function bottom() { $('scroll').scrollTop = $('scroll').scrollHeight; }
@@ -288,8 +319,26 @@ function addMsg(who, text) {
   d.className = 'm ' + (who === 'user' ? 'user' : 'bot');
   d.innerHTML = who === 'user' ? `<div class="body"></div>`
                                : `<div class="av">M</div><div class="body"><div class="txt"></div></div>`;
-  d.querySelector(who === 'user' ? '.body' : '.txt').textContent = text;
+  const el = d.querySelector(who === 'user' ? '.body' : '.txt');
+  if (who === 'user' && text.length > 1500) {     // a long paste: show its start
+    el.innerHTML = '<div></div><details><summary>Show all</summary><div></div></details>';
+    el.firstChild.textContent = text.slice(0, 320) + '…';
+    el.querySelector('details div').textContent = text;
+  } else el.textContent = text;
   $('msgs').appendChild(d); bottom();
+  return d;
+}
+function fileSize(f) {
+  const w = f.words || 0;
+  return `${w.toLocaleString()} words · ${(f.tokens || 0).toLocaleString()} tokens`;
+}
+function addFile(f, preview) {
+  const d = addMsg('user', '');
+  const ext = (f.name.split('.').pop() || 'txt').slice(0, 4);
+  d.querySelector('.body').innerHTML = `<div class="file"><div class="ic">${esc(ext)}</div>
+    <div><div class="fn">${esc(f.name)}</div><div class="fs">${fileSize(f)} · added to memory</div></div></div>` +
+    (preview ? `<details><summary>Show the text</summary><div></div></details>` : '');
+  if (preview) d.querySelector('details div').textContent = preview;
   return d;
 }
 function addNote(text) {
@@ -308,7 +357,7 @@ function typeInto(el, text) {          // reveal the reply word by word
 }
 function showTranscript(s) {
   $('msgs').innerHTML = '';
-  for (const m of s.transcript) addMsg(m.speaker, m.text);
+  for (const m of s.transcript) m.file ? addFile(m.file, m.text) : addMsg(m.speaker, m.text);
   $('welcome').hidden = s.transcript.length > 0;
   lastCtx = null; lastCmp = null; rivalAns = {}; whyOpen = null;
 }
@@ -333,9 +382,11 @@ function whyHTML(w) {
   const rows = w.parts.map(p => `<div class="wr"><span class="wn" title="${esc(p.name)}">${esc(p.name)}</span>
       <span class="wb"><i class="${p.effect >= 0 ? 'up' : 'dn'}" style="width:${Math.abs(p.effect) / max * 50}%"></i></span>
       <span class="wv">${fmt(p.effect)}</span></div>`).join('');
-  const how = w.unit === 'log-odds'
-    ? `${esc(w.scorer)}: ${w.base.toFixed(2)} ${esc(w.base_name)}, plus the parts below, gives ${w.total.toFixed(2)} log-odds, so u = ${w.utility.toFixed(2)}.`
-    : `${esc(w.scorer)}: ${esc(w.base_name)} ${w.base.toFixed(2)}${w.parts.length ? ' plus the rules that fired' : ''} gives u = ${w.utility.toFixed(2)}.`;
+  const u0 = w.guard ? w.unguarded : w.utility;   // what the parts add up to
+  const how = (w.unit === 'log-odds'
+    ? `${esc(w.scorer)}: ${w.base.toFixed(2)} ${esc(w.base_name)}, plus the parts below, gives ${w.total.toFixed(2)} log-odds, so u = ${u0.toFixed(2)}.`
+    : `${esc(w.scorer)}: ${esc(w.base_name)} ${w.base.toFixed(2)}${w.parts.length ? ' plus the rules that fired' : ''} gives u = ${u0.toFixed(2)}.`)
+    + (w.guard ? ` Then a guard for unusual input sets u = ${w.utility.toFixed(2)}: ${esc(w.guard)}.` : '');
   const merged = w.made_from && w.made_from.length > 1
     ? `<div class="small" style="margin-bottom:4px">Merged from messages ${w.made_from.map(n => '#' + n).join(', ')}; this is the score of #${w.made_from[0]}.</div>` : '';
   return `<div class="why">${merged}<div class="small" style="margin-bottom:4px">${how}</div>${rows}
@@ -488,9 +539,46 @@ async function send(text) {
     b1.onclick = () => openMem('ctx');
     b2.onclick = () => openMem('cmp');
     bot.querySelector('.body').appendChild(meta); bottom();
+    if (s.message_pieces > 1)
+      addNote(`Long message: MemGate stored it as ${s.message_pieces} pieces, each scored on its own, and recalled the ones this message needs.`);
     render(s); refreshChats();
   } catch (err) { txt.textContent = 'Error: ' + err.message; }
   busy = false; $('send').disabled = !$('text').value.trim(); $('text').focus();
+}
+
+async function readB64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(',')[1] || '');
+    r.onerror = () => rej(new Error('could not read the file'));
+    r.readAsDataURL(file);
+  });
+}
+async function upload(files) {
+  for (const file of files) {
+    if (busy) return;
+    if (file.size > MAX_FILE_MB * 1024 * 1024) {
+      addNote(`${file.name} is ${(file.size / 1048576).toFixed(1)} MB; the limit is ${MAX_FILE_MB} MB.`);
+      continue;
+    }
+    busy = true; $('send').disabled = true;
+    addNote(`Reading ${file.name} into memory…`);
+    const note = $('msgs').lastChild;
+    try {
+      const s = await api('/api/upload', {name: file.name, data: await readB64(file)});
+      note.remove();
+      const u = s.upload, last = s.transcript[s.transcript.length - 1];
+      addFile(u, last && last.text);
+      const why = [];
+      if (u.duplicates) why.push(`${u.duplicates} repeated text already stored, so the stored copy was reinforced instead`);
+      if (u.forgotten) why.push(`${u.forgotten} ${s.mode === 'p1' ? 'scored too low to keep' :
+        `were forgotten to stay within S = ${(s.store_budget || 0).toLocaleString()} tokens, lowest score first (raise Store S to keep more)`}`);
+      addNote(`${u.name}: split into ${u.pieces} pieces; ${u.held} are in memory (${u.held_tokens.toLocaleString()} tokens)` +
+        (why.length ? `. Of the rest, ${why.join('; ')}.` : '.') + ' Ask about it.');
+      render(s); refreshChats();
+    } catch (err) { note.textContent = `${file.name}: ${err.message}`; }
+    busy = false; $('send').disabled = !$('text').value.trim();
+  }
 }
 
 async function newChat() {
@@ -519,6 +607,21 @@ $('text').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send($('text').value); }
 });
 $('form').addEventListener('submit', e => { e.preventDefault(); send($('text').value); });
+$('attach').onclick = () => $('fileIn').click();
+$('fileIn').onchange = () => { const f = [...$('fileIn').files]; $('fileIn').value = ''; upload(f); };
+['dragenter', 'dragover'].forEach(t => document.addEventListener(t, e => {
+  if (![...(e.dataTransfer?.types || [])].includes('Files')) return;
+  e.preventDefault(); $('form').classList.add('drag');
+}));
+['dragleave', 'drop'].forEach(t => document.addEventListener(t, e => {
+  if (t === 'dragleave' && e.relatedTarget) return;
+  $('form').classList.remove('drag');
+  if (t === 'drop' && e.dataTransfer?.files?.length) { e.preventDefault(); upload([...e.dataTransfer.files]); }
+}));
+$('text').addEventListener('paste', e => {
+  const f = [...(e.clipboardData?.files || [])];
+  if (f.length) { e.preventDefault(); upload(f); }
+});
 $('newChat').onclick = newChat;
 $('mode').onchange = newChat;
 $('scale').onchange = () => { $('S').value = SCALE_S[$('scale').value]; newChat(); };

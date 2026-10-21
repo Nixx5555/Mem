@@ -100,7 +100,7 @@ for comp, met in order:
     lbl = "answer" if met == "answer" else "evidence"
     delta = "$%+.2f$" % r["delta"]
     if not ns:
-        delta = "\\textbf{%s}" % delta
+        delta = "{\\boldmath%s}" % delta
     ci = "$[%+.2f,\\, %+.2f]$" % (r["conv_lo"], r["conv_hi"])
     verdict = "\\textsc{n.s.}" if ns else "$\\checkmark$"
     rows.append(f"{name[comp]} & {lbl} & {delta} & {ci} & "
@@ -230,7 +230,7 @@ for corpus in ("locomo", "realtalk"):
             ns = g["lo"] <= 0 <= g["hi"]
             delta = "$%+.2f$" % g["delta"]
             if not ns:
-                delta = "\\textbf{%s}" % delta
+                delta = "{\\boldmath%s}" % delta
             ci = "$[%s,\\, %s]$" % tuple(
                 "0.00" if abs(v) < 0.005 else "%+.2f" % v for v in (g["lo"], g["hi"]))
         rows.append("\\quad %s & %s & %.1f & %.1f & %s & %s%s"
@@ -243,7 +243,39 @@ Scorer (trained on) & AUC & Evid. & Ans. & $\Delta$ vs.\ P1 & 95\% CI \\
 \bottomrule
 \end{tabular}""")
 
-# -------------------------------------------------------------- Table VIII
+# The same pooled scorer across the store budget: does the S = 4096 gain hold
+# when there is less or more room to choose? Same protocol and scorer code as
+# Table VII; one train_transfer.py run per budget. This is Table VIII.
+BUDGETS = (1024, 2048, 4096, 8192, 16384)
+rows = []
+for b in BUDGETS:
+    tr = load("transfer_locomo_realtalk_S%d.csv" % b, ("answer",))
+    sg = load("transfer_sig_locomo_realtalk_S%d.csv" % b, ("delta", "lo", "hi"))
+    cells = []
+    for corpus in ("locomo", "realtalk"):
+        ans = {x["scorer"]: x["answer"] for x in tr if x["test_corpus"] == corpus
+               and x["features"] == "hand+MiniLM"}
+        g = [x for x in sg if x["test_corpus"] == corpus
+             and x["features"] == "hand+MiniLM" and x["a"] == "pooled"
+             and x["b"] == "heuristic" and x["metric"] == "answer"][0]
+        delta = "$%+.2f$" % g["delta"]
+        if not g["lo"] <= 0 <= g["hi"]:
+            delta = "{\\boldmath%s}" % delta
+        ci = "$[%s,\\, %s]$" % tuple(
+            "0.00" if abs(v) < 0.005 else "%+.2f" % v for v in (g["lo"], g["hi"]))
+        cells.append("%.1f & %.1f & %s %s" % (ans["heuristic"], ans["pooled"], delta, ci))
+    rows.append("%d & %s%s" % (b, " & ".join(cells), EOL))
+write("transfer_budget.tex", r"""\begin{tabular}{@{}rrrlrrl@{}}
+\toprule
+& \multicolumn{3}{c}{LoCoMo} & \multicolumn{3}{c}{REALTALK} \\
+\cmidrule(lr){2-4}\cmidrule(l){5-7}
+$S$ & P1 & P3 & $\Delta$ [95\% CI] & P1 & P3 & $\Delta$ [95\% CI] \\
+\midrule
+""" + "\n".join(rows) + r"""
+\bottomrule
+\end{tabular}""")
+
+# --------------------------------------------------------------- Table IX
 # End-task accuracy through a fixed reader. Accuracy is NOT bounded by answer
 # recall -- a model can guess -- so the decomposition is reported rather than a
 # single number: acc|present is what a memory policy can influence, acc|absent

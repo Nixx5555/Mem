@@ -1,0 +1,7 @@
+test_corpus,features,scorer,auc,ap,strict,answer,n_questions,n_answer,store_budget,scorer_fix,model,balance,embedder
+beam,hand+MiniLM,heuristic,0.4469379834674089,0.1562576737983321,1.971830985915493,35.294117647058826,355,34,26000,False,lr,True,all-MiniLM-L6-v2/384d (onnx)
+beam,hand+MiniLM,rag,nan,nan,3.0985915492957745,32.35294117647059,355,34,26000,False,lr,True,all-MiniLM-L6-v2/384d (onnx)
+beam,hand+MiniLM,in-corpus,0.6791855165227001,0.29526043845242034,34.36619718309859,70.58823529411765,355,34,26000,False,lr,True,all-MiniLM-L6-v2/384d (onnx)
+beam,hand+MiniLM,cross,0.36917463292584046,0.13218639377652372,0.0,35.294117647058826,355,34,26000,False,lr,True,all-MiniLM-L6-v2/384d (onnx)
+beam,hand+MiniLM,pooled,0.6590811705334245,0.2841588479156214,32.3943661971831,73.52941176470588,355,34,26000,False,lr,True,all-MiniLM-L6-v2/384d (onnx)
+beam,hand+MiniLM,pooled-prev,0.36917463292584046,0.13218639377652372,0.0,35.294117647058826,355,34,26000,False,lr,True,all-MiniLM-L6-v2/384d (onnx)

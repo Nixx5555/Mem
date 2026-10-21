@@ -54,8 +54,10 @@ scorer performs worse than a regular-expression heuristic by $5.87$ points,
 with the confidence interval excluding zero, whereas a logistic scorer over
 shallow features and a sentence embedding, trained on LoCoMo and on REALTALK
 conversations between real people, beats the heuristic by $+14.55$ points on
-held-out LoCoMo conversations (95\% CI $[+10.40, +19.70]$); on REALTALK its
-gain is not significant. Through a fixed local reader over
+held-out LoCoMo conversations (95\% CI $[+10.40, +19.70]$). Across store
+budgets from 2048 to 16384 tokens its LoCoMo gain stays significant, and on
+REALTALK it becomes significant once the store holds about 40\% of a
+conversation. Through a fixed local reader over
 all 715 answer-recoverable questions, $+6.0$ points of the selection advantage
 convert into correct answers (95\% CI $[+3.3, +9.1]$), which is 69\% of the
 recall gap in that run. We release the policy as a working chat application
@@ -479,9 +481,19 @@ $+14.55$ points, and pooling beats same-corpus training by $+3.36$
 Transfer works in one direction only. Trained on REALTALK alone, the scorer
 still beats the heuristic on LoCoMo by $+9.09$; trained on LoCoMo alone, it
 falls below the heuristic on REALTALK ($-4.38$, n.s.) and is significantly
-worse than same-corpus training there ($-10.62$, $[-18.31, -3.45]$). No gain
-over the heuristic on REALTALK is significant, which with 160 questions in ten
-clusters is a statement about power as much as about the scorer.
+worse than same-corpus training there ($-10.62$, $[-18.31, -3.45]$). At this
+budget no gain over the heuristic on REALTALK is significant, which with 160
+questions in ten clusters is a statement about power as much as about the
+scorer.
+
+$S=4096$ is the budget of the headline comparison, not one chosen for this
+scorer, so Table~\ref{tab:transfer-budget} repeats the pooled run at four
+other budgets. On LoCoMo the gain is significant from $S=2048$ to $16384$ and
+largest at $4096$; it shrinks at both ends, where the store holds too little
+for any ranking to matter or nearly everything anyway. On REALTALK the gain is
+significant at $S=8192$ ($+16.88$, $[+6.31, +26.72]$) and $16384$. The one
+budget at which neither corpus shows a significant gain is $S=1024$, about
+5\% of a conversation.
 
 The embedding is what carries across. With the hand features alone, the
 pooled scorer is significantly \emph{worse} than the heuristic on REALTALK
@@ -502,6 +514,17 @@ conversation; bold excludes zero.}
 \centering
 \small
 \resizebox{\columnwidth}{!}{\input{tables/transfer}}
+\end{table}
+
+\begin{table}[t]
+\caption{The pooled learned scorer (P3) against the P1 heuristic across the
+store budget $S$, answer recall (\%), context 2048, same protocol as
+Table~\ref{tab:transfer}. $\Delta$ is P3 minus P1 with 95\% intervals
+resampled by conversation; bold excludes zero.}
+\label{tab:transfer-budget}
+\centering
+\small
+\resizebox{\columnwidth}{!}{\input{tables/transfer_budget}}
 \end{table}
 
 \subsection{End-task accuracy}
@@ -685,7 +708,8 @@ ranking below about 40\,KiB. An LLM judge, the obvious route to a better
 scorer, loses to a regular expression, for an identifiable reason: salience is
 not a property of a turn in isolation. A logistic scorer over a sentence
 embedding, trained on LLM-generated and human conversations together, beats
-the heuristic by $+14.55$ points on held-out LoCoMo conversations; it
+the heuristic by $+14.55$ points on held-out LoCoMo conversations, and by a
+significant margin at every store budget from 2048 to 16384 tokens; it
 transfers from human dialogue to generated dialogue but not the other way.
 Through a fixed reader, $+6.0$ of the pre-fix $+8.7$ points survive as correct
 answers.
@@ -698,7 +722,8 @@ removed, and none of those errors was visible in the aggregate numbers they
 affected.
 
 Two questions remain. The pooled scorer's gains on human conversation are
-not yet significant, and it is untested on LongMemEval, where hand-crafted
+significant only once the store holds about 40\% of a conversation, and it is
+untested on LongMemEval, where hand-crafted
 cues inverted; more human-written evidence, rather than a larger model, is
 what would settle both. And a scorer learned online from retrieval feedback
 is already statistically level with the heuristic on LoCoMo without labels

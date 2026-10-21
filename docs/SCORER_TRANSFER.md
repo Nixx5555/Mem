@@ -87,6 +87,27 @@ carries across.
 Full tables: `results/transfer_locomo_realtalk_S4096.csv` and
 `transfer_sig_…`.
 
+## Across the store budget
+
+S = 4096 is the headline budget, so the same run was repeated at four more
+(2026-10-21, `train_transfer.py --corpora locomo,realtalk --store-budget S`,
+same code and embedder; the S = 4096 rerun reproduced every number above).
+Pooled minus P1, answer recall, hand features + MiniLM:
+
+| S | LoCoMo Δ | | REALTALK Δ | |
+|---:|---|---|---|---|
+| 1,024 | +3.22 [0.00, +6.40] | n.s. | +1.88 [−1.95, +5.36] | n.s. |
+| 2,048 | +5.87 [+1.83, +9.88] | SIG | −1.25 [−10.62, +3.98] | n.s. |
+| 4,096 | +14.55 [+10.40, +19.70] | SIG | +3.75 [−2.92, +8.65] | n.s. |
+| 8,192 | +11.33 [+6.06, +16.41] | SIG | +16.88 [+6.31, +26.72] | SIG |
+| 16,384 | +5.87 [+2.04, +10.56] | SIG | +6.88 [+2.12, +12.21] | SIG |
+
+On LoCoMo the gain is significant at every budget from 2,048 up and peaks at
+4,096. On REALTALK it becomes significant at 8,192, about 40% of a
+conversation. Files: `results/transfer_locomo_realtalk_S<budget>.csv` and
+`transfer_sig_…`. The older `_S2048_tagmonthfix` run also tightened the month
+pattern, which costs recall (below), so it reads lower (+4.34, n.s.).
+
 ## The scorer fix, measured both ways
 
 The same runs with the scorer as it was before PR #2 (`_oldscorer` CSVs) and
@@ -143,6 +164,9 @@ tried, because their weights are only on HuggingFace and Google Storage, both
 blocked here.
 
 ## Using it
+
+This is still the shipped scorer. A model that adds BEAM was tried and not
+shipped; see `docs/BEAM_RESULTS.md`.
 
 ```
 python3 export_scorer.py              # refit on all 20 conversations -> memgate/scorer_pooled_lr.json

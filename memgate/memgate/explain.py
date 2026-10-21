@@ -117,10 +117,37 @@ def _heuristic(sc, text, speaker):
             "parts": parts, "total": total, "utility": max(0.0, min(1.0, total))}
 
 
+# What each GuardedScorer guard (ingest.py) did, when it changed the score.
+GUARDS = {
+    "no-words": "no words at all, so it counts as filler",
+    "small-talk": "a greeting or a couple of words, so it is capped as small talk",
+    "script": "mostly non-Latin script, which the scorer can't read, so it is set to neutral",
+    "code": "code or markup, so it is kept at least neutral",
+    "repeated": "the same words over and over, so it is capped",
+}
+
+
 def explain(scorer, text, speaker="user", top=6):
     """The parts of `scorer`'s score for one message, largest effect first.
 
+    The app's scorer is wrapped in ingest.GuardedScorer: the breakdown is the
+    wrapped scorer's, and when a guard changed the result, `guard` says why
+    and `unguarded` keeps the number the parts add up to.
+
     Returns None for a scorer that is not additive (none ship today)."""
+    inner = getattr(scorer, "inner", None)
+    if inner is not None:
+        u, label = scorer.score(text, speaker)
+        guard = scorer.last_guard
+        out = explain(inner, text, speaker, top)
+        if out is None:
+            return None
+        # out["utility"] is rounded to 4 places; a guard moves u by far more
+        if abs(u - out["utility"]) > 1e-4 or label != out["label"]:
+            out.update(guard=GUARDS.get(guard, guard), unguarded=out["utility"],
+                       utility=round(float(u), 4), label=label)
+        out["scorer"] = scorer.name
+        return out
     u, label = scorer.score(text, speaker)
     if isinstance(scorer, LearnedScorer) and isinstance(scorer.model, LinearModel):
         out = _learned(scorer, text, speaker)

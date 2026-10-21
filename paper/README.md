@@ -67,7 +67,7 @@ compiling once on Overleaf.
 
 ## Length
 
-**7 pages** since the learned-scorer (§VI-G) and application (§VII) sections were added, at about 5,300 words with 8 tables and 1 figure; compiled with TeX Live 2023 pdfLaTeX. Before that it was **6 pages exactly**, at 4,225 words with 7 tables and 1 figure — measured, not
+**8 pages** since the learned-scorer budget sweep (Table VIII) was added on 2026-10-21; 7 pages before that, once the learned-scorer (§VI-G) and application (§VII) sections were added, at about 5,300 words with 8 tables and 1 figure; compiled with TeX Live pdfLaTeX. Before that it was **6 pages exactly**, at 4,225 words with 7 tables and 1 figure — measured, not
 estimated (`Output written on main.xdv (6 pages...)` in `main.log`). It was 8
 pages at 4,975 words, 8 tables and 5 figures before the cut.
 

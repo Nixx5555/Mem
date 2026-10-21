@@ -535,3 +535,99 @@ def load_realtalk(path: str = DEFAULT_REALTALK_DIR):
           f"(dropped {dropped_dangling} dangling-evidence, {dropped_empty} "
           f"empty-evidence; {n_ev_fixed} evidence lists normalised)")
     return out
+
+
+# ---------------------------------------------------------------------- BEAM
+DEFAULT_BEAM_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "data", "beam")
+
+
+def _beam_ids(src):
+    """Flatten BEAM's `source_chat_ids` into a list of turn ids.
+
+    Most question types give a list of ints, but the two-sided ones nest them
+    in a dict: knowledge_update {"original_info": [86], "updated_info": [114]},
+    contradiction_resolution {"first_statement": ..., "second_statement": ...},
+    temporal_reasoning {"first_event": ..., "second_event": ...}. Every side
+    is evidence, since answering needs both."""
+    vals = list(src.values()) if isinstance(src, dict) else list(src)
+    out = []
+    for v in vals:
+        out += v if isinstance(v, list) else [v]
+    return out
+
+
+def load_beam(path: str = DEFAULT_BEAM_DIR, scales=("100K", "500K")):
+    """Load BEAM (Tavakoli et al., 2025) into the LoCoMo shape.
+
+    BEAM is LLM-generated user-assistant chats of 100K to 10M tokens about
+    coding, maths and general projects, each with 20 probing questions over
+    ten memory abilities. Source: github.com/mohammadtavakoli78/BEAM (MIT),
+    chats/<scale>/<n>/chat.json and probing_questions/probing_questions.json.
+    It is the opposite of LoCoMo in style: assistant turns are long markdown
+    answers (~2,100 characters a turn, against LoCoMo's ~130), which is the
+    regime where §30 saw the hand-written scorer's separation flip sign.
+
+    Evidence is `source_chat_ids`, the chat-wide `id` of each cited turn.
+    Abstention questions cite nothing and are dropped as empty-evidence, the
+    same treatment LoCoMo's empty evidence gets. The 1M and 10M scales are not
+    loaded: their ids repeat within a chat (1,720 duplicates at 1M), so a cited
+    id does not name one turn.
+
+    `answer` is the reference answer where the type has one (answer,
+    ideal_answer, ideal_summary); instruction- and preference-following
+    questions have none, so they count for strict recall only.
+    """
+    out, dropped_dangling, dropped_empty = [], 0, 0
+    for scale in scales:
+        sdir = os.path.join(path, scale)
+        for name in sorted(os.listdir(sdir), key=lambda s: (len(s), s)):
+            cdir = os.path.join(sdir, name)
+            with open(os.path.join(cdir, "chat.json")) as f:
+                chat = json.load(f)
+            with open(os.path.join(cdir, "probing_questions.json")) as f:
+                probes = json.load(f)
+            sid = f"beam-{scale}-{name}"
+            turns: List[Turn] = []
+            by_id = {}
+            s_pos = 0
+            for batch in chat:
+                for session in batch["turns"]:
+                    for idx, t in enumerate(session):
+                        uid = f"{sid}/{t['id']}"
+                        by_id[uid] = t.get("content", "") or ""
+                        turns.append(Turn(session=s_pos, index=idx,
+                                          speaker=t.get("role", "user"),
+                                          text=by_id[uid], fact_id=uid))
+                    s_pos += 1
+            questions: List[Question] = []
+            for qtype, items in probes.items():
+                for q in items:
+                    ev = [f"{sid}/{e}" for e in
+                          dict.fromkeys(_beam_ids(q.get("source_chat_ids") or []))]
+                    if not ev:
+                        dropped_empty += 1
+                        continue
+                    if any(e not in by_id for e in ev):
+                        dropped_dangling += 1
+                        continue
+                    ans = str(q.get("answer") or q.get("ideal_answer")
+                              or q.get("ideal_summary") or "")
+                    aw = answer_tokens(ans)
+                    ev_text = " ".join(by_id[e] for e in ev)
+                    recoverable = bool(aw) and set(aw) <= set(answer_tokens(ev_text))
+                    questions.append(Question(
+                        text=q["question"], gold_fact_id=ev[0], gold_evidence=ev,
+                        asked_after_session=s_pos - 1, kind=qtype, category=qtype,
+                        answer=ans, answer_recoverable=recoverable))
+            _assert_locomo_wellformed(sid, turns, questions)
+            out.append((sid, turns, questions))
+    if not out:
+        raise ValueError(f"no chats parsed from {path}")
+    print(f"  BEAM {'+'.join(scales)}: {len(out)} chats, "
+          f"{sum(len(t) for _, t, _ in out)} turns, "
+          f"{sum(len(q) for _, _, q in out)} questions "
+          f"(dropped {dropped_dangling} dangling-evidence, "
+          f"{dropped_empty} empty-evidence)")
+    return out

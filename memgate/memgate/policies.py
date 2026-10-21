@@ -74,7 +74,7 @@ def _as_item(turn: Turn) -> MemoryItem:
         text=f"[{turn.speaker}] {turn.text}",
         tier=SHORT_TERM, kind="turn",
         session=turn.session, turn_index=turn.index,
-        fact_id=turn.fact_id,
+        fact_id=turn.fact_id, speaker=turn.speaker,
     )
 
 
@@ -408,7 +408,7 @@ class MemGatePolicy:
         item = _as_item(turn)
         evicted = self.store.add_short(item)
         if evicted is not None:
-            self._route(evicted, turn.speaker)
+            self._route(evicted, evicted.speaker)
 
     def _route(self, item: MemoryItem, speaker: str = "user"):
         u, label = self.scorer.score(item.text, speaker)

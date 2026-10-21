@@ -1,5 +1,7 @@
 # MemGate
 
+[![tests](https://github.com/Nixx5555/Mem/actions/workflows/tests.yml/badge.svg?branch=endtask-full-run)](https://github.com/Nixx5555/Mem/actions/workflows/tests.yml)
+
 An adaptive memory layer for long-running LLM chats. For every message,
 MemGate decides whether to keep it, compress it, forget it, or recall it
 later, under a fixed token budget. The model only ever sees the notes MemGate
@@ -25,7 +27,8 @@ replies), and troubleshooting.
 On LoCoMo, with storage capped, forgetting the lowest-scored message first
 beats forgetting the oldest by **+9.4 answer-recall points**: 37.5% against
 28.1%, 95% CI [+5.4, +14.9], p = 2.8×10⁻⁵. A scorer trained on LoCoMo plus
-REALTALK adds **+14.6** more on conversations it never saw.
+REALTALK adds **+14.6** more on conversations it never saw (at the same
+S = 4096; the gain is significant at every budget from 2,048 to 16,384 tokens).
 
 | | |
 |---|---|
