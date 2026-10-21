@@ -35,12 +35,18 @@ over forgetting oldest-first at identical storage, fidelity and retrieval**
 (95% CI [+5.4, +14.9] clustered by conversation, McNemar p = 2.8×10⁻⁵), while
 **compressing an evicted turn instead of dropping it loses 7.1 points**. The
 rate–distortion prediction that compression must eventually win does not hold
-anywhere we can reach: we test compression ratios to 182× and the selection
-margin *widens* with pressure.
+anywhere we can reach: we test compression ratios to 182× and selection stays
+ahead of both compression and RAG at every ratio.
 
 We further show that charging for the embedding index — normally given away
-free — inverts the ranking below 64 KiB, where a policy with no index at all
+free — inverts the ranking below ~40 KiB, where a policy with no index at all
 beats every retrieval-based method.
+
+A logistic scorer over a sentence embedding, trained once on LoCoMo and on
+REALTALK conversations between real people, adds **+14.55** answer-recall
+points over the hand-written scorer on held-out LoCoMo conversations (95% CI
+[+10.40, +19.70]) and a significant gain at every store budget from 2,048 to
+16,384 tokens. It ships as the app's default scorer (§3.12).
 
 Measured through a fixed local reader over all 715 answer-recoverable
 questions, on the pre-fix contexts (where the gap was +8.7), **+6.0 of those
@@ -212,8 +218,10 @@ Answer recall at S=2048, by compression ratio:
 | 45× | 7.8% | 10.3% | **11.6%** |
 | 91× | 4.6% | 7.4% | **8.7%** |
 
-**No crossover to 182×**, and the selection margin over RAG *widens* with
-pressure. At LoCoMo scale the optimum sits at the vertex: a subset at full
+**No crossover to 182×**: selection stays ahead of compression and of RAG at
+every ratio. The absolute margin over RAG narrows as every arm approaches the
+floor (+9.5 points at 9×, +4.1 at 91×), while the relative lead grows (1.5×
+RAG's recall at 9×, 1.9× at 91×). At LoCoMo scale the optimum sits at the vertex: a subset at full
 fidelity beats everything at reduced fidelity.
 
 *Caveat:* a concatenated stream is not a natural long conversation. Each
@@ -241,7 +249,7 @@ compression, by +9.2 to +38.7. And **below ~40 KiB an embedding index cannot
 earn its own storage**: plain recency, which keeps no vectors, wins outright.
 That regime is invisible when the budget counts text alone.
 
-### 3.6 The scorer matters; a learned one adds a little
+### 3.6 The scorer matters; learning it on one corpus adds a little
 
 Ablation at S=4096 (adaptive mode), evidence recall:
 
@@ -273,9 +281,9 @@ The fitted weights say something the heuristic never encoded: **turn length is
 the strongest single predictor of evidence-worthiness**, ahead of every
 hand-designed cue.
 
-P3-learned is **not deployable** — a live agent has no future questions to
-learn from. It bounds the headroom of a learned decision policy, with the
-Oracle above it and P1 below.
+Fitted per conversation like this, P3 is a headroom bound: a live agent has
+no future questions to learn from. §3.12 removes that limit by training once
+on other corpora and shipping the result; there the gain is much larger.
 
 ### 3.7 An LLM judge is the wrong instrument for salience
 
@@ -474,6 +482,48 @@ weights point the wrong way — so P4 is a candidate for fixing §3.9's transfer
 failure only if it is allowed to re-learn per corpus. Untested, and the obvious
 next experiment.
 
+### 3.12 A learned scorer trained across corpora, and shipped
+
+The app's default scorer is a logistic regression over the 15 hand features
+plus the MiniLM embedding, trained **once** on LoCoMo and REALTALK (ten chats
+between real people, 8,944 turns, 160 answer-recoverable questions) and
+shipped as `memgate/memgate/scorer_pooled_lr.json`. Every held-out
+conversation is scored by a model that never saw it. Full write-up:
+`docs/SCORER_TRANSFER.md`.
+
+At the headline budget (S = 4096), on LoCoMo the pooled scorer reaches 52.0%
+answer recall against the heuristic's 37.5%: **+14.55 [+10.40, +19.70]**.
+Pooling both corpora beats training on LoCoMo alone by +3.36 [+0.27, +6.52].
+Transfer works one way: trained on REALTALK only it still beats the heuristic
+on LoCoMo (+9.09, significant); trained on LoCoMo only it does not beat it on
+REALTALK. Without the embedding, the learned scorer is significantly *worse*
+than the heuristic on REALTALK (−8.75), so the embedding is what carries.
+
+**The gain is not an artefact of the budget.** The same run at five budgets
+(P3 pooled minus P1, answer recall, 95% CI clustered by conversation):
+
+| S | LoCoMo P1 → P3 | Δ | REALTALK P1 → P3 | Δ |
+|---:|---|---|---|---|
+| 1,024 | 15.8 → 19.0 | +3.22 [0.00, +6.40] n.s. | 8.1 → 10.0 | +1.88 [−1.95, +5.36] n.s. |
+| 2,048 | 27.8 → 33.7 | **+5.87** [+1.83, +9.88] | 16.2 → 15.0 | −1.25 [−10.62, +3.98] n.s. |
+| 4,096 | 37.5 → 52.0 | **+14.55** [+10.40, +19.70] | 32.5 → 36.2 | +3.75 [−2.92, +8.65] n.s. |
+| 8,192 | 57.8 → 69.1 | **+11.33** [+6.06, +16.41] | 41.2 → 58.1 | **+16.88** [+6.31, +26.72] |
+| 16,384 | 71.3 → 77.2 | **+5.87** [+2.04, +10.56] | 61.3 → 68.1 | **+6.88** [+2.12, +12.21] |
+
+On LoCoMo it is significant from S = 2048 up and peaks at the headline
+budget; it shrinks at both ends, where the store holds too little for any
+ranking to matter or nearly everything anyway. On REALTALK it becomes
+significant once the store holds about 40% of a conversation. Source:
+`results/transfer_locomo_realtalk_S{1024,…,16384}.csv`, paper Table VIII.
+
+**A third corpus, BEAM** (`docs/BEAM_RESULTS.md`): out of the box both the
+heuristic (AUC 0.447) and the pooled scorer (0.372) rank BEAM's evidence
+*below chance*, the same sign flip §3.9 found on LongMemEval. Training on other
+BEAM conversations fixes it (AUC 0.675; answer recall 73.5% against the
+heuristic's 35.3% at 20% retention, significant but on only 34 questions).
+That model is not shipped: it scores "Hi!" above a flight date, which fails
+the app's own sanity test. The shipped scorer stays the LoCoMo + REALTALK one.
+
 ---
 
 ## 4. Methodological findings
@@ -531,7 +581,10 @@ the eviction order.
   and non-evidence turns reverses sign on LongMemEval, and scored eviction
   consequently loses to FIFO there. Whether the mechanism or only this scorer
   fails to transfer is open, and is the most urgent remaining question.
-* **P3-learned is a headroom bound, not a component** (§3.6).
+* **The learned scorer is corpus-dependent** (§3.12). It must see some
+  conversations of the kind it will score: on BEAM and LongMemEval, a scorer
+  that hasn't ranks evidence below chance. Its labels are distant supervision
+  ("some question cites this turn"), not human judgements of importance.
 * **Single embedder and single judge model.** Both are ablated but neither is
   varied across families. The §3.7 negative is therefore evidence about *a 0.5B
   model prompted per-turn*, not about LLM judging in general; a larger model, or
@@ -556,6 +609,9 @@ already done. Measured honestly, the more useful result is what *doesn't* work:
 5. Through a real reader (run before the scorer fix, when the gap was +8.7),
    **+6.0 of the +8.7 points are realised as correct answers** — 69% of the
    ceiling gap — so the advantage is not merely available, it is delivered.
+6. A scorer learned once on LoCoMo and REALTALK, and shipped in the app, adds
+   **+14.55** more on held-out LoCoMo conversations at S = 4096, and a
+   significant gain at every budget from 2048 to 16384 (§3.12).
 
 **Practical guidance: keep a scored subset whole; do not compress everything.**
 And denominate the budget in bytes, including the index, or the comparison is
@@ -565,11 +621,16 @@ not the one you think you are making.
 
 * A larger reader, to separate the memory layer's remaining headroom from the
   reader's (the oracle arm converts only 67.3% of complete contexts).
-* Abstractive compression, to test whether §3.4's negative result is specific to
-  extractive methods.
-* A benchmark with genuinely long single conversations (LongMemEval).
-* Online learning of the eviction policy from interaction, which would make a
-  learned scorer deployable.
+* Re-running the end-task, LLM-judge, abstractive and LongMemEval experiments
+  with the fixed scorer (they still show pre-fix numbers), and the end-task
+  with a stronger reader.
+* Training the shipped scorer with LongMemEval and short chat messages, so it
+  transfers to long-horizon corpora without failing on everyday chat.
+* Seeding the online learner (§3.11) with the shipped scorer and letting it
+  adapt to each user.
+
+Done since the first draft: abstractive compression (§3.10), LongMemEval
+(§3.9), online learning (§3.11) and a deployable learned scorer (§3.12).
 
 ---
 
@@ -577,13 +638,14 @@ not the one you think you are making.
 
 ```bash
 cd memgate
-python3 test_memgate.py          # 78 tests
+python3 run_tests.py             # every test suite
 python3 run_locomo.py            # context-budget frontier
 python3 run_storage_sweep.py     # §3.2 storage budget
 python3 run_scaling.py           # §3.4 compression ratio to 182x
 python3 run_cost_model.py        # §3.5 byte accounting
 python3 run_significance.py      # §3.3 bootstrap + McNemar
 python3 train_scorer.py          # §3.6 learned scorer
+python3 train_transfer.py --store-budget 4096   # §3.12 across corpora (needs data/realtalk)
 python3 precompute_judge.py      # P2 judge scores (local model, ~15 min, cached)
 python3 run_judge_eval.py        # §3.7 scorer comparison + CIs
 python3 run_endtask.py           # §3.8 end-task accuracy (~50 min, resumable)

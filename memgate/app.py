@@ -67,6 +67,7 @@ MAX_CHARS = 200_000
 # model gets the notes MemGate recalls for it plus the message's own
 # questions (or its opening and closing lines) instead of all of it.
 LONG_MESSAGE = 1500
+STORE_RANGE = (40, 1_000_000)   # tokens; the page's Store S box starts at 40
 TIER_KEY = {SHORT_TERM: "t1", WORKING: "t2", LONG_TERM: "t3"}
 
 # (Tier 1 capacity, context budget, default store budget S), in messages and
@@ -117,13 +118,34 @@ def _item(it):
             "superseded": it.superseded_by is not None}
 
 
+class BadRequest(ValueError):
+    """Input the page or a caller got wrong: answered 400, not 500."""
+
+
+def store_budget_from(value, default):
+    """A store budget as sent by the page: a whole number of tokens in
+    STORE_RANGE, or the default when none was given."""
+    if value in (None, "", 0):
+        return default
+    try:
+        n = int(value)
+    except (TypeError, ValueError, OverflowError):
+        raise BadRequest(f"the store budget must be a number of tokens, "
+                         f"not {value!r}") from None
+    lo, hi = STORE_RANGE
+    if isinstance(value, bool) or not lo <= n <= hi:
+        raise BadRequest(f"the store budget must be between {lo:,} and "
+                         f"{hi:,} tokens")
+    return n
+
+
 class Session:
     def __init__(self, mode="p1s", store_budget=None, scale="full"):
         self.mode = mode if mode in MODES else "p1s"
         scale = SCALE_ALIASES.get(scale, scale)
         self.scale = scale if scale in SCALES else "full"
         self.short_capacity, self.context_budget, s_default = SCALES[self.scale]
-        self.store_budget = int(store_budget or s_default)
+        self.store_budget = store_budget_from(store_budget, s_default)
         kw = dict(short_capacity=self.short_capacity, budget=self.context_budget)
         if self.mode == "p1":
             self.policy = MemGatePolicy(**kw)
@@ -593,8 +615,10 @@ def make_handler(app, passcode=None):
                 if self.path == "/api/chats/delete":
                     return self._send(200, app.delete(str(b.get("id", ""))))
                 if self.path == "/api/bench":
-                    app.bench.start(b.get("store", 4096))
+                    app.bench.start(store_budget_from(b.get("store"), 4096))
                     return self._send(200, app.bench.state())
+            except BadRequest as exc:
+                return self._send(400, {"error": str(exc)})
             except Exception as exc:          # show it on the page, keep serving
                 return self._send(500, {"error": f"{type(exc).__name__}: {exc}"})
             self._send(404, {"error": "not found"})

@@ -151,8 +151,9 @@ they forget. That gap is the decision policy and nothing else.
 Theory says compression must eventually win: squeeze hard enough and a lossy
 record must beat no record. We cannot test that by shrinking S — everything
 hits the floor first — so we raise the *compression ratio* by concatenating up
-to 10 conversations (186K tokens) at fixed S. **No crossover to 182×**, and the
-selection margin over RAG *widens* under pressure.
+to 10 conversations (186K tokens) at fixed S. **No crossover to 182×**: selection
+stays ahead at every ratio. In points the margin over RAG narrows near the
+floor (+9.5 to +4.1); as a ratio it grows (1.5× to 1.9× RAG's recall).
 
 **4. The embedding index is not free.**
 Storage is normally counted in text tokens, which silently gives the index
@@ -469,7 +470,9 @@ the floor where anything works. So the missing axis is *length*. We concatenate
 up to 10 conversations — 186,000 tokens — and hold storage fixed, which pushes
 the compression ratio to 182×.
 
-No crossover. And the selection margin actually *widens* under pressure. At
+No crossover. Selection stays ahead at every ratio. In points its lead over
+RAG shrinks as everything nears the floor, from 9.5 to 4.1; as a ratio it
+grows, from 1.5 to 1.9 times RAG's recall. At
 this scale the optimum sits at the vertex: a subset at full fidelity beats
 everything at reduced fidelity."
 

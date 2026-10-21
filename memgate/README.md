@@ -20,7 +20,7 @@ See `../REPORT.md` for the paper-ready writeup.
 
 ```bash
 cd memgate
-python3 test_memgate.py           # 78 tests
+python3 test_memgate.py           # 80 tests (python3 run_tests.py runs all six suites)
 python3 run_locomo.py             # LoCoMo — the real benchmark
 python3 run_storage_sweep.py      # the storage-budget frontier (§23)
 python3 run_experiment.py         # synthetic sanity set
@@ -55,7 +55,7 @@ The benchmark and the model weights are **not in the repo** (90 MB + 2.7 MB,
 reproducible from source). Fetch both:
 
 ```bash
-pip install sentence-transformers tiktoken
+pip install -r requirements-research.txt   # the app's packages + scikit-learn, matplotlib
 
 # LoCoMo (Maharana et al., 2024)
 mkdir -p data/locomo
@@ -331,7 +331,7 @@ memgate/
   run_ablations.py     component attribution
   run_experiment.py    synthetic sanity set
   diagnose.py          miss analysis by cause
-  test_memgate.py      78 tests
+  test_memgate.py      80 tests
   data/locomo/         locomo10.json (2.7 MB)
   models/              vendored all-MiniLM-L6-v2
 ```
