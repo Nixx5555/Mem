@@ -340,7 +340,7 @@ class ThreeTierStore:
         return it
 
     # ------------------------------------------------------------ retrieval
-    def retrieve(self, query: str, k: int = 5,
+    def retrieve(self, query, k: int = 5,
                  include_working: bool = False) -> List[MemoryItem]:
         """Rank stored items against the query.
 
@@ -352,13 +352,27 @@ class ThreeTierStore:
         addressable. Tier 2 items already carry embeddings, so making them
         retrievable costs nothing but the ranking.
         """
-        q = embed(query)
         pool = [i for i in self.long if i.is_active]
         if include_working:
             pool += list(self.working)
-        scored = [(cosine(q, i.embedding), i) for i in pool]
-        scored.sort(key=lambda x: -x[0])
-        out = [i for s, i in scored[:k] if s > 0]
+        if isinstance(query, str):
+            query = [query]
+        # Several queries (the app's long messages that ask more than one
+        # thing, ingest.queries): each is ranked on its own and the rankings
+        # are interleaved, best of each first, so no one question's matches
+        # crowd out another's. One query is the ranking it always was.
+        ranked = []
+        for qtext in query:
+            q = embed(qtext)
+            scored = [(cosine(q, i.embedding), i) for i in pool]
+            scored.sort(key=lambda x: -x[0])
+            ranked.append([i for s, i in scored[:k] if s > 0])
+        out, seen = [], set()
+        for row in zip(*[r + [None] * (k - len(r)) for r in ranked]):
+            for i in row:
+                if i is not None and i.id not in seen and len(out) < k:
+                    seen.add(i.id)
+                    out.append(i)
         for i in out:
             i.access_count += 1
         return out

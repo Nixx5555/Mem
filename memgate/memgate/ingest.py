@@ -198,6 +198,33 @@ def focus(text: str, limit: int = WHOLE) -> str:
     return q if count_tokens(q) <= limit else _split_hard(q, limit)[0]
 
 
+def queries(text: str, limit: int = WHOLE, most: int = 4) -> List[str]:
+    """What to retrieve with, as separate queries, for MemGate's own memory.
+
+    focus() joins a long message's questions into one string, which works
+    when the ask is at the end. stress_questions.py --long-questions buried a
+    LoCoMo question in 150-450 words of other chat, often with more chat (and
+    its own questions) after it; focus() then held the real question only 56%
+    of the time and answer recall fell from 53% to 42%. Here every question
+    in the message (the closing paragraph's first, then the rest from the end
+    back, at most `most`) is its own query, and the store interleaves their
+    rankings (ThreeTierStore.retrieve), so the right one is in there somewhere
+    and its best matches still reach the context.
+    """
+    t = clean(text)
+    if count_tokens(one_line(t)) <= limit:
+        return [one_line(t)]
+    paras = [p for p in _PARA.split(t) if p.strip()]
+    ask = lambda ps: [one_line(s) for p in ps for line in p.split("\n")
+                      for s in _SENT.split(line) if s.strip().endswith(("?", "？"))]
+    last = ask(paras[-1:])
+    rest = [q for q in reversed(ask(paras[:-1])) if q not in last]
+    qs = list(dict.fromkeys(last + rest))[:most]
+    if not qs:
+        return [focus(t, limit)]
+    return [q if count_tokens(q) <= limit else _split_hard(q, limit)[0] for q in qs]
+
+
 # ---------------------------------------------------------------- extract
 class ExtractError(ValueError):
     """The upload could not be read; the message says why, for the page."""

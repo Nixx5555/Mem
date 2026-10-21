@@ -19,7 +19,7 @@ and compares four memory set-ups at the same store budget S:
   learned      P1-S with the shipped scorer (scorer_pooled_lr.json)
   app          what the app actually runs: the shipped scorer inside
                GuardedScorer, every turn cut by ingest.chunk(), every question
-               reduced by ingest.focus()
+               turned into queries by ingest.queries()
 
 The shipped scorer was fitted on every LoCoMo and REALTALK turn, so on those
 two corpora `learned` and `app` are in-sample (an upper bound, as the paper's
@@ -45,7 +45,7 @@ import numpy as np
 
 from memgate.data import load_locomo, load_realtalk, load_beam
 from memgate.harness import run_policy
-from memgate.ingest import GuardedScorer, chunk, focus
+from memgate.ingest import GuardedScorer, chunk, focus, queries
 from memgate.policies import MemGateSelectPolicy, RAGPolicy
 from memgate.pretrained import load_learned
 from memgate.scoring import HeuristicScorer
@@ -59,12 +59,18 @@ LOADERS = {
     "locomo": lambda: load_locomo(),
     "realtalk": lambda: load_realtalk(),
     "beam": lambda: load_beam(scales=("100K", "500K")),
+    # BEAM at one scale. The app path cuts BEAM's ~2,000-character answers
+    # into ~10 pieces each, and at 500K that is ~470,000 strings to embed:
+    # hours on a laptop CPU, so the app path is run on 100K.
+    "beam100": lambda: load_beam(scales=("100K",)),
+    "beam500": lambda: load_beam(scales=("500K",)),
 }
 # Store budgets: LoCoMo/REALTALK at the paper's headline S; BEAM chats are
 # ~5-25x longer, so the BEAM_RESULTS.md budget.
-DEFAULT_S = {"locomo": 4096, "realtalk": 4096, "beam": 26000}
+DEFAULT_S = {"locomo": 4096, "realtalk": 4096, "beam": 26000,
+             "beam100": 26000, "beam500": 26000}
 SETUPS = ("rag", "heuristic", "learned", "app")
-LONG_SETUPS = ("app", "app-nofocus")
+LONG_SETUPS = ("app", "app-focus", "app-nofocus")
 
 
 def wrap_long(question, padding, rnd):
@@ -80,11 +86,13 @@ def wrap_long(question, padding, rnd):
 class AppPath:
     """A policy fed the way app.py feeds one: each turn cut into turn-sized
     pieces (every piece keeps the turn's fact_id, so evidence is still
-    traceable), each question reduced to what ingest.focus() retrieves with."""
+    traceable), each question turned into what the app retrieves with:
+    ingest.queries() (the app), ingest.focus() (before this test), or the
+    whole message (raw)."""
 
-    def __init__(self, inner, use_focus=True):
+    def __init__(self, inner, query="queries"):
         self.inner = inner
-        self.use_focus = use_focus
+        self.query = query          # "queries" (the app), "focus", or "raw"
         self.name = "app path"
 
     def observe(self, turn):
@@ -94,7 +102,9 @@ class AppPath:
                                     fact_id=turn.fact_id))
 
     def build_context(self, query, budget):
-        q = (focus(query) or query) if self.use_focus else query
+        q = {"queries": lambda: queries(query) or [query],
+             "focus": lambda: focus(query) or query,
+             "raw": lambda: query}[self.query]()
         return self.inner.build_context(q, budget)
 
     def stored_tokens(self):
@@ -113,7 +123,8 @@ def make(setup, S, learned):
     if setup == "learned":
         return MemGateSelectPolicy(scorer=learned, **kw)
     return AppPath(MemGateSelectPolicy(scorer=GuardedScorer(learned), **kw),
-                   use_focus=setup != "app-nofocus")
+                   query={"app": "queries", "app-focus": "focus",
+                          "app-nofocus": "raw"}[setup])
 
 
 def buckets(q, turns):
@@ -141,8 +152,8 @@ def main():
     ap.add_argument("--setups", default="")
     ap.add_argument("--long-questions", action="store_true",
                     help="ask every question inside a long message (150-450 "
-                         "words of other chat around it), with and without "
-                         "ingest.focus()")
+                         "words of other chat around it): the app's queries(), "
+                         "the earlier focus(), and the raw message")
     args = ap.parse_args()
     names = [c for c in args.corpora.split(",") if c]
     setups = [s for s in args.setups.split(",") if s] or list(
@@ -177,6 +188,7 @@ def main():
             texts += [f"[{t.speaker}] {p}" for _s, ts, _q in data for t in ts
                       for p in chunk(t.text)]
             texts += [focus(q.text) for _s, _t, qs in data for q in qs]
+            texts += [x for _s, _t, qs in data for q in qs for x in queries(q.text)]
         texts += [q.text for _s, _t, qs in data for q in qs]
         t0 = time.time()
         warm_cache(texts)

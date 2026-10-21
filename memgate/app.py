@@ -60,7 +60,7 @@ from memgate.explain import explain
 from memgate.reader import ChatModel, BACKENDS
 from memgate.utils import backend_info, count_tokens, embed_many
 from memgate.ingest import (GuardedScorer, ExtractError, chunk, clean, focus,
-                            extract, decode_upload, one_line, MAX_DOC_CHARS,
+                            queries, extract, decode_upload, one_line, MAX_DOC_CHARS,
                             MAX_UPLOAD_BYTES)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -358,8 +358,8 @@ class Session:
     # -- the read path
     def context(self, query):
         # A long message would be embedded by its first 256 word pieces only;
-        # retrieve with its questions instead (ingest.focus).
-        ctx = self.policy.build_context(focus(query), self.context_budget)
+        # retrieve with each of its questions instead (ingest.queries).
+        ctx = self.policy.build_context(queries(query), self.context_budget)
         return ctx, [_item(i) for i in ctx.items]
 
     def compare(self, query, ctx):

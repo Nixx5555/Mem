@@ -429,6 +429,17 @@ try:
 except ImportError:
     print("  SKIP  password-protected PDF (pypdf not installed)")
 
+print("\n-- a question buried in a long message --")
+long_msg = (" ".join(FILLER[:4]) + "\n\nAnyway, what is the deposit for the Indore flat?"
+            "\n\nAlso: " + " ".join(FILLER[4:6]) + " Did you see the match? How was it?")
+qs = I.queries(long_msg)
+check("every question in a long message is its own query, closing ones first",
+      qs[:2] == ["Did you see the match?", "How was it?"]
+      and "Anyway, what is the deposit for the Indore flat?" in qs, str(qs))
+check("a short message is its own single query", I.queries("where is it?") == ["where is it?"])
+ctx, _ = app.session.context(long_msg)
+check("the buried question still recalls its fact", "48,500" in ctx.text)
+
 srv.shutdown()
 print(f"\n{'=' * 46}\n  {passed} passed, {failed} failed\n{'=' * 46}")
 sys.exit(1 if failed else 0)

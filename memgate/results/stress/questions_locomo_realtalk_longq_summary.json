@@ -1,0 +1,442 @@
+{
+ "locomo": {
+  "category": {
+   "multi_hop": {
+    "app": {
+     "n": 278,
+     "n_answer": 98,
+     "answer": 42.857142857142854,
+     "strict": 11.510791366906476
+    },
+    "app-focus": {
+     "n": 278,
+     "n_answer": 98,
+     "answer": 38.775510204081634,
+     "strict": 10.071942446043165
+    },
+    "app-nofocus": {
+     "n": 278,
+     "n_answer": 98,
+     "answer": 29.591836734693878,
+     "strict": 5.39568345323741
+    }
+   },
+   "open_domain": {
+    "app": {
+     "n": 89,
+     "n_answer": 4,
+     "answer": 75.0,
+     "strict": 17.97752808988764
+    },
+    "app-focus": {
+     "n": 89,
+     "n_answer": 4,
+     "answer": 50.0,
+     "strict": 19.101123595505616
+    },
+    "app-nofocus": {
+     "n": 89,
+     "n_answer": 4,
+     "answer": 0.0,
+     "strict": 10.112359550561797
+    }
+   },
+   "single_hop": {
+    "app": {
+     "n": 840,
+     "n_answer": 586,
+     "answer": 50.34129692832765,
+     "strict": 37.023809523809526
+    },
+    "app-focus": {
+     "n": 840,
+     "n_answer": 586,
+     "answer": 41.80887372013652,
+     "strict": 28.69047619047619
+    },
+    "app-nofocus": {
+     "n": 840,
+     "n_answer": 586,
+     "answer": 29.692832764505116,
+     "strict": 19.047619047619047
+    }
+   },
+   "temporal": {
+    "app": {
+     "n": 320,
+     "n_answer": 27,
+     "answer": 59.25925925925925,
+     "strict": 49.0625
+    },
+    "app-focus": {
+     "n": 320,
+     "n_answer": 27,
+     "answer": 59.25925925925925,
+     "strict": 41.5625
+    },
+    "app-nofocus": {
+     "n": 320,
+     "n_answer": 27,
+     "answer": 51.85185185185185,
+     "strict": 31.5625
+    }
+   }
+  },
+  "hops": {
+   "1": {
+    "app": {
+     "n": 1122,
+     "n_answer": 582,
+     "answer": 51.37457044673539,
+     "strict": 41.97860962566845
+    },
+    "app-focus": {
+     "n": 1122,
+     "n_answer": 582,
+     "answer": 43.12714776632303,
+     "strict": 33.51158645276293
+    },
+    "app-nofocus": {
+     "n": 1122,
+     "n_answer": 582,
+     "answer": 31.615120274914087,
+     "strict": 23.351158645276293
+    }
+   },
+   "2": {
+    "app": {
+     "n": 226,
+     "n_answer": 83,
+     "answer": 44.57831325301205,
+     "strict": 16.371681415929203
+    },
+    "app-focus": {
+     "n": 226,
+     "n_answer": 83,
+     "answer": 39.75903614457831,
+     "strict": 15.486725663716813
+    },
+    "app-nofocus": {
+     "n": 226,
+     "n_answer": 83,
+     "answer": 28.915662650602407,
+     "strict": 8.849557522123893
+    }
+   },
+   "3+": {
+    "app": {
+     "n": 179,
+     "n_answer": 50,
+     "answer": 40.0,
+     "strict": 4.4692737430167595
+    },
+    "app-focus": {
+     "n": 179,
+     "n_answer": 50,
+     "answer": 34.0,
+     "strict": 4.4692737430167595
+    },
+    "app-nofocus": {
+     "n": 179,
+     "n_answer": 50,
+     "answer": 18.0,
+     "strict": 1.675977653631285
+    }
+   }
+  },
+  "age": {
+   "first third": {
+    "app": {
+     "n": 624,
+     "n_answer": 262,
+     "answer": 47.32824427480916,
+     "strict": 27.724358974358974
+    },
+    "app-focus": {
+     "n": 624,
+     "n_answer": 262,
+     "answer": 41.98473282442748,
+     "strict": 24.19871794871795
+    },
+    "app-nofocus": {
+     "n": 624,
+     "n_answer": 262,
+     "answer": 27.86259541984733,
+     "strict": 14.262820512820513
+    }
+   },
+   "last third": {
+    "app": {
+     "n": 439,
+     "n_answer": 228,
+     "answer": 52.63157894736842,
+     "strict": 41.230068337129836
+    },
+    "app-focus": {
+     "n": 439,
+     "n_answer": 228,
+     "answer": 39.91228070175439,
+     "strict": 29.84054669703872
+    },
+    "app-nofocus": {
+     "n": 439,
+     "n_answer": 228,
+     "answer": 31.140350877192986,
+     "strict": 25.28473804100228
+    }
+   },
+   "middle third": {
+    "app": {
+     "n": 464,
+     "n_answer": 225,
+     "answer": 49.77777777777778,
+     "strict": 34.91379310344828
+    },
+    "app-focus": {
+     "n": 464,
+     "n_answer": 225,
+     "answer": 44.44444444444444,
+     "strict": 29.52586206896552
+    },
+    "app-nofocus": {
+     "n": 464,
+     "n_answer": 225,
+     "answer": 32.44444444444444,
+     "strict": 18.318965517241377
+    }
+   }
+  },
+  "q length": {
+   ">25 words": {
+    "app": {
+     "n": 1527,
+     "n_answer": 715,
+     "answer": 49.790209790209786,
+     "strict": 33.79174852652259
+    },
+    "app-focus": {
+     "n": 1527,
+     "n_answer": 715,
+     "answer": 42.09790209790209,
+     "strict": 27.439423706614274
+    },
+    "app-nofocus": {
+     "n": 1527,
+     "n_answer": 715,
+     "answer": 30.349650349650346,
+     "strict": 18.664047151277014
+    }
+   }
+  }
+ },
+ "realtalk": {
+  "category": {
+   "commonsense": {
+    "app": {
+     "n": 98,
+     "n_answer": 3,
+     "answer": 100.0,
+     "strict": 17.346938775510203
+    },
+    "app-focus": {
+     "n": 98,
+     "n_answer": 3,
+     "answer": 66.66666666666666,
+     "strict": 15.306122448979592
+    },
+    "app-nofocus": {
+     "n": 98,
+     "n_answer": 3,
+     "answer": 100.0,
+     "strict": 9.183673469387756
+    }
+   },
+   "multi_hop": {
+    "app": {
+     "n": 258,
+     "n_answer": 93,
+     "answer": 29.03225806451613,
+     "strict": 7.3643410852713185
+    },
+    "app-focus": {
+     "n": 258,
+     "n_answer": 93,
+     "answer": 29.03225806451613,
+     "strict": 7.3643410852713185
+    },
+    "app-nofocus": {
+     "n": 258,
+     "n_answer": 93,
+     "answer": 15.053763440860216,
+     "strict": 1.937984496124031
+    }
+   },
+   "temporal": {
+    "app": {
+     "n": 304,
+     "n_answer": 64,
+     "answer": 62.5,
+     "strict": 37.17105263157895
+    },
+    "app-focus": {
+     "n": 304,
+     "n_answer": 64,
+     "answer": 60.9375,
+     "strict": 31.57894736842105
+    },
+    "app-nofocus": {
+     "n": 304,
+     "n_answer": 64,
+     "answer": 39.0625,
+     "strict": 19.407894736842106
+    }
+   }
+  },
+  "hops": {
+   "1": {
+    "app": {
+     "n": 305,
+     "n_answer": 56,
+     "answer": 64.28571428571429,
+     "strict": 41.967213114754095
+    },
+    "app-focus": {
+     "n": 305,
+     "n_answer": 56,
+     "answer": 60.71428571428571,
+     "strict": 36.0655737704918
+    },
+    "app-nofocus": {
+     "n": 305,
+     "n_answer": 56,
+     "answer": 41.07142857142857,
+     "strict": 21.9672131147541
+    }
+   },
+   "2": {
+    "app": {
+     "n": 166,
+     "n_answer": 47,
+     "answer": 44.680851063829785,
+     "strict": 10.240963855421686
+    },
+    "app-focus": {
+     "n": 166,
+     "n_answer": 47,
+     "answer": 46.808510638297875,
+     "strict": 9.63855421686747
+    },
+    "app-nofocus": {
+     "n": 166,
+     "n_answer": 47,
+     "answer": 25.53191489361702,
+     "strict": 3.0120481927710845
+    }
+   },
+   "3+": {
+    "app": {
+     "n": 189,
+     "n_answer": 57,
+     "answer": 22.807017543859647,
+     "strict": 2.1164021164021163
+    },
+    "app-focus": {
+     "n": 189,
+     "n_answer": 57,
+     "answer": 21.052631578947366,
+     "strict": 2.1164021164021163
+    },
+    "app-nofocus": {
+     "n": 189,
+     "n_answer": 57,
+     "answer": 12.280701754385964,
+     "strict": 0.5291005291005291
+    }
+   }
+  },
+  "age": {
+   "first third": {
+    "app": {
+     "n": 292,
+     "n_answer": 86,
+     "answer": 29.069767441860467,
+     "strict": 13.698630136986301
+    },
+    "app-focus": {
+     "n": 292,
+     "n_answer": 86,
+     "answer": 30.23255813953488,
+     "strict": 11.986301369863012
+    },
+    "app-nofocus": {
+     "n": 292,
+     "n_answer": 86,
+     "answer": 15.11627906976744,
+     "strict": 5.47945205479452
+    }
+   },
+   "last third": {
+    "app": {
+     "n": 161,
+     "n_answer": 29,
+     "answer": 65.51724137931035,
+     "strict": 32.298136645962735
+    },
+    "app-focus": {
+     "n": 161,
+     "n_answer": 29,
+     "answer": 65.51724137931035,
+     "strict": 28.57142857142857
+    },
+    "app-nofocus": {
+     "n": 161,
+     "n_answer": 29,
+     "answer": 44.827586206896555,
+     "strict": 14.906832298136646
+    }
+   },
+   "middle third": {
+    "app": {
+     "n": 207,
+     "n_answer": 45,
+     "answer": 57.77777777777777,
+     "strict": 27.536231884057973
+    },
+    "app-focus": {
+     "n": 207,
+     "n_answer": 45,
+     "answer": 51.11111111111111,
+     "strict": 23.67149758454106
+    },
+    "app-nofocus": {
+     "n": 207,
+     "n_answer": 45,
+     "answer": 35.55555555555556,
+     "strict": 15.942028985507244
+    }
+   }
+  },
+  "q length": {
+   ">25 words": {
+    "app": {
+     "n": 660,
+     "n_answer": 160,
+     "answer": 43.75,
+     "strict": 22.575757575757578
+    },
+    "app-focus": {
+     "n": 660,
+     "n_answer": 160,
+     "answer": 42.5,
+     "strict": 19.696969696969695
+    },
+    "app-nofocus": {
+     "n": 660,
+     "n_answer": 160,
+     "answer": 26.25,
+     "strict": 11.06060606060606
+    }
+   }
+  }
+ }
+}
