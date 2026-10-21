@@ -524,6 +524,51 @@ heuristic's 35.3% at 20% retention, significant but on only 34 questions).
 That model is not shipped: it scores "Hi!" above a flight date, which fails
 the app's own sanity test. The shipped scorer stays the LoCoMo + REALTALK one.
 
+### 3.13 Against MemGPT-style and Mem0-style memory, at the same budget
+
+Every baseline above is internal. To answer "how does this compare to MemGPT
+or Mem0?" with a number, both systems' memory-management patterns were rebuilt
+inside the same harness (`memgate/memgate/external_baselines.py`,
+`run_external_baselines.py`), at context 2048 and the same store budgets:
+
+- **MemGPT-style** (Packer et al., 2023): recent queue plus searchable archive,
+  with messages evicted from the archive folded into a recursive summary that
+  is always in context and loses its oldest detail first.
+- **Mem0-style** (Chhikara et al., 2025): one compressed fact per turn, with
+  ADD / UPDATE (nearest memory above a similarity threshold, newest wins) /
+  NOOP (filler), oldest-touched memory evicted first.
+
+Neither calls an LLM: summaries and facts are written with MemGate's own
+extractive compressor, so these are the systems' structures, not their
+prompts. In the baselines' favour, each one's knobs were grid-searched **on
+LoCoMo itself** at S = 4096 (MemGPT-style: summary share 0.25, 16-token gists;
+Mem0-style: 32-token facts, update threshold 0.65). No MemGate row was tuned
+on these answers. Answer recall, %:
+
+| S | RAG | MemGPT-style | Mem0-style (tuned) | MemGate P1-S | MemGate learned (held out) |
+|---:|---:|---:|---:|---:|---:|
+| 2,048 | 18.3 | 18.7 | 26.4 | 27.8 | **33.7** |
+| 4,096 | 28.1 | 30.2 | 44.5 | 37.5 | **52.0** |
+| 8,192 | 44.3 | 46.4 | 52.6 | 57.8 | **69.1** |
+| 16,384 | 66.4 | 65.7 | 52.6 | 71.3 | **77.2** |
+
+- The learned scorer beats both at every budget, every gap significant
+  (paired bootstrap and McNemar): over Mem0-style by +7.27, +7.55, +16.50 and
+  +24.62 points, over MemGPT-style by +14.97 to +22.66.
+- The untrained P1 heuristic beats MemGPT-style everywhere (+5.6 to +11.3,
+  significant), but **loses to the tuned Mem0-style at S = 4096 (−6.99,
+  significant)**, ties it at 2048 and beats it at 8192 and 16384. That loss is
+  at the budget Mem0's knobs were picked on.
+- Mem0-style flattens at 52.6% from S = 8192: UPDATE replaces a fact with
+  its nearest neighbour, so once the threshold is loose enough to help at
+  small S, it throws away distinct facts that merely look alike and the store
+  never fills. MemGPT-style is within two points of plain RAG everywhere:
+  the summary holds gists whose answers were compressed away, the §3.2
+  failure again.
+
+Source: `results/external_baselines.csv`, `external_baselines_sig.csv`,
+figure `results/figures/fig6_external.png`. Tests: `test_baselines.py`.
+
 ---
 
 ## 4. Methodological findings
