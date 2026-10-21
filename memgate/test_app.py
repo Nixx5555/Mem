@@ -134,6 +134,12 @@ code, raw, _ = get("/inspect")
 check("the all-tiers page is served", code == 200 and b"<html" in raw.lower())
 check("unknown paths are 404",
       get("/nope")[0] == 404 and api("/api/nope", {})[0] == 404)
+check("nonsense store budgets refused with a reason",
+      [api("/api/chats/new", {"mode": "p1s", "store_budget": v})[0]
+       for v in (-5, "abc", 10**12, True, [1])] == [400] * 5
+      and "between" in api("/api/chats/new", {"store_budget": -5})[1]["error"])
+check("the benchmark refuses a nonsense budget",
+      api("/api/bench", {"store": -1})[0] == 400)
 code, st = api("/api/state")
 check("state carries what the page shows",
       code == 200 and {"t1", "t2", "t3", "log", "transcript", "model", "scorer",

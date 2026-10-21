@@ -31,13 +31,17 @@ on four datasets:
 
 That's 58,616 turns, 4× the 14,826 of LoCoMo + REALTALK. (docs/BEAM_RESULTS.md)
 
-**Q: Why not LongMemEval or a bigger dataset?**
-LongMemEval is only on HuggingFace and Google Drive, and both were blocked
-from the compute we used. Every GitHub copy we found had only a 20-item pilot
-without turn-level labels. BEAM (Tavakoli et al., MIT licence) is on GitHub
-and has turn-level evidence, so it was used. LongMemEval runs with the same
-script wherever its file exists: `train_transfer.py --corpora
-locomo,realtalk,longmemeval`.
+**Q: Did you test on anything bigger than LoCoMo?**
+Yes, twice. The memory policy was run on LongMemEval: 94 haystacks of 38–62
+sessions each. There the headline does **not** hold: at matched retention,
+scored selection loses to oldest-first by 20.97 points, because the
+hand-written scorer ranks LongMemEval's evidence below the rest (REPORT.md
+§3.9, deck slide 18). The learned scorer was then trained and tested on BEAM
+(below), which shows the same failure out of the box and the fix: train on
+some conversations of the new kind. LongMemEval itself wasn't used for
+*scorer training*, only because its file is on HuggingFace and Google Drive,
+which the training machine couldn't reach. `train_transfer.py --corpora
+locomo,realtalk,longmemeval` runs it wherever the file exists.
 
 **Q: How did you get labels for training the scorer?**
 A turn is labelled positive if any benchmark question cites it as evidence.
@@ -74,9 +78,20 @@ turn. (docs/SCORER_TRANSFER.md, "Which model")
 **Q: Does the learned scorer actually help?**
 On LoCoMo, yes, a lot. Trained on the other 19 LoCoMo + REALTALK
 conversations, it reaches 52.0% answer recall versus 37.5% for the
-heuristic: +14.55 [+10.40, +19.70] SIG. On REALTALK it's ahead (+3.75) but
-not significant, because REALTALK has only 160 answerable questions.
+heuristic: +14.55 [+10.40, +19.70] SIG. On REALTALK at that budget it's
+ahead (+3.75) but not significant, because REALTALK has only 160 answerable
+questions; with a larger store (S = 8,192) it's +16.88 SIG.
 (docs/SCORER_TRANSFER.md)
+
+**Q: Did you pick S = 4096 because it makes the learned scorer look best?**
+S = 4096 was the headline budget months before the learned scorer existed.
+We then ran the scorer at five budgets. On LoCoMo it's significantly ahead
+at 2,048 (+5.87), 4,096 (+14.55), 8,192 (+11.33) and 16,384 (+5.87); only at
+1,024, about 5% of a conversation, is it not significant (+3.22). On REALTALK
+it becomes significant at 8,192 (+16.88) and 16,384 (+6.88). The gain is
+largest in the middle: with too little room no ranking helps, and with room
+for nearly everything there's little to choose. (paper Table VIII,
+docs/SCORER_TRANSFER.md "Across the store budget")
 
 **Q: What does the embedding add?**
 Without MiniLM, the learned scorer is significantly worse than the heuristic
@@ -155,14 +170,16 @@ A compressed turn costs tokens but often loses the exact name, date or
 number the question needs. Dropping a low-value turn and keeping a
 high-value one verbatim uses the same budget better. Rate–distortion theory
 predicts compression should win under enough pressure; we pushed to 182×
-compression and never saw the crossover. Selection's margin over RAG widened
-instead (REPORT.md §3.4). A better compressor helps but still loses to
+compression and never saw the crossover. Selection stays ahead of RAG at
+every ratio: the gap narrows in points as everything nears the floor (+9.5 to
++4.1) but grows as a ratio (1.5× to 1.9× RAG's recall) (REPORT.md §3.4). A better compressor helps but still loses to
 dropping (§3.10).
 
 **Q: Why charge for the embedding index?**
 Real systems store the vectors. Once the index counts against the budget,
-below 64 KiB a policy with no index beats every retrieval method
-(REPORT.md, abstract).
+below about 40 KiB a policy with no index beats every retrieval method. At
+32 KiB the no-index window gets 18.3% against 15.1% for P1-S; at 64 KiB P1-S
+is ahead, 24.9% (REPORT.md §3.5).
 
 **Q: How do you know differences aren't noise?**
 Every comparison is paired (same questions, same budget) and the interval
@@ -171,7 +188,44 @@ aren't independent. The headline also passes McNemar (p = 2.8×10⁻⁵).
 
 ---
 
-## E. Limits to state before they're asked
+## E. Questions the panel is likely to push on
+
+**Q: How does this compare to Mem0 or MemGPT/Letta?**
+We didn't run their code head to head, and should say so. What we did test
+is the two ideas they rely on, at the same budget as MemGate. Using an LLM to
+judge what matters (as Mem0's extraction and MemGPT's self-editing do) loses
+to our regex scorer by 5.87 points, interval excluding zero (REPORT.md §3.7,
+pre-fix run). Compressing old turns into a gist instead of dropping them,
+the idea behind MemGPT's recursive summary, loses 7.1 points to dropping
+(§3.2), and an LLM that rewrites them still loses by 2.7 at 1,850× the cost
+(§3.10). Our
+claim is about the decision policy, which those systems leave to an LLM.
+
+**Q: 37.5% answer recall sounds low. Why is that good?**
+It's a stress setting on purpose. At S = 4096 the store keeps about 22% of a
+LoCoMo conversation (4,096 of ~18,600 tokens) and the model sees 2,048 tokens
+per question. Full context gets 100% by definition. The question is which 22%
+to keep: forgetting oldest-first keeps the answer 28.1% of the time, MemGate
+37.5%, the learned scorer 52.0%. With four times the storage (S = 16,384)
+MemGate reaches 71.3% (results/storage_sweep.csv).
+
+**Q: Aren't the scorer's labels circular? It learns from the benchmark's
+own questions.**
+It learns from questions about *other* conversations. A turn's label is
+"some question cites it", and the conversation being scored never contributes
+a label (asserted in code for every fold). The cross-corpus runs are the
+stronger answer: trained only on REALTALK, it still beats the heuristic on
+LoCoMo by +9.09 (SIG), so it isn't memorising LoCoMo's question style.
+
+**Q: Why should anyone trust numbers from your own harness?**
+Three bugs that changed our own results were found by invariant tests, not
+by reading code, and each is reported (REPORT.md §4). The biggest, an
+evaluation-label leak, was worth 45–47 points and was withdrawn at Review 2.
+All 224 tests run on every push (GitHub Actions badge on the README).
+
+---
+
+## F. Limits to state before they're asked
 
 * The scorer is tuned to the data it's trained on. It needs some examples
   from a new kind of conversation; out of the box it can be worse than
