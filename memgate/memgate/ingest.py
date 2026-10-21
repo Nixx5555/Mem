@@ -58,6 +58,11 @@ MAX_CHUNK = 48
 # small book. Ingesting it takes seconds; much more and a chat stalls.
 MAX_DOC_CHARS = 400_000
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
+# Most XML a Word or PowerPoint upload may unpack to. A .docx is a zip, and
+# 300 KB of it can inflate to 300 MB of XML (3.8 GB of memory and a minute to
+# parse, measured by stress_inputs.py); the 400,000 characters MAX_DOC_CHARS
+# allows need a few MB of even heavily formatted XML.
+MAX_XML_BYTES = 64 * 1024 * 1024
 
 # ------------------------------------------------------------------ clean
 # Zero-width spaces/joiners, the BOM, and bidi embedding/override/isolate
@@ -65,13 +70,19 @@ MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 # ZWJ (U+200D) is kept: it is what holds family and flag emoji together.
 _INVISIBLE = re.compile("[​‌‎‏‪-‮⁠-⁤"
                         "⁦-⁩﻿­]")
+# Half of an emoji or other astral character: valid in JSON ("\ud83d") and
+# what a browser sends when a paste is cut mid-character, but not encodable
+# as UTF-8, so one stored in a chat made every later save of it fail.
+_SURROGATE = re.compile("[\ud800-\udfff]")
 
 
 def clean(text: str) -> str:
     """Text safe to store: NFC, no control characters but line breaks and
-    tabs, no invisible marks, \\r\\n folded to \\n, outer space trimmed."""
+    tabs, no invisible marks, lone surrogates replaced by U+FFFD, \\r\\n
+    folded to \\n, outer space trimmed."""
     if not isinstance(text, str):
         return ""
+    text = _SURROGATE.sub("\ufffd", text)
     t = unicodedata.normalize("NFC", text.replace("\r\n", "\n").replace("\r", "\n"))
     t = _INVISIBLE.sub("", t)
     t = "".join(c for c in t if c in "\n\t" or unicodedata.category(c) != "Cc")
@@ -278,10 +289,21 @@ def _zip(data: bytes) -> zipfile.ZipFile:
         raise ExtractError("the file is damaged or not really that format")
 
 
+def _check_unpacked(z: zipfile.ZipFile, names) -> None:
+    """Refuse a zip whose parts we would read inflate past MAX_XML_BYTES,
+    before reading any of them (the sizes are in the zip's directory)."""
+    size = sum(z.getinfo(n).file_size for n in names)
+    if size > MAX_XML_BYTES:
+        raise ExtractError(f"the file unpacks to {size / 1e6:,.0f} MB, more "
+                           f"than the {MAX_XML_BYTES // (1024 * 1024)} MB a "
+                           f"document can; save it as .pdf or .txt instead")
+
+
 def docx_text(data: bytes) -> str:
     """Paragraph text of a Word file, tables included, without python-docx."""
     z = _zip(data)
     try:
+        _check_unpacked(z, ["word/document.xml"])
         root = ElementTree.fromstring(z.read("word/document.xml"))
     except KeyError:
         raise ExtractError("no document inside this .docx")
@@ -306,6 +328,7 @@ def pptx_text(data: bytes) -> str:
     num = lambda n: int(re.sub(r"\D", "", n) or 0)
     slides = sorted((n for n in z.namelist()
                      if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)), key=num)
+    _check_unpacked(z, slides)
     out = []
     for n in slides:
         root = ElementTree.fromstring(z.read(n))
@@ -326,10 +349,15 @@ def pdf_text(data: bytes) -> str:
     try:
         r = PdfReader(io.BytesIO(data))
         if r.is_encrypted:
+            # Many PDFs are "encrypted" with an empty password just to set
+            # permissions; those open. decrypt() returns 0 for a real one.
             try:
-                r.decrypt("")
+                opened = r.decrypt("")
             except Exception:
-                raise ExtractError("the PDF is password-protected")
+                opened = 0
+            if not opened:
+                raise ExtractError("the PDF is password-protected; remove the "
+                                   "password or upload the text another way")
         pages = [(p.extract_text() or "").strip() for p in r.pages]
     except ExtractError:
         raise

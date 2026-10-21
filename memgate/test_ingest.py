@@ -370,6 +370,65 @@ page = urllib.request.urlopen(BASE + "/").read().decode()
 check("the page has the attach button and drop handling",
       'id="attach"' in page and "/api/upload" in page and "'drop'" in page)
 
+print("\n-- what stress_inputs.py broke, pinned --")
+check("a lone surrogate (half an emoji) is replaced, not stored",
+      I.clean("cut \ud83d here \U0001F600") == "cut � here \U0001F600")
+raw = b'{"text": "my locker is 214 \\ud800 ok"}'
+req = urllib.request.Request(BASE + "/api/chat", data=raw, method="POST")
+with urllib.request.urlopen(req) as r:
+    code = r.status
+check("a message with a lone surrogate is answered", code == 200)
+code, st = api("/api/chat", {"text": "and my bike lock is 5521"})
+check("... and the chat still works and saves after it", code == 200, str(code))
+check("... and still reloads",
+      app.chats.load(app.chat["id"])["session"].n == app.session.n)
+
+
+def post_raw(path, data, headers=()):
+    import http.client
+    c = http.client.HTTPConnection("127.0.0.1", srv.server_address[1], timeout=30)
+    c.putrequest("POST", path)
+    for k, v in headers:
+        c.putheader(k, v)
+    c.endheaders()
+    if data:
+        c.send(data)
+    r = c.getresponse()
+    out = r.status, json.loads(r.read() or b"{}")
+    c.close()
+    return out
+
+
+code, st = post_raw("/api/chat", b'{"text": ' + b"[" * 50_000 + b"]" * 50_000 + b"}",
+                    [("Content-Length", str(100_010))])
+check("JSON nested past the parser's limit is a 400, not a dropped connection",
+      code == 400, str(code))
+code, st = post_raw("/api/upload", b"", [("Content-Length", str(A.MAX_BODY + 1))])
+check("a body over the limit is refused before it is read",
+      code == 413 and "MB" in st.get("error", ""), str((code, st)))
+check("a message of only invisible marks is empty",
+      api("/api/chat", {"text": "​ ​\n"})[0] == 400)
+_lim = I.MAX_XML_BYTES
+I.MAX_XML_BYTES = 2000
+try:
+    code, st = api("/api/upload", {"name": "big.docx", "data": b64(docx(FILLER))})
+finally:
+    I.MAX_XML_BYTES = _lim
+check("a Word file that unpacks too far is refused from its zip directory",
+      code == 422 and "unpacks to" in st.get("error", ""), str((code, st)))
+try:
+    from pypdf import PdfWriter
+    w = PdfWriter()
+    w.add_blank_page(200, 200)
+    w.encrypt("secret")
+    buf = io.BytesIO()
+    w.write(buf)
+    code, st = api("/api/upload", {"name": "locked.pdf", "data": b64(buf.getvalue())})
+    check("a password-protected PDF says so",
+          code == 422 and "password" in st.get("error", ""), str((code, st)))
+except ImportError:
+    print("  SKIP  password-protected PDF (pypdf not installed)")
+
 srv.shutdown()
 print(f"\n{'=' * 46}\n  {passed} passed, {failed} failed\n{'=' * 46}")
 sys.exit(1 if failed else 0)
