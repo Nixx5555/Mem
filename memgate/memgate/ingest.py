@@ -40,7 +40,8 @@ from html.parser import HTMLParser
 from typing import List, Tuple
 from xml.etree import ElementTree
 
-from .scoring import FILLER_PAT, NUM_PAT, Scorer, message_only
+from .scoring import (FILLER_PAT, MONEY_PAT, MONTH_PAT, NUM_PAT, TIME_PAT,
+                      HeuristicScorer, Scorer, message_only)
 from .utils import count_tokens
 
 # A message up to WHOLE tokens is stored whole, as it always was: long chat
@@ -58,6 +59,11 @@ MAX_CHUNK = 48
 # small book. Ingesting it takes seconds; much more and a chat stalls.
 MAX_DOC_CHARS = 400_000
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024
+# Most XML a Word or PowerPoint upload may unpack to. A .docx is a zip, and
+# 300 KB of it can inflate to 300 MB of XML (3.8 GB of memory and a minute to
+# parse, measured by stress_inputs.py); the 400,000 characters MAX_DOC_CHARS
+# allows need a few MB of even heavily formatted XML.
+MAX_XML_BYTES = 64 * 1024 * 1024
 
 # ------------------------------------------------------------------ clean
 # Zero-width spaces/joiners, the BOM, and bidi embedding/override/isolate
@@ -65,13 +71,19 @@ MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 # ZWJ (U+200D) is kept: it is what holds family and flag emoji together.
 _INVISIBLE = re.compile("[​‌‎‏‪-‮⁠-⁤"
                         "⁦-⁩﻿­]")
+# Half of an emoji or other astral character: valid in JSON ("\ud83d") and
+# what a browser sends when a paste is cut mid-character, but not encodable
+# as UTF-8, so one stored in a chat made every later save of it fail.
+SURROGATE = re.compile("[\ud800-\udfff]")
 
 
 def clean(text: str) -> str:
     """Text safe to store: NFC, no control characters but line breaks and
-    tabs, no invisible marks, \\r\\n folded to \\n, outer space trimmed."""
+    tabs, no invisible marks, lone surrogates replaced by U+FFFD, \\r\\n
+    folded to \\n, outer space trimmed."""
     if not isinstance(text, str):
         return ""
+    text = SURROGATE.sub("\ufffd", text)
     t = unicodedata.normalize("NFC", text.replace("\r\n", "\n").replace("\r", "\n"))
     t = _INVISIBLE.sub("", t)
     t = "".join(c for c in t if c in "\n\t" or unicodedata.category(c) != "Cc")
@@ -187,6 +199,33 @@ def focus(text: str, limit: int = WHOLE) -> str:
     return q if count_tokens(q) <= limit else _split_hard(q, limit)[0]
 
 
+def queries(text: str, limit: int = WHOLE, most: int = 4) -> List[str]:
+    """What to retrieve with, as separate queries, for MemGate's own memory.
+
+    focus() joins a long message's questions into one string, which works
+    when the ask is at the end. stress_questions.py --long-questions buried a
+    LoCoMo question in 150-450 words of other chat, often with more chat (and
+    its own questions) after it; focus() then held the real question only 56%
+    of the time and answer recall fell from 53% to 42%. Here every question
+    in the message (the closing paragraph's first, then the rest from the end
+    back, at most `most`) is its own query, and the store interleaves their
+    rankings (ThreeTierStore.retrieve), so the right one is in there somewhere
+    and its best matches still reach the context.
+    """
+    t = clean(text)
+    if count_tokens(one_line(t)) <= limit:
+        return [one_line(t)]
+    paras = [p for p in _PARA.split(t) if p.strip()]
+    ask = lambda ps: [one_line(s) for p in ps for line in p.split("\n")
+                      for s in _SENT.split(line) if s.strip().endswith(("?", "？"))]
+    last = ask(paras[-1:])
+    rest = [q for q in reversed(ask(paras[:-1])) if q not in last]
+    qs = list(dict.fromkeys(last + rest))[:most]
+    if not qs:
+        return [focus(t, limit)]
+    return [q if count_tokens(q) <= limit else _split_hard(q, limit)[0] for q in qs]
+
+
 # ---------------------------------------------------------------- extract
 class ExtractError(ValueError):
     """The upload could not be read; the message says why, for the page."""
@@ -278,10 +317,21 @@ def _zip(data: bytes) -> zipfile.ZipFile:
         raise ExtractError("the file is damaged or not really that format")
 
 
+def _check_unpacked(z: zipfile.ZipFile, names) -> None:
+    """Refuse a zip whose parts we would read inflate past MAX_XML_BYTES,
+    before reading any of them (the sizes are in the zip's directory)."""
+    size = sum(z.getinfo(n).file_size for n in names)
+    if size > MAX_XML_BYTES:
+        raise ExtractError(f"the file unpacks to {size / 1e6:,.0f} MB, more "
+                           f"than the {MAX_XML_BYTES // (1024 * 1024)} MB a "
+                           f"document can; save it as .pdf or .txt instead")
+
+
 def docx_text(data: bytes) -> str:
     """Paragraph text of a Word file, tables included, without python-docx."""
     z = _zip(data)
     try:
+        _check_unpacked(z, ["word/document.xml"])
         root = ElementTree.fromstring(z.read("word/document.xml"))
     except KeyError:
         raise ExtractError("no document inside this .docx")
@@ -306,6 +356,7 @@ def pptx_text(data: bytes) -> str:
     num = lambda n: int(re.sub(r"\D", "", n) or 0)
     slides = sorted((n for n in z.namelist()
                      if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)), key=num)
+    _check_unpacked(z, slides)
     out = []
     for n in slides:
         root = ElementTree.fromstring(z.read(n))
@@ -326,10 +377,15 @@ def pdf_text(data: bytes) -> str:
     try:
         r = PdfReader(io.BytesIO(data))
         if r.is_encrypted:
+            # Many PDFs are "encrypted" with an empty password just to set
+            # permissions; those open. decrypt() returns 0 for a real one.
             try:
-                r.decrypt("")
+                opened = r.decrypt("")
             except Exception:
-                raise ExtractError("the PDF is password-protected")
+                opened = 0
+            if not opened:
+                raise ExtractError("the PDF is password-protected; remove the "
+                                   "password or upload the text another way")
         pages = [(p.extract_text() or "").strip() for p in r.pages]
     except ExtractError:
         raise
@@ -478,6 +534,7 @@ class GuardedScorer(Scorer):
 
     def __init__(self, inner: Scorer):
         self.inner = inner
+        self._p1 = HeuristicScorer()
         self.name = inner.name
         self.last_guard = None
 
@@ -499,11 +556,32 @@ class GuardedScorer(Scorer):
             return "repeated", 0.15, "context"
         return None
 
+    # A short message naming a date, a time or an amount is the kind of fact
+    # a person types and asks about later ("My flight is on 14 December at
+    # 6:40 am"). The learned scorer trained with BEAM, whose long answers are
+    # full of numbers that are never asked about, learned to ignore those
+    # signals and put that line at 0.04, level with "Hi!"; P1's rules give it
+    # 0.62. For such messages the score is at least P1's.
+    SPECIFIC_WORDS = 30
+    use_floor = True
+
+    def _specific(self, t):
+        return (n_words(t) <= self.SPECIFIC_WORDS
+                and bool(MONTH_PAT.search(t) or TIME_PAT.search(t)
+                         or MONEY_PAT.search(t)))
+
     def score(self, text, speaker="user"):
         g = self.guard(text)
         self.last_guard = g[0] if g else None
         if g is None:
-            return self.inner.score(text, speaker)
+            u, label = self.inner.score(text, speaker)
+            if (self.use_floor and not isinstance(self.inner, HeuristicScorer)
+                    and self._specific(clean(message_only(text)))):
+                u0, label0 = self._p1.score(text, speaker)
+                if u0 > u:
+                    self.last_guard = "specific"
+                    return u0, label0
+            return u, label
         name, u, label = g
         if name == "code":
             u0, _ = self.inner.score(text, speaker)

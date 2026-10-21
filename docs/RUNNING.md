@@ -136,7 +136,7 @@ Pass these to `start.sh` / `start.bat` (or `python app.py` inside `memgate/`):
 |---|---|
 | `--llm auto\|mlx\|hf\|claude\|none` | Which model answers. `auto` picks Claude when a key is saved, else mlx on an Apple-silicon Mac, else the downloaded Qwen. Also settable as `MEMGATE_LLM`. |
 | `--no-llm` | No model. Memory still works, and replies show what the model would see. |
-| `--scorer learned\|heuristic` | What scores each message. `learned` (the default) is the scorer trained on LoCoMo + REALTALK. `heuristic` is the hand-written P1 rules. Also settable as `MEMGATE_SCORER`. |
+| `--scorer learned\|heuristic` | What scores each message. `learned` (the default) is the scorer trained on LoCoMo, REALTALK and BEAM (docs/STRESS_TEST.md §6). `heuristic` is the hand-written P1 rules. Also settable as `MEMGATE_SCORER`. |
 | `--port 9000` | Use another port if 8765 is taken. |
 | `--host 0.0.0.0` | Let other devices on the same network open it, e.g. a projector PC. |
 | `--no-browser` | Don't open the browser on start. |

@@ -145,14 +145,25 @@ retention is still 73.5% against 35.3% for the heuristic (+38.24 [+15.15,
 +63.33] SIG). The cost: at 3% retention the BEAM gain shrinks to +8.8 n.s.
 
 **Q: Which scorer ships, then?**
-Still the LoCoMo + REALTALK one from PR #4. The balanced all-data model wins
-on the benchmarks, but it fails the app's sanity test: it scores "Hi!" (0.68)
-above "My flight to Delhi is on 14 December at 6:40 am." (0.12). BEAM's turns
-average 452 tokens, so the model learned "long and descriptive",
-which is wrong for short chat messages. A benchmark average can hide a
-failure that one hand-written test catches, and we kept the scorer that
-passes. The library default is still the heuristic, so every REPORT.md
-number still means what it says. (docs/BEAM_RESULTS.md, "Shipped scorer")
+Since 21 October, the balanced all-data model, with one addition. PR #8's
+version failed the app's sanity test: it scored "Hi!" (0.68) above "My
+flight to Delhi is on 14 December at 6:40 am." (0.12). BEAM has almost no
+small talk, so nothing taught it that a greeting is worth nothing. The
+shipped model adds 923 generated greetings, thanks and reactions as
+negatives at 5% weight. They are generated, not taken from any test chat.
+"Hi!" now scores 0.01. One weakness remains: on its own, the model puts short dated facts low (the flight line at 0.04), because BEAM's numbers are mostly noise. So the app gives a short message with a date, time or amount at least the P1 rule score. That changes no benchmark number.
+
+Held out 5-fold by conversation, it beats the old shipped model:
+
+- BEAM 100K: +41.2 points, significant.
+- BEAM 500K: +38.2 points, significant. The old model was below plain retrieval there.
+- LoCoMo: +0.7, not significant.
+- REALTALK: +6.2, not significant.
+
+With a 20k-token document uploaded into the middle of a LoCoMo chat, the old
+model's recall of the chat fell to 10.2% and the new one keeps 43.6%. The
+library default is still the heuristic, so every REPORT.md number still
+means what it says. (docs/STRESS_TEST.md §6)
 
 ---
 

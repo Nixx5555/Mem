@@ -1,0 +1,480 @@
+{
+ "beam100": {
+  "category": {
+   "contradiction_resolution": {
+    "rag": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    },
+    "heuristic": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    },
+    "learned": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 10.0
+    }
+   },
+   "event_ordering": {
+    "rag": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    },
+    "heuristic": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    },
+    "learned": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    }
+   },
+   "information_extraction": {
+    "rag": {
+     "n": 40,
+     "n_answer": 3,
+     "answer": 0.0,
+     "strict": 2.5
+    },
+    "heuristic": {
+     "n": 40,
+     "n_answer": 3,
+     "answer": 0.0,
+     "strict": 5.0
+    },
+    "learned": {
+     "n": 40,
+     "n_answer": 3,
+     "answer": 33.33333333333333,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 40,
+     "n_answer": 3,
+     "answer": 100.0,
+     "strict": 25.0
+    }
+   },
+   "instruction_following": {
+    "rag": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 7.5
+    },
+    "heuristic": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    },
+    "learned": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 5.0
+    }
+   },
+   "knowledge_update": {
+    "rag": {
+     "n": 40,
+     "n_answer": 29,
+     "answer": 34.48275862068966,
+     "strict": 5.0
+    },
+    "heuristic": {
+     "n": 40,
+     "n_answer": 29,
+     "answer": 37.93103448275862,
+     "strict": 0.0
+    },
+    "learned": {
+     "n": 40,
+     "n_answer": 29,
+     "answer": 41.37931034482759,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 40,
+     "n_answer": 29,
+     "answer": 58.620689655172406,
+     "strict": 12.5
+    }
+   },
+   "multi_session_reasoning": {
+    "rag": {
+     "n": 40,
+     "n_answer": 2,
+     "answer": 50.0,
+     "strict": 0.0
+    },
+    "heuristic": {
+     "n": 40,
+     "n_answer": 2,
+     "answer": 50.0,
+     "strict": 0.0
+    },
+    "learned": {
+     "n": 40,
+     "n_answer": 2,
+     "answer": 0.0,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 40,
+     "n_answer": 2,
+     "answer": 100.0,
+     "strict": 7.5
+    }
+   },
+   "preference_following": {
+    "rag": {
+     "n": 39,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 10.256410256410255
+    },
+    "heuristic": {
+     "n": 39,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 7.6923076923076925
+    },
+    "learned": {
+     "n": 39,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 39,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 15.384615384615385
+    }
+   },
+   "summarization": {
+    "rag": {
+     "n": 36,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    },
+    "heuristic": {
+     "n": 36,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    },
+    "learned": {
+     "n": 36,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 36,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    }
+   },
+   "temporal_reasoning": {
+    "rag": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 2.5
+    },
+    "heuristic": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 5.0
+    },
+    "learned": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 40,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 10.0
+    }
+   }
+  },
+  "hops": {
+   "1": {
+    "rag": {
+     "n": 103,
+     "n_answer": 4,
+     "answer": 25.0,
+     "strict": 7.766990291262135
+    },
+    "heuristic": {
+     "n": 103,
+     "n_answer": 4,
+     "answer": 0.0,
+     "strict": 4.854368932038835
+    },
+    "learned": {
+     "n": 103,
+     "n_answer": 4,
+     "answer": 50.0,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 103,
+     "n_answer": 4,
+     "answer": 75.0,
+     "strict": 18.446601941747574
+    }
+   },
+   "2": {
+    "rag": {
+     "n": 131,
+     "n_answer": 26,
+     "answer": 34.61538461538461,
+     "strict": 2.2900763358778624
+    },
+    "heuristic": {
+     "n": 131,
+     "n_answer": 26,
+     "answer": 38.46153846153847,
+     "strict": 1.5267175572519083
+    },
+    "learned": {
+     "n": 131,
+     "n_answer": 26,
+     "answer": 34.61538461538461,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 131,
+     "n_answer": 26,
+     "answer": 61.53846153846154,
+     "strict": 10.687022900763358
+    }
+   },
+   "3+": {
+    "rag": {
+     "n": 121,
+     "n_answer": 4,
+     "answer": 25.0,
+     "strict": 0.0
+    },
+    "heuristic": {
+     "n": 121,
+     "n_answer": 4,
+     "answer": 50.0,
+     "strict": 0.0
+    },
+    "learned": {
+     "n": 121,
+     "n_answer": 4,
+     "answer": 50.0,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 121,
+     "n_answer": 4,
+     "answer": 75.0,
+     "strict": 0.8264462809917356
+    }
+   }
+  },
+  "age": {
+   "first third": {
+    "rag": {
+     "n": 263,
+     "n_answer": 18,
+     "answer": 16.666666666666664,
+     "strict": 0.0
+    },
+    "heuristic": {
+     "n": 263,
+     "n_answer": 18,
+     "answer": 11.11111111111111,
+     "strict": 2.6615969581749046
+    },
+    "learned": {
+     "n": 263,
+     "n_answer": 18,
+     "answer": 22.22222222222222,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 263,
+     "n_answer": 18,
+     "answer": 72.22222222222221,
+     "strict": 9.505703422053232
+    }
+   },
+   "last third": {
+    "rag": {
+     "n": 20,
+     "n_answer": 5,
+     "answer": 80.0,
+     "strict": 55.00000000000001
+    },
+    "heuristic": {
+     "n": 20,
+     "n_answer": 5,
+     "answer": 60.0,
+     "strict": 0.0
+    },
+    "learned": {
+     "n": 20,
+     "n_answer": 5,
+     "answer": 80.0,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 20,
+     "n_answer": 5,
+     "answer": 20.0,
+     "strict": 5.0
+    }
+   },
+   "middle third": {
+    "rag": {
+     "n": 72,
+     "n_answer": 11,
+     "answer": 36.36363636363637,
+     "strict": 0.0
+    },
+    "heuristic": {
+     "n": 72,
+     "n_answer": 11,
+     "answer": 63.63636363636363,
+     "strict": 0.0
+    },
+    "learned": {
+     "n": 72,
+     "n_answer": 11,
+     "answer": 45.45454545454545,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 72,
+     "n_answer": 11,
+     "answer": 72.72727272727273,
+     "strict": 11.11111111111111
+    }
+   }
+  },
+  "q length": {
+   "11-25 words": {
+    "rag": {
+     "n": 215,
+     "n_answer": 25,
+     "answer": 32.0,
+     "strict": 4.651162790697675
+    },
+    "heuristic": {
+     "n": 215,
+     "n_answer": 25,
+     "answer": 32.0,
+     "strict": 2.3255813953488373
+    },
+    "learned": {
+     "n": 215,
+     "n_answer": 25,
+     "answer": 40.0,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 215,
+     "n_answer": 25,
+     "answer": 68.0,
+     "strict": 12.093023255813954
+    }
+   },
+   "<=10 words": {
+    "rag": {
+     "n": 60,
+     "n_answer": 9,
+     "answer": 33.33333333333333,
+     "strict": 1.6666666666666667
+    },
+    "heuristic": {
+     "n": 60,
+     "n_answer": 9,
+     "answer": 44.44444444444444,
+     "strict": 1.6666666666666667
+    },
+    "learned": {
+     "n": 60,
+     "n_answer": 9,
+     "answer": 33.33333333333333,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 60,
+     "n_answer": 9,
+     "answer": 55.55555555555556,
+     "strict": 8.333333333333332
+    }
+   },
+   ">25 words": {
+    "rag": {
+     "n": 80,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    },
+    "heuristic": {
+     "n": 80,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 1.25
+    },
+    "learned": {
+     "n": 80,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 0.0
+    },
+    "app": {
+     "n": 80,
+     "n_answer": 0,
+     "answer": null,
+     "strict": 3.75
+    }
+   }
+  }
+ }
+}

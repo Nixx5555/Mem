@@ -224,8 +224,13 @@ for nm, inner in (("learned", L), ("heuristic", HeuristicScorer())):
           str([round(u(t), 2) for t in CODE]))
     check(f"[{nm}] the same words over and over score low",
           u("The quick brown fox. " * 4) <= 0.15)
+    plain = [t for t in FACT if not G._specific(t)]
     check(f"[{nm}] an ordinary English message is scored by the scorer itself",
-          all(G.score(t) == inner.score(t) and G.guard(t) is None for t in FACT))
+          plain and all(G.score(t) == inner.score(t) and G.guard(t) is None
+                        for t in plain))
+    check(f"[{nm}] a short message with a date, time or amount scores at least P1's",
+          all(G.score(t)[0] == max(inner.score(t)[0], HeuristicScorer().score(t)[0])
+              for t in FACT if G._specific(t)))
     ODD = ["", " ", "?", "\x00", "‮", "x" * 20000, "word " * 3000, "<script>alert(1)</script>",
            "₹40,000.50 on 2026-11-08 at 14:30"] + TALK + OTHER + CODE
     check(f"[{nm}] any input gives a utility in [0, 1] and a label",
@@ -369,6 +374,81 @@ check("reloading a chat with files and pastes rebuilds the same memory",
 page = urllib.request.urlopen(BASE + "/").read().decode()
 check("the page has the attach button and drop handling",
       'id="attach"' in page and "/api/upload" in page and "'drop'" in page)
+
+print("\n-- what stress_inputs.py broke, pinned --")
+check("a lone surrogate (half an emoji) is replaced, not stored",
+      I.clean("cut \ud83d here \U0001F600") == "cut � here \U0001F600")
+raw = b'{"text": "my locker is 214 \\ud800 ok"}'
+req = urllib.request.Request(BASE + "/api/chat", data=raw, method="POST")
+with urllib.request.urlopen(req) as r:
+    code = r.status
+check("a message with a lone surrogate is answered", code == 200)
+code, st = api("/api/chat", {"text": "and my bike lock is 5521"})
+check("... and the chat still works and saves after it", code == 200, str(code))
+check("... and still reloads",
+      app.chats.load(app.chat["id"])["session"].n == app.session.n)
+
+
+def post_raw(path, data, headers=()):
+    import http.client
+    c = http.client.HTTPConnection("127.0.0.1", srv.server_address[1], timeout=30)
+    c.putrequest("POST", path)
+    for k, v in headers:
+        c.putheader(k, v)
+    c.endheaders()
+    if data:
+        c.send(data)
+    r = c.getresponse()
+    out = r.status, json.loads(r.read() or b"{}")
+    c.close()
+    return out
+
+
+code, st = post_raw("/api/chat", b'{"text": ' + b"[" * 50_000 + b"]" * 50_000 + b"}",
+                    [("Content-Length", str(100_010))])
+check("JSON nested past the parser's limit is a 400, not a dropped connection",
+      code == 400, str(code))
+code, st = post_raw("/api/upload", b"", [("Content-Length", str(A.MAX_BODY + 1))])
+check("a body over the limit is refused before it is read",
+      code == 413 and "MB" in st.get("error", ""), str((code, st)))
+check("a message of only invisible marks is empty",
+      api("/api/chat", {"text": "​ ​\n"})[0] == 400)
+_lim = I.MAX_XML_BYTES
+I.MAX_XML_BYTES = 2000
+try:
+    code, st = api("/api/upload", {"name": "big.docx", "data": b64(docx(FILLER))})
+finally:
+    I.MAX_XML_BYTES = _lim
+check("a Word file that unpacks too far is refused from its zip directory",
+      code == 422 and "unpacks to" in st.get("error", ""), str((code, st)))
+try:
+    from pypdf import PdfWriter
+    w = PdfWriter()
+    w.add_blank_page(200, 200)
+    w.encrypt("secret")
+    buf = io.BytesIO()
+    w.write(buf)
+    code, st = api("/api/upload", {"name": "locked.pdf", "data": b64(buf.getvalue())})
+    check("a password-protected PDF says so",
+          code == 422 and "password" in st.get("error", ""), str((code, st)))
+except ImportError:
+    print("  SKIP  password-protected PDF (pypdf not installed)")
+
+print("\n-- a question buried in a long message --")
+long_msg = (" ".join(FILLER[:4]) + "\n\nAnyway, what is the deposit for the Indore flat?"
+            "\n\nAlso: " + " ".join(FILLER[4:6]) + " Did you see the match? How was it?")
+qs = I.queries(long_msg)
+check("every question in a long message is its own query, closing ones first",
+      qs[:2] == ["Did you see the match?", "How was it?"]
+      and "Anyway, what is the deposit for the Indore flat?" in qs, str(qs))
+check("a short message is its own single query", I.queries("where is it?") == ["where is it?"])
+ctx, _ = app.session.context(long_msg)
+check("the buried question still recalls its fact", "48,500" in ctx.text)
+cmp = app.session.compare(long_msg, ctx)
+check("... and the Compare tab asks RAG the same questions MemGate gets",
+      "48,500" in cmp["rows"]["rag"]["text"])
+code, st = api("/api/why", {"text": "half an emoji \ud83d here", "speaker": "user"})
+check("every endpoint gets text with lone surrogates already replaced", code == 200, str(code))
 
 srv.shutdown()
 print(f"\n{'=' * 46}\n  {passed} passed, {failed} failed\n{'=' * 46}")

@@ -60,7 +60,8 @@ from memgate.explain import explain
 from memgate.reader import ChatModel, BACKENDS
 from memgate.utils import backend_info, count_tokens, embed_many
 from memgate.ingest import (GuardedScorer, ExtractError, chunk, clean, focus,
-                            extract, decode_upload, one_line, MAX_DOC_CHARS)
+                            queries, extract, decode_upload, one_line,
+                            MAX_DOC_CHARS, MAX_UPLOAD_BYTES, SURROGATE)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PAGE = os.path.join(HERE, "web", "chat.html")          # the chat app
@@ -71,6 +72,10 @@ CHATS = os.path.join(HERE, "chats")
 # only sets how long ingesting takes. The model is sent its questions, not
 # the whole paste: see LONG_MESSAGE.
 MAX_CHARS = 200_000
+# Largest request body read: an upload at its 15 MB limit, base64-encoded,
+# with room for the rest of the JSON. Without a cap a single request could
+# make the server read any amount into memory before refusing it.
+MAX_BODY = MAX_UPLOAD_BYTES * 4 // 3 + (1 << 20)
 # Past this many tokens a message is stored in memory piece by piece, and the
 # model gets the notes MemGate recalls for it plus the message's own
 # questions (or its opening and closing lines) instead of all of it.
@@ -353,8 +358,8 @@ class Session:
     # -- the read path
     def context(self, query):
         # A long message would be embedded by its first 256 word pieces only;
-        # retrieve with its questions instead (ingest.focus).
-        ctx = self.policy.build_context(focus(query), self.context_budget)
+        # retrieve with each of its questions instead (ingest.queries).
+        ctx = self.policy.build_context(queries(query), self.context_budget)
         return ctx, [_item(i) for i in ctx.items]
 
     def compare(self, query, ctx):
@@ -369,7 +374,7 @@ class Session:
             return self.turn_of.get(it.id) or {it.turn_index}
         rows = {"memgate": (ctx, self.policy.stats()["stored_tokens"])}
         for k, r in self.rivals.items():
-            rows[k] = (r.build_context(focus(query), self.context_budget),
+            rows[k] = (r.build_context(queries(query), self.context_budget),
                        r.stored_tokens())
         cover = {k: set().union(*[turns(i) for i in c.items]) if c.items else set()
                  for k, (c, _) in rows.items()}
@@ -632,13 +637,21 @@ def make_handler(app, passcode=None):
                                         "reload the page"})
             return self._login()
 
+        def _length(self):
+            try:
+                return max(0, int(self.headers.get("Content-Length") or 0))
+            except ValueError:
+                return 0
+
         def _body(self):
             try:
-                n = int(self.headers.get("Content-Length") or 0)
-                b = json.loads(self.rfile.read(n) or b"{}")
-            except ValueError:
-                return {}
-            return b if isinstance(b, dict) else {}
+                b = json.loads(self.rfile.read(self._length()) or b"{}")
+            except (ValueError, RecursionError):   # not JSON, or nested past
+                return {}                          # the parser's depth limit
+            # A lone surrogate (half an emoji) can't be embedded or saved;
+            # it is replaced here, so no endpoint ever sees one.
+            return {k: SURROGATE.sub("\ufffd", v) if isinstance(v, str) else v
+                    for k, v in b.items()} if isinstance(b, dict) else {}
 
         def do_GET(self):
             if self.path == "/healthz":
@@ -673,13 +686,18 @@ def make_handler(app, passcode=None):
                 return self._send(303, b"", "text/plain", [("Location", "/")])
             if not self._allowed():
                 return self._locked()
+            if self._length() > MAX_BODY:
+                self.close_connection = True       # the body is left unread
+                return self._send(413, {"error": (
+                    f"that request is {self._length() / 1e6:.0f} MB; files "
+                    f"can be up to {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")})
             app = self._app()
             b = self._body()
             try:
                 if self.path == "/api/chat":
                     text = b.get("text")
                     text = text if isinstance(text, str) else ""
-                    if not text.strip():
+                    if not clean(text):          # nothing but space or invisible marks
                         return self._send(400, {"error": "the message is empty"})
                     if len(text) > MAX_CHARS:
                         return self._send(413, {"error": (
@@ -775,7 +793,7 @@ class App:
 
     def _title(self, text):
         if self.chat["title"] == "New chat":
-            t = " ".join(text.split())
+            t = one_line(clean(text))
             self.chat["title"] = t[:48] + ("…" if len(t) > 48 else "")
 
     def sample(self):
@@ -790,6 +808,7 @@ class App:
     def upload(self, name, data):
         """A file's text into memory, piece by piece. No model call: the
         person asks about it next, and recall finds the pieces."""
+        name = one_line(clean(name))[:120] or "file"
         text = extract(name, decode_upload(data))
         if len(text) > MAX_DOC_CHARS:
             raise ExtractError(
@@ -919,7 +938,7 @@ def main():
     ap.add_argument("--scorer", choices=("learned", "heuristic"),
                     default=os.environ.get("MEMGATE_SCORER", "learned"),
                     help="what scores each message: the learned scorer trained on "
-                         "LoCoMo + REALTALK (default), or the P1 rule scorer")
+                         "LoCoMo, REALTALK and BEAM (default), or the P1 rule scorer")
     args = ap.parse_args()
     # Read by MemGatePolicy when each chat's policy is built. The benchmark
     # check pins its own scorer, so this does not move the committed numbers.

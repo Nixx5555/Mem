@@ -1,4 +1,7 @@
-"""The shipped learned scorer: logistic regression fitted on LoCoMo + REALTALK.
+"""The shipped learned scorer: logistic regression fitted on LoCoMo, REALTALK
+and BEAM 100K/500K (families weighted equally) plus generated small talk as
+negatives; written by retrain_scorer.py (docs/STRESS_TEST.md §6). Until
+21 October 2026 it was the LoCoMo + REALTALK model of export_scorer.py.
 
 train_transfer.py showed a scorer fitted on OTHER conversations beats the P1
 heuristic on a conversation it has never seen (the "pooled" protocol), so a

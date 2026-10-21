@@ -1,0 +1,292 @@
+{
+ "odd": [
+  {
+   "case": "one 199,000-char word",
+   "endpoint": "/api/chat",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 1.77,
+   "detail": "691 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "random base64 blob 150k",
+   "endpoint": "/api/chat",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 43.2,
+   "detail": "2639 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "Chinese, 150,000 chars, no spaces",
+   "endpoint": "/api/chat",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 77.45,
+   "detail": "9110 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "Arabic + Hebrew with bidi marks",
+   "endpoint": "/api/chat",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 0.7,
+   "detail": "343 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "emoji flood 60k",
+   "endpoint": "/api/chat",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 1.98,
+   "detail": "4500 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "zalgo text",
+   "endpoint": "/api/chat",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 0.72,
+   "detail": "1200 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "NUL and control chars",
+   "endpoint": "/api/chat",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 0.7,
+   "detail": "429 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "lone surrogates",
+   "endpoint": "/api/chat",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 0.09,
+   "detail": "1 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "only whitespace and zero-width",
+   "endpoint": "/api/chat",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 0.06,
+   "detail": "0 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "exactly the 200,000-char limit",
+   "endpoint": "/api/chat",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 1.57,
+   "detail": "1429 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "one char over the limit",
+   "endpoint": "/api/chat",
+   "status": 413,
+   "verdict": "refused",
+   "secs": 0.0,
+   "detail": "that message is 200,001 characters; the limit is 200,000. Send it in parts.",
+   "app_ok_after": true
+  },
+  {
+   "case": "same sentence 5,000 times",
+   "endpoint": "/api/chat",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 0.64,
+   "detail": "417 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "4,000 one-word lines",
+   "endpoint": "/api/chat",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 1.79,
+   "detail": "84 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "deeply nested JSON body",
+   "endpoint": "/api/chat",
+   "status": 400,
+   "verdict": "refused",
+   "secs": 0.01,
+   "detail": "the message is empty",
+   "app_ok_after": true
+  },
+  {
+   "case": "text is a number",
+   "endpoint": "/api/chat",
+   "status": 400,
+   "verdict": "refused",
+   "secs": 0.0,
+   "detail": "the message is empty",
+   "app_ok_after": true
+  },
+  {
+   "case": "not JSON at all",
+   "endpoint": "/api/chat",
+   "status": 400,
+   "verdict": "refused",
+   "secs": 0.01,
+   "detail": "the message is empty",
+   "app_ok_after": true
+  },
+  {
+   "case": "100,000-row CSV",
+   "endpoint": "/api/upload",
+   "status": 422,
+   "verdict": "refused",
+   "secs": 0.63,
+   "detail": "rows.csv has 3,066,779 characters of text; the limit is 400,000 per file. Split it and upload the parts.",
+   "app_ok_after": true
+  },
+  {
+   "case": "minified JSON 1 MB",
+   "endpoint": "/api/upload",
+   "status": 422,
+   "verdict": "refused",
+   "secs": 0.25,
+   "detail": "dump.json has 1,308,890 characters of text; the limit is 400,000 per file. Split it and upload the parts.",
+   "app_ok_after": true
+  },
+  {
+   "case": "UTF-16 text file",
+   "endpoint": "/api/upload",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 0.07,
+   "detail": "9 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "Latin-1 text file",
+   "endpoint": "/api/upload",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 0.12,
+   "detail": "1 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "binary renamed .txt",
+   "endpoint": "/api/upload",
+   "status": 422,
+   "verdict": "refused",
+   "secs": 0.01,
+   "detail": "that looks like a binary file, not text",
+   "app_ok_after": true
+  },
+  {
+   "case": "PNG",
+   "endpoint": "/api/upload",
+   "status": 422,
+   "verdict": "refused",
+   "secs": 0.0,
+   "detail": "that's not a text file: MemGate stores text",
+   "app_ok_after": true
+  },
+  {
+   "case": "damaged .docx",
+   "endpoint": "/api/upload",
+   "status": 422,
+   "verdict": "refused",
+   "secs": 0.0,
+   "detail": "the file is damaged or not really that format",
+   "app_ok_after": true
+  },
+  {
+   "case": "docx that unzips to 300 MB",
+   "endpoint": "/api/upload",
+   "status": 422,
+   "verdict": "refused",
+   "secs": 0.01,
+   "detail": "the file unpacks to 310 MB, more than the 64 MB a document can; save it as .pdf or .txt instead",
+   "app_ok_after": true
+  },
+  {
+   "case": "pptx with 1,500 slides",
+   "endpoint": "/api/upload",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 10.53,
+   "detail": "750 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "400-page PDF",
+   "endpoint": "/api/upload",
+   "status": 422,
+   "verdict": "refused",
+   "secs": 3.37,
+   "detail": "long.pdf has 986,135 characters of text; the limit is 400,000 per file. Split it and upload the parts.",
+   "app_ok_after": true
+  },
+  {
+   "case": "password-protected PDF",
+   "endpoint": "/api/upload",
+   "status": 422,
+   "verdict": "refused",
+   "secs": 0.0,
+   "detail": "could not read the PDF (FileNotDecryptedError)",
+   "app_ok_after": true
+  },
+  {
+   "case": "HTML, 20,000 nested divs",
+   "endpoint": "/api/upload",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 0.18,
+   "detail": "1 pieces",
+   "app_ok_after": true
+  },
+  {
+   "case": "file over 15 MB",
+   "endpoint": "/api/upload",
+   "status": 422,
+   "verdict": "refused",
+   "secs": 0.15,
+   "detail": "the file is over the 15 MB limit",
+   "app_ok_after": true
+  },
+  {
+   "case": "bad base64",
+   "endpoint": "/api/upload",
+   "status": 422,
+   "verdict": "refused",
+   "secs": 0.0,
+   "detail": "the file data was damaged in transit",
+   "app_ok_after": true
+  },
+  {
+   "case": "empty file",
+   "endpoint": "/api/upload",
+   "status": 422,
+   "verdict": "refused",
+   "secs": 0.0,
+   "detail": "no file data was sent",
+   "app_ok_after": true
+  },
+  {
+   "case": "file name with path and markup",
+   "endpoint": "/api/upload",
+   "status": 200,
+   "verdict": "ok",
+   "secs": 0.1,
+   "detail": "1 pieces",
+   "app_ok_after": true
+  }
+ ]
+}
