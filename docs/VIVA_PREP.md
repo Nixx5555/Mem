@@ -221,7 +221,7 @@ LoCoMo by +9.09 (SIG), so it isn't memorising LoCoMo's question style.
 Three bugs that changed our own results were found by invariant tests, not
 by reading code, and each is reported (REPORT.md §4). The biggest, an
 evaluation-label leak, was worth 45–47 points and was withdrawn at Review 2.
-All 224 tests run on every push (GitHub Actions badge on the README).
+Every test suite runs on every push (the GitHub Actions badge on the README).
 
 ---
 

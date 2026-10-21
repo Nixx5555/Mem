@@ -638,7 +638,7 @@ Done since the first draft: abstractive compression (§3.10), LongMemEval
 
 ```bash
 cd memgate
-python3 run_tests.py             # every test suite (224 tests)
+python3 run_tests.py             # every test suite
 python3 run_locomo.py            # context-budget frontier
 python3 run_storage_sweep.py     # §3.2 storage budget
 python3 run_scaling.py           # §3.4 compression ratio to 182x
