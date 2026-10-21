@@ -38,6 +38,6 @@ S = 4096; the gain is significant at every budget from 2,048 to 16,384 tokens).
 | `frontend/index.html` | The interactive results dashboard (opens offline) |
 | `memgate/` | The library, the app (`app.py`), 17 experiment scripts and the tests |
 
-Run all the tests inside `memgate/` with `python run_tests.py` (220 tests in
-six suites; add `--full` to also re-run the LoCoMo benchmark check). They
+Run all the tests inside `memgate/` with `python run_tests.py` (356 tests in
+eight suites; add `--full` to also re-run the LoCoMo benchmark check). They
 need the downloaded models.

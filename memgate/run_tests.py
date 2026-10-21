@@ -18,6 +18,7 @@ SUITES = [
     ("test_reader.py", "Chat model: backends, fallback, saved key"),
     ("test_app.py", "Chat app: any input, endpoints, saved chats"),
     ("test_ingest.py", "Any text: long pastes, files, other languages, code"),
+    ("test_insights.py", "Score breakdown and the baseline comparison"),
     ("test_bench.py", "Benchmark check"),
 ]
 

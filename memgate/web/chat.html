@@ -144,6 +144,33 @@
   .tg.drop, .tg.supersede { color: var(--drop); }
   .ev .q { color: var(--muted); font-style: italic; margin-top: 2px; }
   .empty { color: var(--faint); font-size: 13px; padding: 6px 0; }
+  .it.t2, .it.t3 { cursor: pointer; }
+  .it.t2:hover, .it.t3:hover { border-color: #cfcec8; }
+
+  /* why this score */
+  .why { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); font-size: 12px; cursor: default; }
+  .why .wr { display: grid; grid-template-columns: 1fr 92px 46px; gap: 6px; align-items: center; padding: 1.5px 0; }
+  .why .wn { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .why .wb { height: 7px; position: relative; background: #f0efea; border-radius: 2px; }
+  .why .wb i { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+  .why .wb i.up { left: 50%; background: var(--t3); } .why .wb i.dn { right: 50%; background: var(--drop); }
+  .why .wb::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: #c9c8c2; }
+  .why .wv { text-align: right; font-variant-numeric: tabular-nums; }
+  .why .wt { margin-top: 4px; color: var(--ink); }
+  #tryForm { display: flex; gap: 6px; margin-bottom: 10px; }
+  #tryForm input { flex: 1; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-size: 13px; }
+
+  /* compare with baselines */
+  .cmp { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; margin-bottom: 10px; }
+  .cmp.mg { border-color: var(--t3); }
+  .cmp h4 { margin: 0 0 2px; font-size: 13px; display: flex; justify-content: space-between; gap: 8px; }
+  .cmp h4 small { font-weight: 400; color: var(--faint); }
+  .cmp .n { font-size: 12.5px; line-height: 1.35; padding: 3px 0; border-top: 1px dotted var(--line); }
+  .cmp .n.only { background: var(--t3-soft); margin: 0 -10px; padding: 3px 10px; }
+  .badge { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--t3); margin-left: 4px; }
+  .cmp .ans { margin-top: 6px; font-size: 13px; white-space: pre-wrap; background: var(--side); border-radius: 7px; padding: 6px 8px; }
+  .save { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; line-height: 1.45; }
+  .save b { color: var(--ink); }
 
   /* benchmark dialog */
   dialog { border: 1px solid var(--line); border-radius: 14px; padding: 0; width: min(760px, 94vw); }
@@ -234,6 +261,7 @@
     <button data-tab="tiers" class="on">Tiers</button>
     <button data-tab="log">Decisions</button>
     <button data-tab="ctx">Sent to model</button>
+    <button data-tab="cmp">Compare</button>
   </div>
   <div class="pane" id="pane"></div>
 </aside>
@@ -254,6 +282,7 @@ committed results/storage_sweep.csv. About 20 seconds.</pre>
 const $ = id => document.getElementById(id);
 const SCALE_S = {full: 4096, compact: 150};
 let state = null, seen = new Set(), busy = false, tab = 'tiers', lastCtx = null;
+let lastCmp = null, rivalAns = {}, whyOpen = null, whyData = null, tryData = null;
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 const MAX_CHARS = 200000;  // app.py MAX_CHARS
@@ -330,16 +359,69 @@ function showTranscript(s) {
   $('msgs').innerHTML = '';
   for (const m of s.transcript) m.file ? addFile(m.file, m.text) : addMsg(m.speaker, m.text);
   $('welcome').hidden = s.transcript.length > 0;
-  lastCtx = null;
+  lastCtx = null; lastCmp = null; rivalAns = {}; whyOpen = null;
 }
 
 // ---------------------------------------------------------------- memory panel
 function itemHTML(it, fresh) {
   const sc = it.tier !== 't1';
-  return `<div class="it ${it.tier} ${fresh ? 'fresh' : ''} ${it.superseded ? 'gone' : ''}">${esc(it.text)}
+  return `<div class="it ${it.tier} ${fresh ? 'fresh' : ''} ${it.superseded ? 'gone' : ''}" data-id="${esc(it.id)}"
+    ${sc ? 'title="Click: why this score?"' : ''}>${esc(it.text)}
     <div class="mt">${sc ? `<span class="bar"><i style="width:${Math.round(it.utility * 100)}%"></i></span>
       <span>u ${it.utility.toFixed(2)}</span><span>${esc(it.label)}</span>` : `<span>#${it.turn}</span>`}
-      <span>${it.tokens} tok</span>${it.superseded ? '<span>superseded</span>' : ''}</div></div>`;
+      <span>${it.tokens} tok</span>${it.superseded ? '<span>superseded</span>' : ''}</div>
+      ${whyOpen === it.id ? whyHTML(whyData) : ''}</div>`;
+}
+
+// The scorer's breakdown: every part that adds up to the score, largest first.
+function whyHTML(w) {
+  if (!w) return '<div class="why">working out why…</div>';
+  if (w.error) return `<div class="why">${esc(w.error)}</div>`;
+  const max = Math.max(1e-6, ...w.parts.map(p => Math.abs(p.effect)));
+  const fmt = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2);
+  const rows = w.parts.map(p => `<div class="wr"><span class="wn" title="${esc(p.name)}">${esc(p.name)}</span>
+      <span class="wb"><i class="${p.effect >= 0 ? 'up' : 'dn'}" style="width:${Math.abs(p.effect) / max * 50}%"></i></span>
+      <span class="wv">${fmt(p.effect)}</span></div>`).join('');
+  const u0 = w.guard ? w.unguarded : w.utility;   // what the parts add up to
+  const how = (w.unit === 'log-odds'
+    ? `${esc(w.scorer)}: ${w.base.toFixed(2)} ${esc(w.base_name)}, plus the parts below, gives ${w.total.toFixed(2)} log-odds, so u = ${u0.toFixed(2)}.`
+    : `${esc(w.scorer)}: ${esc(w.base_name)} ${w.base.toFixed(2)}${w.parts.length ? ' plus the rules that fired' : ''} gives u = ${u0.toFixed(2)}.`)
+    + (w.guard ? ` Then a guard for unusual input sets u = ${w.utility.toFixed(2)}: ${esc(w.guard)}.` : '');
+  const merged = w.made_from && w.made_from.length > 1
+    ? `<div class="small" style="margin-bottom:4px">Merged from messages ${w.made_from.map(n => '#' + n).join(', ')}; this is the score of #${w.made_from[0]}.</div>` : '';
+  return `<div class="why">${merged}<div class="small" style="margin-bottom:4px">${how}</div>${rows}
+    <div class="wt">→ <b>${esc(w.label)}</b>, u = ${w.utility.toFixed(2)}${state && state.mode === 'p1' ?
+      ` (Tier 3 needs ≥ ${state.tau_fact}, Tier 2 ≥ ${state.tau_low})` : ' (lowest u is forgotten first)'}</div></div>`;
+}
+async function toggleWhy(id) {
+  if (whyOpen === id) { whyOpen = null; renderPane(); return; }
+  whyOpen = id; whyData = null; renderPane();
+  try { whyData = await api('/api/why', {id}); } catch (e) { whyData = {error: e.message}; }
+  if (whyOpen === id) renderPane();
+}
+
+const ROWS = {memgate: ['MemGate', 'what this chat actually sent'],
+              window: ['Sliding window (P0)', 'keeps the most recent S tokens'],
+              rag: ['RAG store-all', 'keeps every message, forgets the oldest past S']};
+function cmpHTML() {
+  const c = lastCmp;
+  if (!c) return '<div class="empty">Ask a question to see the same question answered from three memories: MemGate, a sliding window and RAG, all holding at most the same S tokens.</div>';
+  const mg = c.rows.memgate, only = mg.notes.filter(n => n.only).length;
+  let h = `<div class="save">“${esc(c.query)}”<br>Each memory holds at most <b>S = ${c.store_budget}</b> tokens and may send
+    <b>${c.context_budget}</b>. ${only ? `<b>${only}</b> of MemGate's notes come from messages <b>both baselines had already forgotten</b> (green).`
+      : c.said_tokens <= c.store_budget ? 'The chat still fits in S, so nothing has been forgotten yet: try Compact sizes or a longer chat.'
+      : 'Here MemGate sent nothing the baselines lacked.'}</div>`;
+  for (const k of ['memgate', 'window', 'rag']) {
+    const r = c.rows[k];
+    h += `<div class="cmp ${k === 'memgate' ? 'mg' : ''}"><h4>${ROWS[k][0]} <small>${r.tokens} tok sent · ${r.stored_tokens} held</small></h4>
+      <div class="small" style="margin-bottom:4px">${ROWS[k][1]}; draws on ${r.messages} message${r.messages === 1 ? '' : 's'}</div>` +
+      r.notes.map(n => `<div class="n ${n.only ? 'only' : ''}">${esc(n.text)}${n.only ? '<span class="badge">only MemGate</span>' : ''}</div>`).join('') +
+      (k !== 'memgate' && state && state.model_enabled
+        ? (rivalAns[k] ? `<div class="ans">${esc(rivalAns[k])}</div>`
+                       : `<button class="linkbtn" data-rival="${k}" style="margin-top:6px">Answer from this memory</button>`) : '') +
+      '</div>';
+  }
+  return h;
 }
 const TAG = {enter: 't1', t3: 't3', t2: 't2', dup: 't3', drop: 'drop', demote: 't2', merge: 't2', supersede: 'supersede'};
 const TAGNAME = {enter: 'Tier 1', t3: 'Tier 3', t2: 'Tier 2', dup: 'Tier 3', drop: 'forgot', demote: 'demoted', merge: 'merged', supersede: 'replaced'};
@@ -359,11 +441,15 @@ function renderPane() {
         (items.length ? items.slice().reverse().map(it => itemHTML(it, !seen.has(it.id))).join('')
                       : `<div class="empty">${why}</div>`);
     }
+  } else if (tab === 'cmp') {
+    h = cmpHTML();
   } else if (tab === 'log') {
     const ev = s.log.slice().reverse().filter(e => e.type !== 'enter');
-    h = ev.length ? ev.map(e => `<div class="ev"><span class="tg ${TAG[e.type]}">${TAGNAME[e.type]}</span>${esc(e.msg)}
+    h = `<form id="tryForm"><input id="tryText" placeholder="Score any message, e.g. “my exam is on 3 May”"><button class="linkbtn">Score</button></form>` +
+        (tryData ? `<div class="it t3">${esc(tryData.text || '')}${whyHTML(tryData)}</div>` : '') +
+        (ev.length ? ev.map(e => `<div class="ev"><span class="tg ${TAG[e.type]}">${TAGNAME[e.type]}</span>${esc(e.msg)}
           <div class="q">“${esc(e.text.length > 110 ? e.text.slice(0, 110) + '…' : e.text)}”</div></div>`).join('')
-        : '<div class="empty">Nothing has left Tier 1 yet. Decisions happen when a message is pushed out of it.</div>';
+        : '<div class="empty">Nothing has left Tier 1 yet. Decisions happen when a message is pushed out of it.</div>');
   } else {
     const name = {t1: 'TIER 1', t2: 'TIER 2', t3: 'TIER 3'};
     h = lastCtx ? `<div class="small" style="margin-bottom:8px">${lastCtx.tokens} of ${s.context_budget} tokens.
@@ -374,7 +460,29 @@ function renderPane() {
       : '<div class="empty">Send a message to see exactly what MemGate puts in the prompt.</div>';
   }
   $('pane').innerHTML = h;
+  if ($('tryText')) $('tryText').value = tryText;
 }
+let tryText = '';
+$('pane').addEventListener('click', async e => {
+  const rb = e.target.closest('[data-rival]');
+  if (rb) {
+    const k = rb.dataset.rival; rb.disabled = true; rb.textContent = 'answering…';
+    try { rivalAns[k] = (await api('/api/rival', {rival: k})).reply; }
+    catch (err) { rivalAns[k] = 'Error: ' + err.message; }
+    renderPane(); return;
+  }
+  if (e.target.closest('.why, form')) return;
+  const it = e.target.closest('.it.t2[data-id], .it.t3[data-id]');
+  if (it) toggleWhy(it.dataset.id);
+});
+$('pane').addEventListener('submit', async e => {
+  e.preventDefault();
+  tryText = $('tryText').value; if (!tryText.trim()) return;
+  tryData = null;
+  try { tryData = await api('/api/why', {text: tryText}); }
+  catch (err) { tryData = {error: err.message, text: tryText}; }
+  renderPane();
+});
 
 function render(s) {
   state = s;
@@ -385,10 +493,13 @@ function render(s) {
   $('modePill').textContent = `${s.mode.toUpperCase().replace('P1S', 'P1-S').replace('P1A', 'P1-A')} · ${s.scale} sizes`;
   $('info').innerHTML = `Model: ${esc(s.model)}${s.model_note ? ` <span title="${esc(s.model_note)}">(fallback)</span>` : ''}<br>Scorer: ${esc(s.scorer || '')}<br>Embedder: ${esc(s.backends.embedder)}`;
   const c = s.counts;
+  const kept = s.said_tokens ? Math.round(100 * s.stored_tokens / s.said_tokens) : 100;
   $('stats').innerHTML = `<span><b>${s.messages}</b>messages</span>
+    <span title="everything said in this chat"><b>${s.said_tokens}</b>tokens said</span>
     <span><b>${s.stored_tokens}</b>tokens kept${s.store_budget ? ` / ${s.store_budget}` : ''}</span>
     <span><b>${c.dropped}</b>forgotten</span>
-    ${s.mode !== 'p1s' ? `<span><b>${c.compressed}</b>compressed</span>` : ''}`;
+    ${s.mode !== 'p1s' ? `<span><b>${c.compressed}</b>compressed</span>` : ''}
+    ${s.said_tokens > s.stored_tokens ? `<span title="memory held, as a share of everything said"><b>${kept}%</b>held</span>` : ''}`;
   renderPane();
   seen = new Set([...s.t1, ...s.t2, ...s.t3].map(i => i.id));
 }
@@ -417,11 +528,16 @@ async function send(text) {
   try {
     const s = await api('/api/chat', {text});
     lastCtx = {items: s.context, tokens: s.context_tokens};
+    lastCmp = s.compare; rivalAns = {};
     await typeInto(txt, s.reply);
     const used = s.context.filter(i => i.tier !== 't1').length;
     const meta = document.createElement('div'); meta.className = 'meta';
-    meta.innerHTML = `<button class="chip">${s.context.length} notes from memory${used ? ` · ${used} recalled` : ''}</button>`;
-    meta.querySelector('button').onclick = () => openMem('ctx');
+    const only = s.compare ? s.compare.rows.memgate.notes.filter(n => n.only).length : 0;
+    meta.innerHTML = `<button class="chip">${s.context.length} notes from memory${used ? ` · ${used} recalled` : ''}</button>
+      <button class="chip">${only ? `${only} the baselines forgot` : 'compare with baselines'}</button>`;
+    const [b1, b2] = meta.querySelectorAll('button');
+    b1.onclick = () => openMem('ctx');
+    b2.onclick = () => openMem('cmp');
     bot.querySelector('.body').appendChild(meta); bottom();
     if (s.message_pieces > 1)
       addNote(`Long message: MemGate stored it as ${s.message_pieces} pieces, each scored on its own, and recalled the ones this message needs.`);
