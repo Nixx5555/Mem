@@ -935,7 +935,7 @@ def main():
     ap.add_argument("--scorer", choices=("learned", "heuristic"),
                     default=os.environ.get("MEMGATE_SCORER", "learned"),
                     help="what scores each message: the learned scorer trained on "
-                         "LoCoMo + REALTALK (default), or the P1 rule scorer")
+                         "LoCoMo, REALTALK and BEAM (default), or the P1 rule scorer")
     args = ap.parse_args()
     # Read by MemGatePolicy when each chat's policy is built. The benchmark
     # check pins its own scorer, so this does not move the committed numbers.
