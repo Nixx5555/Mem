@@ -7,6 +7,10 @@
     python3 app.py --no-llm        # no model: replies show the context only
     python3 app.py --scorer heuristic   # the P1 rule scorer instead of the learned one
     python3 app.py --port 9000
+    python3 app.py --public --passcode XYZ   # a public link: own chats per visitor
+
+Online (a Hugging Face Space) it is configured by environment instead:
+HOST, PORT, MEMGATE_PUBLIC=1, MEMGATE_PASSCODE. See deploy/huggingface/.
 
 Conversations are saved under memgate/chats/ and survive a restart: each one
 is stored as its messages and rebuilt by replaying them through observe(),
@@ -29,13 +33,17 @@ happens within a few messages instead of a few hundred; those are the only
 settings that differ from the experiments.
 """
 import argparse
+import hmac
 import json
 import os
+import secrets
 import subprocess
 import sys
 import threading
 import time
 import uuid
+from collections import OrderedDict
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from memgate.types import Turn, SHORT_TERM, WORKING, LONG_TERM
@@ -391,20 +399,128 @@ class Chats:
             pass
 
 
+class Visitors:
+    """One App per visitor, for a public link (`--public`).
+
+    Each browser gets a random id in a cookie and its own chats folder, so two
+    people on the same link never see or overwrite each other's chats. The
+    chat model and the benchmark runner are shared.
+    """
+    KEEP = 200                 # visitors held in memory; the rest reload from disk
+
+    def __init__(self, model, folder=CHATS):
+        self.model, self.folder, self.bench = model, folder, Bench()
+        self.apps = OrderedDict()
+        self.lock = threading.Lock()
+
+    @staticmethod
+    def valid(vid):
+        return bool(vid) and len(vid) == 32 and all(
+            c in "0123456789abcdef" for c in vid)
+
+    def get(self, vid):
+        with self.lock:
+            app = self.apps.pop(vid, None)
+            if app is None:
+                app = App(self.model, Chats(os.path.join(self.folder, vid)),
+                          bench=self.bench)
+            self.apps[vid] = app
+            while len(self.apps) > self.KEEP:
+                self.apps.popitem(last=False)
+            return app
+
+
+LOGIN = """<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MemGate</title><style>
+body{font-family:system-ui,sans-serif;background:#f6f7f9;color:#1d2430;margin:0;
+display:grid;place-items:center;min-height:100vh}
+form{background:#fff;padding:28px;border-radius:14px;box-shadow:0 2px 12px #0001;
+width:min(320px,calc(100vw - 32px));box-sizing:border-box}
+h1{font-size:20px;margin:0 0 6px}p{margin:0 0 16px;color:#5b6573;font-size:14px}
+input,button{width:100%;box-sizing:border-box;font:inherit;padding:10px;
+border-radius:8px;border:1px solid #cdd3dc}
+button{margin-top:10px;background:#2f5bea;color:#fff;border:0;cursor:pointer}
+.err{color:#c0392b;font-size:14px;margin-top:10px}
+@media (prefers-color-scheme:dark){body{background:#14171c;color:#e6e9ee}
+form{background:#1d2128}input{background:#14171c;color:inherit;border-color:#39404b}
+p{color:#9aa4b2}}
+</style></head><body><form method="post" action="/login">
+<h1>MemGate</h1><p>Enter the passcode to open the app.</p>
+<input type="password" name="passcode" autofocus autocomplete="current-password">
+<button>Open</button>{error}</form></body></html>"""
+
+
 # ---------------------------------------------------------------- server
-def make_handler(app):
+def make_handler(app, passcode=None):
+    """`app` is an App, or Visitors for a public link. With a passcode, every
+    page and API call needs it first (it is kept in a cookie)."""
+    public = isinstance(app, Visitors)
+    pass_tag = (hmac.new(passcode.encode(), b"memgate", "sha256").hexdigest()
+                if passcode else None)
+
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a):
             pass
 
-        def _send(self, code, body, ctype="application/json"):
+        def _cookie(self, name):
+            c = SimpleCookie()
+            try:
+                c.load(self.headers.get("Cookie") or "")
+            except Exception:
+                return None
+            return c[name].value if name in c else None
+
+        def _app(self):
+            """The App this request talks to; for a public link, this
+            browser's own, with a new visitor id when it has none."""
+            if not public:
+                return app
+            vid = (self.headers.get("X-MemGate-Visitor")
+                   or self._cookie("mg_visitor"))
+            if not Visitors.valid(vid):
+                vid = secrets.token_hex(16)
+                self._set_cookie = f"mg_visitor={vid}"
+            return app.get(vid)
+
+        def _allowed(self):
+            if not pass_tag:
+                return True
+            got = self._cookie("mg_pass") or ""
+            return hmac.compare_digest(got, pass_tag)
+
+        def _send(self, code, body, ctype="application/json", headers=()):
             data = body if isinstance(body, bytes) else json.dumps(body).encode()
             self.send_response(code)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
+            cookie = getattr(self, "_set_cookie", None)
+            if cookie:
+                # Behind https (a Hugging Face Space shows the app in an
+                # iframe on another site) the cookie has to be cross-site.
+                https = self.headers.get("X-Forwarded-Proto") == "https"
+                self.send_header("Set-Cookie", f"{cookie}; Path=/; Max-Age=31536000; "
+                                 "HttpOnly; " + ("SameSite=None; Secure" if https
+                                                 else "SameSite=Lax"))
+                self._set_cookie = None
+            for k, v in headers:
+                self.send_header(k, v)
             self.end_headers()
             self.wfile.write(data)
+
+        def _login(self, error=""):
+            page = LOGIN.replace(
+                "{error}", f'<div class="err">{error}</div>' if error else "")
+            return self._send(401 if error else 200, page.encode(),
+                              "text/html; charset=utf-8")
+
+        def _locked(self):
+            """Answer a request made without the passcode."""
+            if self.path.startswith("/api/"):
+                return self._send(401, {"error": "enter the passcode first: "
+                                        "reload the page"})
+            return self._login()
 
         def _body(self):
             try:
@@ -415,6 +531,11 @@ def make_handler(app):
             return b if isinstance(b, dict) else {}
 
         def do_GET(self):
+            if self.path == "/healthz":
+                return self._send(200, {"ok": True})
+            if not self._allowed():
+                return self._locked()
+            app = self._app()
             if self.path in ("/", "/index.html"):
                 with open(PAGE, "rb") as fh:
                     return self._send(200, fh.read(), "text/html; charset=utf-8")
@@ -431,6 +552,18 @@ def make_handler(app):
             self._send(404, {"error": "not found"})
 
         def do_POST(self):
+            if self.path == "/login" and pass_tag:
+                from urllib.parse import parse_qs
+                n = min(int(self.headers.get("Content-Length") or 0), 4096)
+                got = parse_qs(self.rfile.read(n).decode("utf-8", "replace"))
+                if not hmac.compare_digest(
+                        (got.get("passcode") or [""])[0].strip(), passcode):
+                    return self._login("That passcode is not right.")
+                self._set_cookie = f"mg_pass={pass_tag}"
+                return self._send(303, b"", "text/plain", [("Location", "/")])
+            if not self._allowed():
+                return self._locked()
+            app = self._app()
             b = self._body()
             try:
                 if self.path == "/api/chat":
@@ -469,10 +602,10 @@ def make_handler(app):
 
 
 class App:
-    def __init__(self, model, chats=None):
+    def __init__(self, model, chats=None, bench=None):
         self.model = model
         self.chats = chats or Chats()
-        self.bench = Bench()
+        self.bench = bench or Bench()
         self.lock = threading.Lock()
         saved = self.chats.list()
         self.chat = None
@@ -596,15 +729,25 @@ class App:
         return out
 
 
+def _on(value):
+    return (value or "").lower() in ("1", "true", "yes")
+
+
 def main():
     # The private settings setup saved (the Anthropic key), before anything
     # reads the environment. A key exported in the terminal still wins.
     from memgate.envfile import ENV_PATH, load_env
     loaded = load_env()
     ap = argparse.ArgumentParser(description="MemGate app")
-    ap.add_argument("--port", type=int, default=8765)
-    ap.add_argument("--host", default="127.0.0.1",
+    ap.add_argument("--port", type=int,
+                    default=int(os.environ.get("PORT") or 8765))
+    ap.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"),
                     help="0.0.0.0 to let other devices on the network open it")
+    ap.add_argument("--public", action="store_true",
+                    default=_on(os.environ.get("MEMGATE_PUBLIC")),
+                    help="for a public link: each visitor gets their own chats")
+    ap.add_argument("--passcode", default=os.environ.get("MEMGATE_PASSCODE"),
+                    help="ask for this passcode before opening the app")
     ap.add_argument("--llm", choices=BACKENDS,
                     default=os.environ.get("MEMGATE_LLM", "auto"),
                     help="which model answers (default: auto)")
@@ -647,10 +790,19 @@ def main():
             model.disable()
     else:
         print("  no chat model: replies will show what it would have been sent")
-    app = App(model)
-    srv = ThreadingHTTPServer((args.host, args.port), make_handler(app))
+    if args.public:
+        app = Visitors(model)
+        print("  public: each visitor gets their own chats")
+    else:
+        app = App(model)
+    if args.passcode:
+        print("  passcode required to open the app")
+    srv = ThreadingHTTPServer((args.host, args.port),
+                              make_handler(app, args.passcode or None))
     print(f"\n  model: {model.name}")
     print(f"  chats saved in {CHATS}")
+    if args.public:
+        args.no_browser = True
     url = f"http://localhost:{args.port}"
     print(f"\n  open {url}   (Ctrl+C to stop)\n", flush=True)
     if not args.no_browser:

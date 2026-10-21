@@ -215,5 +215,79 @@ else:
     check("saves leave no temp files behind", True)
 
 srv.shutdown()
+
+print("\n-- public link: own chats per visitor, passcode --")
+pub = ThreadingHTTPServer(("127.0.0.1", 0), A.make_handler(
+    A.Visitors(Echo(), tempfile.mkdtemp()), passcode="jury2026"))
+threading.Thread(target=pub.serve_forever, daemon=True).start()
+BASE = f"http://127.0.0.1:{pub.server_address[1]}"
+ANNA, BEN = "a" * 32, "b" * 32
+PASS = None
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *a, **k):
+        return None
+
+
+def call(path, body=None, visitor=None, cookie=None, form=None):
+    hdr = {}
+    if visitor:
+        hdr["X-MemGate-Visitor"] = visitor
+    if cookie:
+        hdr["Cookie"] = cookie
+    data = None
+    if form is not None:
+        data = form.encode()
+        hdr["Content-Type"] = "application/x-www-form-urlencoded"
+    elif body is not None:
+        data = json.dumps(body).encode()
+    req = urllib.request.Request(BASE + path, data=data, headers=hdr,
+                                 method="POST" if data is not None else "GET")
+    try:
+        r = urllib.request.build_opener(NoRedirect).open(req)
+    except urllib.error.HTTPError as e:
+        r = e
+    raw = r.read()
+    try:
+        out = json.loads(raw)
+    except ValueError:
+        out = raw.decode("utf-8", "replace")
+    return r.status, out, r.headers
+
+
+code, page, _ = call("/")
+check("without the passcode the page asks for it",
+      code == 200 and "passcode" in page)
+check("without the passcode the API refuses",
+      call("/api/state", visitor=ANNA)[0] == 401)
+check("the health check needs no passcode", call("/healthz")[0] == 200)
+check("a wrong passcode is refused",
+      call("/login", form="passcode=nope")[0] == 401)
+code, _, h = call("/login", form="passcode=jury2026")
+PASS = (h.get("Set-Cookie") or "").split(";")[0]
+check("the right passcode sets a cookie and opens the app",
+      code == 303 and PASS.startswith("mg_pass="))
+check("a forged cookie is refused",
+      call("/api/state", visitor=ANNA, cookie="mg_pass=x")[0] == 401)
+
+call("/api/chat", {"text": "my name is Anna"}, ANNA, PASS)
+code, st, _ = call("/api/state", visitor=BEN, cookie=PASS)
+check("a second visitor starts with an empty chat",
+      code == 200 and st["transcript"] == [])
+code, lst, _ = call("/api/chats", visitor=BEN, cookie=PASS)
+check("a second visitor does not see the first one's chats",
+      [c["messages"] for c in lst["chats"]] == [0])
+code, st, _ = call("/api/state", visitor=ANNA, cookie=PASS)
+check("the first visitor still has their chat",
+      [m["text"] for m in st["transcript"]][0] == "my name is Anna")
+code, _, h = call("/api/state", cookie=PASS)
+check("a browser with no id is given one in a cookie",
+      code == 200 and "mg_visitor=" in (h.get("Set-Cookie") or ""))
+check("a malformed visitor id is replaced, not used as a path",
+      "mg_visitor=" in (call("/api/state", visitor="../../etc",
+                             cookie=PASS)[2].get("Set-Cookie") or ""))
+pub.shutdown()
+
 print(f"\n{'='*46}\n  {passed} passed, {failed} failed\n{'='*46}")
 sys.exit(1 if failed else 0)
