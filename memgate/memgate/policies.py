@@ -15,7 +15,7 @@ from .types import (Turn, MemoryItem, ContextBundle,
                     SHORT_TERM, WORKING, LONG_TERM)
 from .utils import count_tokens, embed, cosine
 from .compress import compress
-from .store import ThreeTierStore
+from .store import ThreeTierStore, rank
 from .scoring import HeuristicScorer
 from .pretrained import default_scorer
 
@@ -249,11 +249,8 @@ class RAGPolicy:
         b_recent = int(budget * self.split[0])
         recent = _pack(list(reversed(self.items)), b_recent)
         seen = {id(i) for i in recent.items}
-        q = embed(query)
-        scored = [(cosine(q, i.embedding), i)
-                  for i in self.items if id(i) not in seen]
-        scored.sort(key=lambda x: -x[0])
-        hits = [i for sc, i in scored[:self.retrieve_k] if sc > 0]
+        hits = rank(query, [i for i in self.items if id(i) not in seen],
+                    self.retrieve_k)
         for i in hits:
             i.access_count += 1
         long_ = _pack(hits, budget - recent.tokens)

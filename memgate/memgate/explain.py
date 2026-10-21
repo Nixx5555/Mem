@@ -124,6 +124,8 @@ GUARDS = {
     "script": "mostly non-Latin script, which the scorer can't read, so it is set to neutral",
     "code": "code or markup, so it is kept at least neutral",
     "repeated": "the same words over and over, so it is capped",
+    "specific": "a short message with a date, time or amount, so it scores at "
+                "least what the P1 rules give it",
 }
 
 

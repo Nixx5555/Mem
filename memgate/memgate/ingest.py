@@ -40,7 +40,8 @@ from html.parser import HTMLParser
 from typing import List, Tuple
 from xml.etree import ElementTree
 
-from .scoring import FILLER_PAT, NUM_PAT, Scorer, message_only
+from .scoring import (FILLER_PAT, MONEY_PAT, MONTH_PAT, NUM_PAT, TIME_PAT,
+                      HeuristicScorer, Scorer, message_only)
 from .utils import count_tokens
 
 # A message up to WHOLE tokens is stored whole, as it always was: long chat
@@ -73,7 +74,7 @@ _INVISIBLE = re.compile("[​‌‎‏‪-‮⁠-⁤"
 # Half of an emoji or other astral character: valid in JSON ("\ud83d") and
 # what a browser sends when a paste is cut mid-character, but not encodable
 # as UTF-8, so one stored in a chat made every later save of it fail.
-_SURROGATE = re.compile("[\ud800-\udfff]")
+SURROGATE = re.compile("[\ud800-\udfff]")
 
 
 def clean(text: str) -> str:
@@ -82,7 +83,7 @@ def clean(text: str) -> str:
     folded to \\n, outer space trimmed."""
     if not isinstance(text, str):
         return ""
-    text = _SURROGATE.sub("\ufffd", text)
+    text = SURROGATE.sub("\ufffd", text)
     t = unicodedata.normalize("NFC", text.replace("\r\n", "\n").replace("\r", "\n"))
     t = _INVISIBLE.sub("", t)
     t = "".join(c for c in t if c in "\n\t" or unicodedata.category(c) != "Cc")
@@ -533,6 +534,7 @@ class GuardedScorer(Scorer):
 
     def __init__(self, inner: Scorer):
         self.inner = inner
+        self._p1 = HeuristicScorer()
         self.name = inner.name
         self.last_guard = None
 
@@ -554,11 +556,32 @@ class GuardedScorer(Scorer):
             return "repeated", 0.15, "context"
         return None
 
+    # A short message naming a date, a time or an amount is the kind of fact
+    # a person types and asks about later ("My flight is on 14 December at
+    # 6:40 am"). The learned scorer trained with BEAM, whose long answers are
+    # full of numbers that are never asked about, learned to ignore those
+    # signals and put that line at 0.04, level with "Hi!"; P1's rules give it
+    # 0.62. For such messages the score is at least P1's.
+    SPECIFIC_WORDS = 30
+    use_floor = True
+
+    def _specific(self, t):
+        return (n_words(t) <= self.SPECIFIC_WORDS
+                and bool(MONTH_PAT.search(t) or TIME_PAT.search(t)
+                         or MONEY_PAT.search(t)))
+
     def score(self, text, speaker="user"):
         g = self.guard(text)
         self.last_guard = g[0] if g else None
         if g is None:
-            return self.inner.score(text, speaker)
+            u, label = self.inner.score(text, speaker)
+            if (self.use_floor and not isinstance(self.inner, HeuristicScorer)
+                    and self._specific(clean(message_only(text)))):
+                u0, label0 = self._p1.score(text, speaker)
+                if u0 > u:
+                    self.last_guard = "specific"
+                    return u0, label0
+            return u, label
         name, u, label = g
         if name == "code":
             u0, _ = self.inner.score(text, speaker)

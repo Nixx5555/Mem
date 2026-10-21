@@ -60,8 +60,8 @@ from memgate.explain import explain
 from memgate.reader import ChatModel, BACKENDS
 from memgate.utils import backend_info, count_tokens, embed_many
 from memgate.ingest import (GuardedScorer, ExtractError, chunk, clean, focus,
-                            queries, extract, decode_upload, one_line, MAX_DOC_CHARS,
-                            MAX_UPLOAD_BYTES)
+                            queries, extract, decode_upload, one_line,
+                            MAX_DOC_CHARS, MAX_UPLOAD_BYTES, SURROGATE)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PAGE = os.path.join(HERE, "web", "chat.html")          # the chat app
@@ -374,7 +374,7 @@ class Session:
             return self.turn_of.get(it.id) or {it.turn_index}
         rows = {"memgate": (ctx, self.policy.stats()["stored_tokens"])}
         for k, r in self.rivals.items():
-            rows[k] = (r.build_context(focus(query), self.context_budget),
+            rows[k] = (r.build_context(queries(query), self.context_budget),
                        r.stored_tokens())
         cover = {k: set().union(*[turns(i) for i in c.items]) if c.items else set()
                  for k, (c, _) in rows.items()}
@@ -648,7 +648,10 @@ def make_handler(app, passcode=None):
                 b = json.loads(self.rfile.read(self._length()) or b"{}")
             except (ValueError, RecursionError):   # not JSON, or nested past
                 return {}                          # the parser's depth limit
-            return b if isinstance(b, dict) else {}
+            # A lone surrogate (half an emoji) can't be embedded or saved;
+            # it is replaced here, so no endpoint ever sees one.
+            return {k: SURROGATE.sub("\ufffd", v) if isinstance(v, str) else v
+                    for k, v in b.items()} if isinstance(b, dict) else {}
 
         def do_GET(self):
             if self.path == "/healthz":

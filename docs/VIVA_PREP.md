@@ -151,7 +151,7 @@ flight to Delhi is on 14 December at 6:40 am." (0.12). BEAM has almost no
 small talk, so nothing taught it that a greeting is worth nothing. The
 shipped model adds 923 generated greetings, thanks and reactions as
 negatives at 5% weight. They are generated, not taken from any test chat.
-"Hi!" now scores 0.01, and every test passes.
+"Hi!" now scores 0.01. One weakness remains: on its own, the model puts short dated facts low (the flight line at 0.04), because BEAM's numbers are mostly noise. So the app gives a short message with a date, time or amount at least the P1 rule score. That changes no benchmark number.
 
 Held out 5-fold by conversation, it beats the old shipped model:
 

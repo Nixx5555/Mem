@@ -242,27 +242,30 @@ def main():
         export(full, units, feats, talk)
 
 
-def calibrate(m, feats, prev):
-    """Put the new model's scores on the shipped model's scale.
+# Shares of the LoCoMo + REALTALK turns the PR #4 model (the shipped scorer
+# before this script) put at or above P1's thresholds, measured once on that
+# model so calibration does not depend on whichever model is shipped now.
+PR4_SHARE = {0.45: 0.3648, 0.15: 0.7185}
 
-    Weighting BEAM's 43,800 turns equal to LoCoMo's 5,900 moves the logits
-    down: fitted on everything, a flight date scored 0.12 where the shipped
-    model gives 0.79. P1-S only ORDERS by score, so its recall is the same
-    either way, but P1's tau_fact = 0.45 / tau_low = 0.15 and GuardedScorer's
-    0.5 "neutral" read scores as absolute. An affine map of the logit, fitted
-    so its mean and spread on the LoCoMo + REALTALK turns match the shipped
-    model's, keeps every ranking (so every number above) and restores the
-    scale. It is still a logistic regression: coef * a, intercept * a + b.
+
+def calibrate(m, feats, prev):
+    """Put the new model's scores on the old shipped model's scale.
+
+    P1-S only ORDERS by score, but P1's tau_fact = 0.45 / tau_low = 0.15 and
+    GuardedScorer's 0.5 "neutral" read scores as absolute. An affine map of
+    the logit is fitted so that the same shares of LoCoMo + REALTALK turns
+    land above each threshold as with the PR #4 model (PR4_SHARE). It keeps
+    every ranking, so every P1-S number above, and it is still a logistic
+    regression: coef * a, intercept * a + b.
     """
-    from memgate.pretrained import load_learned
-    old = load_learned().model
     X = np.concatenate([feats[j][0] for j in prev])
     lr = m[-1]
-    z_new = m[:-1].transform(X) @ lr.coef_[0] + lr.intercept_[0]
-    p_old = np.clip(np.array([p for _, p in old.predict_proba(X)]), 1e-6, 1 - 1e-6)
-    z_old = np.log(p_old / (1 - p_old))
-    a = z_old.std() / z_new.std()
-    b = z_old.mean() - a * z_new.mean()
+    z = m[:-1].transform(X) @ lr.coef_[0] + lr.intercept_[0]
+    (t1, s1), (t2, s2) = PR4_SHARE.items()
+    q1, q2 = np.quantile(z, 1 - s1), np.quantile(z, 1 - s2)
+    logit = lambda p: np.log(p / (1 - p))
+    a = (logit(t1) - logit(t2)) / (q1 - q2)
+    b = logit(t1) - a * q1
     lr.coef_ = lr.coef_ * a
     lr.intercept_ = lr.intercept_ * a + b
     print(f"calibrated: logit -> {a:.3f} * logit + {b:+.3f}")
@@ -277,8 +280,8 @@ def export(m, units, feats, talk):
                        "every turn; label = cited as evidence by any question; "
                        "corpus families weighted equally; plus "
                        f"{len(talk[1])} small-talk lines as negatives at 5% weight "
-                       "(retrain_scorer.py); logit rescaled to the PR #4 "
-                       "model's scale on LoCoMo + REALTALK",
+                       "(retrain_scorer.py); logit rescaled so P1's thresholds "
+                       "split LoCoMo + REALTALK as the PR #4 model did",
          "n_turns": int(len(y)), "positive_rate": float(y.mean()),
          "embedder": backend_info()["embedder"], "use_embedding": True,
          "feature_names": list(FEATURE_NAMES),

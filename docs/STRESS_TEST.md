@@ -147,7 +147,18 @@ The app's default, P1-S, only orders by score.
 
 **What it does not change.** The paper's numbers come from `train_transfer.py`'s leave-one-out models, not from the shipped file, so no paper table moves. `run_live_check.py` pins the heuristic scorer, so the live check still matches.
 
-## 7. What this does not test
+## 7. Bugs found in the final review (fixed)
+
+- **The new scorer undervalued short dated facts.** "My flight to Delhi is on 14 December at 6:40 am." scored 0.04, level with "Hi!". Trained with BEAM, whose long answers are full of numbers nobody asks about, it learned to ignore dates, times and amounts.
+
+  Re-weighting BEAM (1/3, 1/5, 1/10) and stronger regularisation (C = 1, 0.1, 0.01) did not lift it. Blending with the old model did, but it gave up the BEAM gain.
+
+  The fix is in the app's `GuardedScorer`. A message of up to 30 words that names a date, a time or an amount now scores at least what the P1 rules give it (0.62 for that line). It fires on 125 of LoCoMo's 5,882 turns (2%), and app-path answer recall is unchanged to one decimal: 53.4% on LoCoMo, 43.8% on REALTALK, 79.4% on BEAM 100K. The "why this score" box says when it fired.
+- **The Compare tab asked RAG differently.** MemGate retrieved with every question in a long message, while RAG got only the joined `focus()` string. `RAGPolicy` now ranks with the same `rank()` as the store, so both get the same queries.
+- **Lone surrogates outside the chat path.** The "why this score" box could still be sent half an emoji. Every string field of every request is now cleaned at the HTTP boundary.
+- **Calibration in `retrain_scorer.py` read whichever model was shipped**, so re-running it after shipping would calibrate the model against itself. It now matches the shares of LoCoMo + REALTALK turns that the PR #4 model put above P1's thresholds, stored as constants.
+
+## 8. What this does not test
 
 - **The chat model's answers.** The cloud cannot reach a model, so this tests the context MemGate hands it. Run the jury script on the laptop for real replies.
 - **LongMemEval.** It is unreachable from the cloud.

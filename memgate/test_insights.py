@@ -82,11 +82,15 @@ e = explain(g, "[user] 我的考试在十一月八日，地点是北京大学")
 check("guarded: a guard that changes the score says so",
       e is not None and e.get("guard") and e["utility"] == 0.5
       and "unguarded" in e, e and {k: e.get(k) for k in ("guard", "utility")})
-e = explain(g, "[user] My flight to Delhi is on 14 December at 6:40 am.")
+e = explain(g, "[user] My sister Priya lives in Pune and works at Infosys.")
 check("guarded: ordinary English is the wrapped scorer's breakdown",
       e is not None and "guard" not in e
-      and abs(e["utility"] - g.score("[user] My flight to Delhi is on 14 December at 6:40 am.")[0]) < 1e-4,
+      and abs(e["utility"] - g.score("[user] My sister Priya lives in Pune and works at Infosys.")[0]) < 1e-4,
       e and {k: e.get(k) for k in ("guard", "utility", "label")})
+e = explain(g, "[user] My flight to Delhi is on 14 December at 6:40 am.")
+check("guarded: a dated fact the P1 floor lifted says so",
+      e is not None and (learned is None or e.get("guard", "").startswith("a short message")),
+      e and {k: e.get(k) for k in ("guard", "utility")})
 
 class Notes(ChatModel):
     """Stands in for the chat model: a short reply saying what its notes held
