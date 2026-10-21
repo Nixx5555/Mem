@@ -17,6 +17,9 @@ memgate/data/locomo/
 memgate/data/longmemeval/
 # REALTALK Chat_*.json (10 files, 3.2 MB), from danny911kr/REALTALK data/.
 memgate/data/realtalk/
+# BEAM 100K and 500K chats (chat.json + probing_questions.json, 96 MB), from
+# mohammadtavakoli78/BEAM chats/<scale>/<n>/.
+memgate/data/beam/
 
 # Results are committed: a reviewer should see fig1-fig5 and every number
 # REPORT.md cites without a 9-minute LoCoMo run. The judge/reader CACHES are

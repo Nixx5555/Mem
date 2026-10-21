@@ -144,6 +144,9 @@ blocked here.
 
 ## Using it
 
+This is still the shipped scorer. A model that adds BEAM was tried and not
+shipped; see `docs/BEAM_RESULTS.md`.
+
 ```
 python3 export_scorer.py              # refit on all 20 conversations -> memgate/scorer_pooled_lr.json
 MEMGATE_SCORER=learned python3 ...    # MemGatePolicy() then uses it; unset = P1

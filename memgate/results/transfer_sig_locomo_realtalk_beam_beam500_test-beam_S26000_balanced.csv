@@ -1,0 +1,15 @@
+test_corpus,features,a,b,metric,delta,lo,hi,significant,store_budget,scorer_fix
+beam,hand+MiniLM,in-corpus,heuristic,answer,35.294117647058826,14.625435540069692,58.333333333333336,True,26000,False
+beam,hand+MiniLM,in-corpus,heuristic,strict,32.3943661971831,26.814265481155086,38.17663817663818,True,26000,False
+beam,hand+MiniLM,cross,heuristic,answer,0.0,-18.181818181818183,18.181818181818183,False,26000,False
+beam,hand+MiniLM,cross,heuristic,strict,-1.971830985915493,-3.4090909090909087,-0.56657223796034,True,26000,False
+beam,hand+MiniLM,pooled,heuristic,answer,38.23529411764706,15.151515151515152,63.33333333333333,True,26000,False
+beam,hand+MiniLM,pooled,heuristic,strict,30.422535211267604,23.743016759776538,37.32193732193732,True,26000,False
+beam,hand+MiniLM,pooled-prev,heuristic,answer,0.0,-18.181818181818183,18.75,False,26000,False
+beam,hand+MiniLM,pooled-prev,heuristic,strict,-1.971830985915493,-3.418803418803419,-0.5649717514124294,True,26000,False
+beam,hand+MiniLM,pooled,in-corpus,answer,2.941176470588235,-5.714285714285714,13.333333333333334,False,26000,False
+beam,hand+MiniLM,pooled,in-corpus,strict,-1.971830985915493,-5.337078651685393,1.41643059490085,False,26000,False
+beam,hand+MiniLM,cross,in-corpus,answer,-35.294117647058826,-60.71428571428571,-12.121212121212121,True,26000,False
+beam,hand+MiniLM,cross,in-corpus,strict,-34.36619718309859,-39.88607990012484,-28.932584269662918,True,26000,False
+beam,hand+MiniLM,pooled,pooled-prev,answer,38.23529411764706,15.625,62.96296296296296,True,26000,False
+beam,hand+MiniLM,pooled,pooled-prev,strict,32.3943661971831,25.915492957746476,38.764044943820224,True,26000,False

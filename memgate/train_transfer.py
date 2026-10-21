@@ -39,7 +39,7 @@ import sys
 import numpy as np
 from sklearn.metrics import roc_auc_score, average_precision_score
 
-from memgate.data import load_locomo, load_realtalk, load_longmemeval
+from memgate.data import load_locomo, load_realtalk, load_longmemeval, load_beam
 from memgate.policies import MemGateSelectPolicy, RAGPolicy
 from memgate.harness import run_policy
 from memgate.scoring import HeuristicScorer, LearnedScorer
@@ -78,7 +78,14 @@ LOADERS = {
     "locomo": lambda a: load_locomo(),
     "realtalk": lambda a: load_realtalk(),
     "longmemeval": lambda a: load_longmemeval(limit=a.lme_limit),
+    "beam": lambda a: load_beam(scales=("100K",)),
+    "beam500": lambda a: load_beam(scales=("500K",)),
 }
+# Corpora that are one source at two sizes. "in-corpus" and "cross" are
+# decided by family, so BEAM-500K chats never count as cross-corpus data for a
+# BEAM-100K test chat.
+FAMILY = {"beam500": "beam"}
+PREV = ("locomo", "realtalk")
 
 
 def cluster_bootstrap(a, b, conv, n=B):
@@ -148,9 +155,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--corpora", default="locomo,realtalk")
     ap.add_argument("--store-budget", type=int, default=2048)
+    ap.add_argument("--test-corpora", default="",
+                    help="corpora to test on (default: all of --corpora); the "
+                         "rest are used for training only")
     ap.add_argument("--lme-limit", type=int, default=100)
     ap.add_argument("--features", default="hand,hand+MiniLM")
     ap.add_argument("--model", default="lr", choices=MODELS)
+    ap.add_argument("--balance", action="store_true",
+                    help="weight each corpus family equally in training")
     ap.add_argument("--scorer-fix", action="store_true",
                     help="apply both SCORER_CHECK.md fixes, for P1 and P3: "
                          "score the bare message, not '[speaker] message', "
@@ -161,6 +173,8 @@ def main():
         apply_month_fix()
     names = [c.strip() for c in args.corpora.split(",") if c.strip()]
     feat_sets = [f.strip() for f in args.features.split(",")]
+    tests = [c.strip() for c in args.test_corpora.split(",") if c.strip()] or names
+    fam = lambda c: FAMILY.get(c, c)
 
     print("\nMemGate — P3-learned across corpora (in-corpus / cross / pooled)")
     print("=" * 80)
@@ -194,22 +208,41 @@ def main():
 
         def train_on(keep):
             idx = [j for j in range(len(units)) if keep(j)]
-            return make_model(args.model).fit(
-                np.concatenate([feats[j][0] for j in idx]),
-                np.concatenate([feats[j][1] for j in idx]))
+            X = np.concatenate([feats[j][0] for j in idx])
+            y = np.concatenate([feats[j][1] for j in idx])
+            if not args.balance:
+                return make_model(args.model).fit(X, y)
+            # every corpus family carries the same total weight, so BEAM's
+            # 43,800 turns cannot outvote LoCoMo's 5,900
+            n_fam = {}
+            for j in idx:
+                f = fam(units[j][0]); n_fam[f] = n_fam.get(f, 0) + len(feats[j][1])
+            w = np.concatenate([np.full(len(feats[j][1]),
+                                        len(y) / (len(n_fam) * n_fam[fam(units[j][0])]))
+                                for j in idx])
+            m = make_model(args.model)
+            step = m.steps[-1][0] if hasattr(m, "steps") else None
+            kw = {f"{step}__sample_weight": w} if step else {"sample_weight": w}
+            return m.fit(X, y, **kw)
 
-        for test_c in names:
-            others = [o for o in names if o != test_c]
+        for test_c in tests:
+            others = [o for o in names if fam(o) != fam(test_c)]
             protocols = ["in-corpus"] + (["cross", "pooled"] if others else [])
+            # "pooled-prev": pooled, but on only the data PR #4 trained on, so
+            # pooled - pooled-prev is what the added corpora are worth
+            if any(fam(c) not in PREV for c in names) and any(fam(c) in PREV for c in names):
+                protocols.append("pooled-prev")
+            cross_model = None    # one training set for every test unit
             acc = {p: {"auc": [], "ap": [], "s": [], "a": [], "conv": []}
                    for p in ["heuristic", "rag"] + protocols}
             for i, (c, sid, ts, qs) in enumerate(units):
                 if c != test_c or not qs:
                     continue
                 Xte, yte = feats[i]
-                rule = {"in-corpus": lambda j: j != i and units[j][0] == test_c,
-                        "cross": lambda j: units[j][0] != test_c,
-                        "pooled": lambda j: j != i}
+                rule = {"in-corpus": lambda j: j != i and fam(units[j][0]) == fam(test_c),
+                        "cross": lambda j: fam(units[j][0]) != fam(test_c),
+                        "pooled": lambda j: j != i,
+                        "pooled-prev": lambda j: j != i and fam(units[j][0]) in PREV}
                 scorers = {"heuristic": HeuristicScorer()}
                 for p in protocols:
                     # Fold integrity, asserted rather than assumed: the unit
@@ -217,7 +250,11 @@ def main():
                     assert not rule[p](i), f"{p}: test unit in its training set"
                     n_tr = sum(len(feats[j][0]) for j in range(len(units)) if rule[p](j))
                     assert n_tr + len(Xte) <= total
-                    m = train_on(rule[p])
+                    if p == "cross":
+                        cross_model = cross_model or train_on(rule[p])
+                        m = cross_model
+                    else:
+                        m = train_on(rule[p])
                     if len(set(yte)) > 1:
                         pr = m.predict_proba(Xte)[:, 1]
                         acc[p]["auc"].append(roc_auc_score(yte, pr))
@@ -266,11 +303,14 @@ def main():
                              "n_questions": len(cat[p]["s"]),
                              "n_answer": int((~np.isnan(cat[p]["a"])).sum()),
                              "store_budget": S, "scorer_fix": args.scorer_fix,
-                             "model": args.model, "embedder": info["embedder"]})
+                             "model": args.model, "balance": args.balance,
+                             "embedder": info["embedder"]})
             print("    paired differences, answer recall (95% CI, clustered by unit):")
             pairs = [(p, "heuristic") for p in protocols]
             if others:
                 pairs += [("pooled", "in-corpus"), ("cross", "in-corpus")]
+            if "pooled-prev" in protocols:
+                pairs += [("pooled", "pooled-prev")]
             for x, y in pairs:
                 for metric, key in (("answer", "a"), ("strict", "s")):
                     o, lo, hi = cluster_bootstrap(cat[x][key], cat[y][key], cat[x]["conv"])
@@ -286,8 +326,10 @@ def main():
             print()
 
     os.makedirs(RESULTS, exist_ok=True)
-    tag = "_".join(names) + f"_S{S}" + ("_tagmonthfix" if args.scorer_fix else "") \
-        + ("" if args.model == "lr" else f"_{args.model}")
+    tag = "_".join(names) + ("" if tests == names else "_test-" + "-".join(tests)) \
+        + f"_S{S}" + ("_tagmonthfix" if args.scorer_fix else "") \
+        + ("" if args.model == "lr" else f"_{args.model}") \
+        + ("_balanced" if args.balance else "")
     for fname, data in ((f"transfer_{tag}.csv", rows),
                         (f"transfer_sig_{tag}.csv", sig_rows)):
         out = os.path.join(RESULTS, fname)

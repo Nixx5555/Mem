@@ -428,6 +428,13 @@ else:
           == _tier_fingerprint(blind, scorer=_shipped, store_budget=600,
                                write_mode="adaptive"))
 
+print("\n-- BEAM evidence ids --")
+from memgate.data import _beam_ids
+check("BEAM evidence lists flatten as given",
+      _beam_ids([28, [3, 4]]) == [28, 3, 4])
+check("BEAM two-sided evidence keeps both sides",
+      _beam_ids({"original_info": [86], "updated_info": [114]}) == [86, 114])
+
 print("\n-- offline reproducibility --")
 # A run that can silently fetch a model is a run whose inputs are not pinned,
 # and this project has already lost a results table to a half-downloaded
