@@ -323,6 +323,7 @@ memgate/
     store.py     three-tier store, dedupe, semantic supersession, consolidation
     scoring.py   P0/P1 implemented, P2/P3 stubs on the same interface
     policies.py  baselines + MemGate, routing and budget-aware assembly
+    ingest.py    any text in: cleaning, chunking, file reading, scorer guards (app only)
     data.py      synthetic generator + LoCoMo loader + integrity assertions
     harness.py   strict/soft recall, per-category breakdown, sweep, CSV
   run_locomo.py        LoCoMo evaluation

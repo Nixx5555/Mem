@@ -60,6 +60,10 @@ class MemoryItem:
     # turns in 221 tokens. A fragment is kept whole or dropped with its ids;
     # never kept as a bare id whose text is gone.
     fragments: List[tuple] = field(default_factory=list)
+    # Who said it. The scorer is asked about an item when it is EVICTED from
+    # Tier 1, several turns after it arrived, so the speaker has to travel
+    # with the item rather than be read off the turn that pushed it out.
+    speaker: str = "user"
 
     @property
     def evidence_ids(self) -> List[str]:
