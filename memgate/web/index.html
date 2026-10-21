@@ -224,7 +224,8 @@ async function refreshChats(current) {
 function showTranscript(s) {
   $('msgs').innerHTML = '';
   addMsg('sys', `${s.title} · ${s.mode_label} · ${s.scale} scale`);
-  for (const m of s.transcript) addMsg(m.speaker === 'user' ? 'user' : 'assistant', m.text);
+  for (const m of s.transcript) addMsg(m.speaker === 'user' ? 'user' : 'assistant',
+                                      m.file ? `📄 ${m.file.name} (added to memory)` : m.text);
   $('ctx').innerHTML = '<div class="empty">Send a message to see what MemGate puts in the prompt.</div>';
 }
 

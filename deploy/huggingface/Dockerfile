@@ -16,7 +16,7 @@ WORKDIR /home/user
 
 # What the app needs online. MiniLM runs on onnxruntime instead of torch:
 # the same weights (memgate/utils.py, _OnnxMiniLM), a ~1 GB smaller image.
-RUN pip install --no-cache-dir --user numpy tiktoken onnxruntime tokenizers anthropic
+RUN pip install --no-cache-dir --user numpy tiktoken onnxruntime tokenizers anthropic pypdf
 
 # The exact token counter the experiments used, fetched once at build.
 RUN python -c "import tiktoken; tiktoken.get_encoding('cl100k_base')"
