@@ -537,7 +537,7 @@ function render(s) {
   $('sRow').style.display = s.mode === 'p1' ? 'none' : '';
   $('title').textContent = s.title;
   $('modePill').textContent = `${s.mode.toUpperCase().replace('P1S', 'P1-S').replace('P1A', 'P1-A')} · ${s.scale} sizes`;
-  $('info').innerHTML = `Model: ${esc(s.model)}${s.model_note ? ` <span title="${esc(s.model_note)}">(fallback)</span>` : ''}<br>Scorer: ${esc(s.scorer || '')}<br>Embedder: ${esc(s.backends.embedder)}`;
+  $('info').innerHTML = `Model: ${esc(s.model)}${s.model_note ? `<br><span style="color:var(--drop)">${esc(s.model_note)}</span>` : ''}<br>Scorer: ${esc(s.scorer || '')}<br>Embedder: ${esc(s.backends.embedder)}`;
   const c = s.counts;
   const kept = s.said_tokens ? Math.round(100 * s.stored_tokens / s.said_tokens) : 100;
   $('stats').innerHTML = `<span><b>${s.messages}</b>messages</span>

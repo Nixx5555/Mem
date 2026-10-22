@@ -265,14 +265,29 @@ R.ChatModel._reply = fake_local
 out = m.reply("notes", "hello")
 check("a lasting 429 answers this message with Qwen but keeps Gemini",
       out == "local answer" and m.backend == "gemini" and local == ["hello"]
-      and "free-tier" in (m.note or ""))
+      and "local model answered" in (m.note or ""))
 gemini_says(ok("gemini again"))
 check("the next message goes back to Gemini and clears the note",
       m.reply("", "y") == "gemini again" and m.note is None)
 gemini_says(OSError("no internet"))
 out = m.reply("notes", "offline?")
-check("no internet switches to Qwen for good",
-      out == "local answer" and m.backend == "hf" and "Gemini failed" in m.note)
+check("no internet: Qwen answers this message, Gemini stays the main model",
+      out == "local answer" and m.backend == "gemini" and "unreachable" in m.note)
+gemini_says(R.Busy(503, "This model is currently experiencing high demand."))
+sent.clear()
+out = m.reply("notes", "busy?")
+check("a lasting 503 tries the other free models, then Qwen for this message",
+      out == "local answer" and m.backend == "gemini"
+      and [x[0] for x in sent] == [R.GEMINI_MODEL, R.GEMINI_MODEL] + list(R.GEMINI_BACKUPS),
+      str([x[0] for x in sent]))
+gemini_says(R.Busy(503, "high demand"), R.Busy(503, "high demand"), ok("from the lite model"))
+sent.clear()
+check("when the main model is overloaded a backup model answers",
+      m.reply("", "z") == "from the lite model" and sent[-1][0] == R.GEMINI_BACKUPS[0])
+gemini_says(R.Busy(503, "x"), R.Busy(503, "x"), R.GeminiError(404, "not found"), ok("2.5"))
+sent.clear()
+check("a retired backup model is skipped", m.reply("", "z") == "2.5"
+      and sent[-1][0] == R.GEMINI_BACKUPS[1])
 R.ChatModel._reply = real_hf_reply
 world(gemini=True)
 m = R.ChatModel("gemini")
@@ -295,6 +310,67 @@ check("Google's retryDelay is read from a 429 body",
       and R._retry_delay("not json", {"Retry-After": "4"}) == 4.0
       and R._retry_delay("", {}) == 5.0)
 R._gemini_post, R.time.sleep = real[4], real[5]
+
+print("\n-- sending the key to Google (a local fake server) --")
+import json as _json
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+seen = []
+
+
+class Google(BaseHTTPRequestHandler):
+    """Accepts the key only as ?key=, like an AQ. key on a picky endpoint."""
+    def log_message(self, *a):
+        pass
+
+    def _answer(self):
+        n = int(self.headers.get("Content-Length") or 0)
+        if n:
+            self.rfile.read(n)
+        how = ("query" if "key=" in self.path else
+               "header" if self.headers.get("x-goog-api-key") else
+               "bearer" if self.headers.get("Authorization") else "none")
+        seen.append(how)
+        ok = how == "query" and "key=AQ.good" in self.path
+        body = ({"candidates": [{"content": {"parts": [{"text": "hi there"}]}}]}
+                if ok else {"error": {"code": 401, "message":
+                                      "API key not valid. Please pass a valid API key."}})
+        out = _json.dumps(body).encode()
+        self.send_response(200 if ok else 401)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(out)
+
+    do_GET = do_POST = _answer
+
+
+srv = HTTPServer(("127.0.0.1", 0), Google)
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+real_url = R.GEMINI_URL
+R.GEMINI_URL = f"http://127.0.0.1:{srv.server_port}/v1beta/models/{{model}}:generateContent"
+R._auth_ok.clear()
+os.environ["GEMINI_API_KEY"] = "AQ.good" + "k" * 20
+m = R.ChatModel("gemini")
+m.load()
+check("a key refused in the header is retried as ?key= before giving up",
+      seen[:2] == ["header", "query"] and R._auth_ok.get(m._client) == "query", str(seen))
+seen.clear()
+check("the way that worked is used for the replies",
+      m.reply("", "hello") == "hi there" and seen == ["query"], str(seen))
+os.environ["GEMINI_API_KEY"] = "AQ.bad" + "k" * 20
+seen.clear()
+try:
+    R.ChatModel("gemini").load()
+    check("a key refused every way is reported as rejected", False)
+except RuntimeError as exc:
+    check("a key refused every way is reported as rejected",
+          "rejected" in str(exc) and set(seen) == {"header", "query", "bearer"}, str(seen))
+os.environ["GEMINI_API_KEY"] = " 'AQ.good" + "k" * 20 + "'\x1b[201~ "
+check("a pasted key is cleaned of quotes, spaces and paste markers",
+      R._gemini_key() == "AQ.good" + "k" * 20)
+srv.shutdown()
+R.GEMINI_URL = real_url
+os.environ.pop("GEMINI_API_KEY", None)
 
 print("\n-- the local Qwen backend, transformers 4 and 5 (faked) --")
 import contextlib

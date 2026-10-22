@@ -64,6 +64,15 @@ def load_env(path=None):
     return applied
 
 
+def clean_key(key):
+    """A pasted key without what tends to come with it: spaces, quotes, and
+    the invisible bracketed-paste markers some terminals (VS Code's among
+    them) wrap a paste in, which hidden input on Windows keeps."""
+    key = re.sub(r"\x1b\[20[01]~", "", key or "")
+    key = "".join(c for c in key if c.isprintable() and not c.isspace())
+    return key.strip("'\"")
+
+
 def looks_like_key(key):
     return bool(re.fullmatch(r"sk-ant-[A-Za-z0-9_\-]{20,}", key or ""))
 

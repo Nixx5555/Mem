@@ -25,6 +25,7 @@ import platform
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 SYSTEM = ("You are a helpful assistant in a long-running chat. You do not see "
@@ -48,6 +49,10 @@ GEMINI_URL = ("https://generativelanguage.googleapis.com/v1beta/models/"
 # The free tier allows only a few requests a minute. A 429 is retried after
 # Google's suggested wait, up to this many seconds in total.
 GEMINI_WAIT = 20
+# Other free-tier models to ask when the main one is overloaded (503) or
+# rate limited: each has its own quota and its own load.
+GEMINI_BACKUPS = ("gemini-flash-lite-latest", "gemini-2.5-flash",
+                  "gemini-2.5-flash-lite")
 REMOTE = ("claude", "gemini")
 
 
@@ -79,7 +84,9 @@ def _has_key():
 
 
 def _gemini_key():
-    return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    from memgate.envfile import clean_key
+    return clean_key(os.environ.get("GEMINI_API_KEY")
+                     or os.environ.get("GOOGLE_API_KEY") or "")
 
 
 class GeminiError(RuntimeError):
@@ -88,8 +95,21 @@ class GeminiError(RuntimeError):
         self.status = status
 
 
-class RateLimited(GeminiError):
+class KeyRejected(RuntimeError):
+    """The provider refused the API key: the one failure that lasts."""
+
+
+class Temporary(GeminiError):
+    """Google is busy or the quota is used up: try again soon, or elsewhere."""
+    wait = 2.0
+
+
+class RateLimited(Temporary):
     pass
+
+
+class Busy(Temporary):
+    """A 5xx, such as 503 "the model is experiencing high demand"."""
 
 
 def _retry_delay(body, headers):
@@ -106,17 +126,46 @@ def _retry_delay(body, headers):
         return 5.0
 
 
+# Ways to send the key. Google documents the header; the newer AQ. keys
+# have been refused by some endpoints that way (a Google bug it has
+# acknowledged), so the others are tried before a key is called invalid.
+AUTH_MODES = ("header", "query", "bearer")
+_auth_ok = {}                   # key -> the way that worked
+
+
 def _gemini_post(model, key, payload, timeout=60.0):
     """POST to generateContent (or, with payload None, GET the model's info,
     which checks the key without using any of the free quota). Returns the
     JSON reply; raises RateLimited on 429 (with .wait) and GeminiError on any
-    other HTTP error."""
+    other HTTP error, after trying each way of sending the key."""
+    last = None
+    for mode in ([_auth_ok[key]] if key in _auth_ok else AUTH_MODES):
+        try:
+            r = _gemini_once(model, key, payload, timeout, mode)
+        except GeminiError as exc:
+            if isinstance(exc, Temporary) or not _key_rejected(exc):
+                raise
+            last = exc
+            continue
+        _auth_ok[key] = mode
+        return r
+    raise last
+
+
+def _gemini_once(model, key, payload, timeout, mode):
     url = GEMINI_URL.format(model=model)
     if payload is None:
         url = url.rsplit(":", 1)[0]
+    headers = {"Content-Type": "application/json"}
+    if mode == "header":
+        headers["x-goog-api-key"] = key
+    elif mode == "query":
+        url += "?" + urllib.parse.urlencode({"key": key})
+    else:
+        headers["Authorization"] = f"Bearer {key}"
     req = urllib.request.Request(
         url, data=None if payload is None else json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json", "x-goog-api-key": key})
+        headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read().decode())
@@ -130,13 +179,16 @@ def _gemini_post(model, key, payload, timeout=60.0):
             err = RateLimited(429, msg)
             err.wait = _retry_delay(body, exc.headers)
             raise err from None
+        if exc.code >= 500:
+            raise Busy(exc.code, msg) from None
         raise GeminiError(exc.code, msg) from None
 
 
 def _key_rejected(exc):
-    if type(exc).__name__ in ("AuthenticationError", "PermissionDeniedError"):
+    if isinstance(exc, KeyRejected) or type(exc).__name__ in (
+            "AuthenticationError", "PermissionDeniedError"):
         return True
-    return (isinstance(exc, GeminiError) and not isinstance(exc, RateLimited)
+    return (isinstance(exc, GeminiError) and not isinstance(exc, Temporary)
             and (exc.status in (401, 403) or "API key" in str(exc)))
 
 
@@ -188,7 +240,8 @@ def _path_for(backend):
 def _prompt(notes, message):
     return [{"role": "system", "content": SYSTEM},
             {"role": "user", "content":
-             f"Memory notes:\n{notes or '(empty)'}\n\nMessage: {message}"}]
+             f"Memory notes (said earlier in this chat):\n{notes or '(empty)'}"
+             f"\n\nThe user's new message. Reply to this one:\n{message}"}]
 
 
 class ChatModel:
@@ -251,12 +304,22 @@ class ChatModel:
             # Check the key and the internet now, at start, so a bad key or
             # no Wi-Fi switches to the local model before the first message
             try:
-                _gemini_post(self.path, key, None, timeout=15.0)
-            except RateLimited:
-                pass                      # the key works; the limit passes
+                try:
+                    _gemini_post(self.path, key, None, timeout=15.0)
+                except GeminiError as exc:
+                    if isinstance(exc, Temporary) or not _key_rejected(exc):
+                        raise
+                    # the model-info call refused it; a one-token reply is
+                    # the final word before giving up on the key
+                    _gemini_post(self.path, key, {
+                        "contents": [{"role": "user", "parts": [{"text": "hi"}]}],
+                        "generationConfig": {"maxOutputTokens": 1}},
+                        timeout=20.0)
+            except Temporary:
+                pass                      # the key works; Google is just busy
             except GeminiError as exc:
                 if _key_rejected(exc):
-                    raise RuntimeError(
+                    raise KeyRejected(
                         f"Gemini rejected the key ({exc}). Check it at "
                         "https://aistudio.google.com/apikey and save it with  "
                         "python set_key.py") from None
@@ -269,24 +332,12 @@ class ChatModel:
         with self.lock:
             try:
                 out = self._reply(notes, message)
-                if self.note and self.note.startswith("Gemini's free-tier"):
+                if self.note and self.note.startswith("Gemini"):
                     self.note = None
                 return out
-            except RateLimited:
-                # Free-tier limit: temporary, so Gemini stays the main model.
-                # This one message is answered locally when Qwen is
-                # downloaded, else the page says to wait.
-                if self.fallback:
-                    if self._spare is None:
-                        self._spare = ChatModel(self.fallback)
-                    self.note = ("Gemini's free-tier limit was reached; the "
-                                 "local model answered this message")
-                    print(f"  [MemGate] {self.note}", flush=True)
-                    return self._spare._reply(notes, message)
-                return ("(Gemini's free-tier limit was reached. Wait about a "
-                        "minute and send the message again. MemGate has "
-                        "already saved it to memory.)")
             except Exception as exc:
+                if self.backend == "gemini" and not _key_rejected(exc):
+                    return self._gemini_failed(exc, notes, message)
                 if self.backend not in REMOTE:
                     raise
                 if not self.fallback:
@@ -320,7 +371,14 @@ class ChatModel:
             with torch.no_grad():
                 gen = self._model.generate(
                     ids, attention_mask=enc.get("attention_mask"),
-                    max_new_tokens=512, do_sample=False)
+                    max_new_tokens=512,
+                    # Qwen's own recommended sampling. Greedy decoding made
+                    # the 1.5B model copy a line from the notes (its own
+                    # earlier "Hello! How can I assist you today?") as the
+                    # reply to every message; the penalty covers the prompt
+                    # too, so copying the notes word for word costs more.
+                    do_sample=True, temperature=0.7, top_p=0.8, top_k=20,
+                    repetition_penalty=1.1)
             out = self._tok.decode(gen[0, ids.shape[-1]:],
                                    skip_special_tokens=True)
         elif self.backend == "gemini":
@@ -339,6 +397,27 @@ class ChatModel:
             out = "".join(b.text for b in r.content if b.type == "text")
         return out.strip()
 
+    def _gemini_failed(self, exc, notes, message):
+        """Gemini couldn't answer this message (busy, quota, no internet).
+        That passes, so Gemini stays the main model: this one message is
+        answered locally when Qwen is downloaded, else the page says to
+        send it again. Only a rejected key switches models for good."""
+        why = (f"Gemini {exc.status}" if isinstance(exc, GeminiError)
+               else f"no connection to Gemini ({type(exc).__name__})")
+        print(f"  [MemGate] {why}: {str(exc)[:200]}", flush=True)
+        if self.fallback:
+            if self._spare is None:
+                self._spare = ChatModel(self.fallback)
+            self.note = (f"Gemini was busy or unreachable ({why}); the local "
+                         f"model answered this message")
+            return self._spare._reply(notes, message)
+        if isinstance(exc, RateLimited):
+            return ("(Gemini's free-tier limit was reached. Wait about a "
+                    "minute and send the message again. MemGate has "
+                    "already saved it to memory.)")
+        return (f"(Gemini couldn't answer just now: {why}. Send the message "
+                "again in a moment. MemGate has already saved it to memory.)")
+
     def _gemini(self, msgs):
         payload = {
             "systemInstruction": {"parts": [{"text": SYSTEM}]},
@@ -346,22 +425,7 @@ class ChatModel:
                           "parts": [{"text": msgs[1]["content"]}]}],
             "generationConfig": {"maxOutputTokens": 4096},
         }
-        # With Qwen downloaded, hand over sooner rather than keep the page
-        # waiting; without it, wait out the limit a little longer.
-        budget = 5 if self.fallback else GEMINI_WAIT
-        waited = 0.0
-        while True:
-            try:
-                r = _gemini_post(self.path, self._client, payload)
-                break
-            except RateLimited as exc:
-                wait = min(max(exc.wait, 1.0), budget - waited)
-                if wait <= 0:
-                    raise
-                print(f"  [MemGate] Gemini rate limit; retrying in "
-                      f"{wait:.0f}s", flush=True)
-                time.sleep(wait)
-                waited += wait
+        r = self._gemini_any(payload)
         if (r.get("promptFeedback") or {}).get("blockReason"):
             return "(the model declined to answer this message)"
         cands = r.get("candidates") or []
@@ -372,3 +436,35 @@ class ChatModel:
         if not out.strip() and cands[0].get("finishReason") == "SAFETY":
             return "(the model declined to answer this message)"
         return out
+
+    def _gemini_any(self, payload):
+        """Ask the main model, waiting briefly when it is busy or limited,
+        then the other free-tier models in turn. Raises the last Temporary
+        error when none of them could answer."""
+        # With Qwen downloaded, hand over sooner rather than keep the page
+        # waiting; without it, wait a little longer.
+        budget = 6 if self.fallback else GEMINI_WAIT
+        waited, last = 0.0, None
+        models = [self.path] + [m for m in GEMINI_BACKUPS if m != self.path]
+        for i, model in enumerate(models):
+            for attempt in range(2 if i == 0 else 1):
+                try:
+                    r = _gemini_post(model, self._client, payload)
+                    if model != self.path:
+                        print(f"  [MemGate] {model} answered while "
+                              f"{self.path} was busy", flush=True)
+                    return r
+                except Temporary as exc:
+                    last = exc
+                    wait = min(max(exc.wait, 1.0), budget - waited)
+                    if attempt or i or wait <= 0:
+                        break             # on to the next model
+                    print(f"  [MemGate] Gemini {exc.status} (busy or "
+                          f"limited); retrying in {wait:.0f}s", flush=True)
+                    time.sleep(wait)
+                    waited += wait
+                except GeminiError as exc:
+                    if exc.status == 404 and i:
+                        break             # that backup model is retired
+                    raise
+        raise last
