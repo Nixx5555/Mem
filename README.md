@@ -32,7 +32,11 @@ S = 4096; the gain is significant at every budget from 2,048 to 16,384 tokens).
 Against rebuilds of **MemGPT's and Mem0's memory designs** at the same
 budgets (tuned on LoCoMo, which favours them), the learned scorer wins at every
 budget: 52.0% against 44.5% (Mem0-style) and 30.2% (MemGPT-style) at S = 4096
-(REPORT.md §3.13).
+(REPORT.md §3.13). At scale, it beats plain retrieval on chats of up to 10
+million tokens it never trained on. Typed into the app, million-token chats
+keep the answer for 51.9% of questions, against RAG's 19.2%. The shipped
+scorer is trained on 856,876 turns, including everyday chat (REPORT.md §3.14,
+docs/SCALE_TEST.md).
 
 | | |
 |---|---|
@@ -42,6 +46,6 @@ budget: 52.0% against 44.5% (Mem0-style) and 30.2% (MemGPT-style) at S = 4096
 | `frontend/index.html` | The interactive results dashboard (opens offline) |
 | `memgate/` | The library, the app (`app.py`), 17 experiment scripts and the tests |
 
-Run all the tests inside `memgate/` with `python run_tests.py` (395 tests in
+Run all the tests inside `memgate/` with `python run_tests.py` (408 tests in
 nine suites; add `--full` to also re-run the LoCoMo benchmark check). They
 need the downloaded models.

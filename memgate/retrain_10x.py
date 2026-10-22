@@ -367,7 +367,8 @@ def main():
                     help="also run the app path on these corpora (e.g. beam1m); "
                          "its chunks are embedded as they come, so this is slow")
     ap.add_argument("--report", action="store_true")
-    ap.add_argument("--export", action="store_true")
+    ap.add_argument("--export", default="",
+                    help="fit this candidate on all its corpora and ship it")
     args = ap.parse_args()
     args.app_extra = tuple(c for c in args.app_extra.split(",") if c)
     args.cands = tuple(c for c in args.cands.split(",") if c)
@@ -398,16 +399,51 @@ def main():
                      for t in (f"[{spk}] {x}", x)], np.float32)
     talk = (Xt, np.zeros(len(Xt), np.int8))
     if args.export:
-        export(units, feats, talk)
+        export(args.export, units, feats, talk)
         return
     run(args, units, feats, talk)
     report()
 
 
-def export(units, feats, talk):
-    """Fit 10x on everything, calibrate as PR #12 did, print the app's sanity
-    lines, and write the shipped model."""
-    full = R.fit(feats, units, list(range(len(units))), talk)
+def collapse(ens):
+    """A LogitMean of scaler + LR pipelines as ONE scaler + LR pipeline.
+
+    Each part's logit is w . (x - m) / s + b, so their mean is linear in x:
+    the identity scaler and coef = mean(w / s), intercept = mean(b - w . m / s).
+    """
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import make_pipeline
+    ws = [m[-1].coef_[0] / m[0].scale_ for m in ens.parts]
+    bs = [m[-1].intercept_[0] - w @ m[0].mean_ for m, w in zip(ens.parts, ws)]
+    d = len(ws[0])
+    sc = StandardScaler()
+    sc.mean_, sc.scale_, sc.var_ = np.zeros(d), np.ones(d), np.ones(d)
+    sc.n_features_in_, sc.n_samples_seen_ = d, 1
+    lr = LogisticRegression()
+    lr.coef_ = np.mean(ws, axis=0)[None, :]
+    lr.intercept_ = np.array([np.mean(bs)])
+    lr.classes_ = np.array([0, 1])
+    lr.n_features_in_ = d
+    out = make_pipeline(sc, lr)
+    X = np.random.default_rng(0).normal(size=(50, d)).astype(np.float32)
+    assert np.allclose(out.decision_function(X), ens.decision_function(X), atol=1e-4)
+    return out
+
+
+def export(name, units, feats, talk):
+    """Fit candidate `name` on every conversation of its corpora, calibrate as
+    PR #12 did, print the app's sanity lines, and write the shipped model."""
+    if name in ENS:
+        parts = []
+        for part in ENS[name]:
+            k, f = CANDS[part]
+            parts.append(f(feats, units, [j for j, u in enumerate(units) if u[0] in k], talk))
+        full = collapse(LogitMean(*parts))
+        keep = tuple(dict.fromkeys(c for part in ENS[name] for c in CANDS[part][0]))
+    else:
+        keep, fitter = CANDS[name]
+        full = fitter(feats, units, [j for j, u in enumerate(units) if u[0] in keep], talk)
     prev = [i for i, u in enumerate(units) if u[0] in ("locomo", "realtalk")]
     R.calibrate(full, feats, prev)
     sc = LearnedScorer(model=full, use_embedding=True, embedder=embed)
@@ -419,17 +455,28 @@ def export(units, feats, talk):
         log(f"    {sc.score(f'[user] {p}', 'user')[0]:.2f}  {p}")
     from memgate.pretrained import MODEL_PATH, load_learned
     s, lr = full[0], full[-1]
-    y = np.concatenate([f[1] for f in feats])
-    n = {c: sum(len(u[2]) for u in units if u[0] == c) for c in LOADERS}
+    idx = [j for j, u in enumerate(units) if u[0] in keep]
+    y = np.concatenate([feats[j][1] for j in idx])
+    n = {c: sum(len(u[2]) for u in units if u[0] == c) for c in keep}
+    names = {"locomo": "LoCoMo", "realtalk": "REALTALK", "beam": "BEAM 100K",
+             "beam500": "BEAM 500K", "beam1m": "BEAM 1M", "beam10m": "BEAM 10M",
+             "mb3": "MemBench ThirdAgent", "mb1": "MemBench FirstAgent",
+             "persona": "PersonaChat"}
+    chats = {c: sum(1 for u in units if u[0] == c) for c in keep}
     d = {"model": "StandardScaler + LogisticRegression(class_weight=balanced)",
-         "trained_on": "LoCoMo (10) + REALTALK (10) + BEAM 100K (20) + 500K (35) "
-                       "+ 1M (35) + 10M (10) + MemBench ThirdAgent (3,455) + "
-                       "FirstAgent (875), every turn; label = cited as evidence "
-                       "by any question; corpus families (LoCoMo, REALTALK, BEAM, "
-                       "MemBench) weighted equally; plus "
-                       f"{len(talk[1])} small-talk lines as negatives at 5% weight "
-                       "(retrain_10x.py); logit rescaled so P1's thresholds "
-                       "split LoCoMo + REALTALK as the PR #4 model did",
+         "candidate": name,
+         "trained_on": " + ".join(f"{names[c]} ({chats[c]:,})" for c in keep)
+                       + ", every turn; label = cited as evidence by any question "
+                       "(PersonaChat: states a persona line); corpus families "
+                       "weighted equally"
+                       + (", each family's weight split by evidence turns"
+                          if name.endswith("-pos") else "")
+                       + (f"; the logit mean of {' and '.join(ENS[name])}, "
+                          "each fitted as above (PR #12's recipe on its corpora)"
+                          if name in ENS else "")
+                       + f"; plus {len(talk[1])} small-talk lines as negatives at "
+                       "5% weight (retrain_10x.py); logit rescaled so P1's "
+                       "thresholds split LoCoMo + REALTALK as the PR #4 model did",
          "n_turns": int(len(y)), "turns_per_corpus": n,
          "positive_rate": float(y.mean()),
          "embedder": backend_info()["embedder"], "use_embedding": True,

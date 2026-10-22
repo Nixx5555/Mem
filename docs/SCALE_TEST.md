@@ -1,18 +1,18 @@
-# Scale test: ten times the training data, chats of up to 10 million tokens
+# Scale test: 14.6x the training data, everyday chat, and chats of up to 10 million tokens
 
 Date: 21–22 October 2026. As in the stress test (docs/STRESS_TEST.md), no chat model is involved: what is checked is whether the right note reaches the model. The metrics are the paper's:
 
 - **answer recall**: the reference answer's words are in the assembled context, over questions whose answer is in their evidence;
 - **evidence recall** (soft recall): the share of a question's cited turns that reach the context. Every question with evidence has one, so on BEAM it covers about ten times as many questions as answer recall.
 
-Every comparison has a 95% confidence interval from a bootstrap that resamples whole conversations (10,000 draws). **sig** means the interval excludes zero.
+Every comparison has a 95% confidence interval from a bootstrap that resamples whole conversations (10,000 draws). **sig** means the interval excludes zero. The bootstrap shares one random stream, so re-running `retrain_10x.py --report` re-draws the intervals; `results/scale/summary.json` may differ from the tables here by a few tenths of a point at the ends. The means and every sig/not-sig call are unchanged.
 
 | Script | What it does |
 |---|---|
 | `memgate/retrain_10x.py` | Builds the 10x training set, fits the candidates 5-fold by conversation, replays every held-out conversation at several budgets, reports with CIs. Checkpointed: every replay is appended to `results/scale/replays.jsonl` as it finishes. |
 | `memgate/scale_cache.py` | MiniLM embeddings for the 10x set (628,227 strings), written in shards of 20,000 so a restarted run loses at most one shard. |
 | `memgate/scale_app.py` | Types whole BEAM chats into the real app one message at a time, then asks their questions; and the load tests, over HTTP. |
-| `memgate/memgate/data.py` | New loaders: BEAM 1M (duplicate ids resolved), BEAM 10M, MemBench. |
+| `memgate/memgate/data.py` | New loaders: BEAM 1M (duplicate ids resolved), BEAM 10M, MemBench, PersonaChat. |
 
 ## 1. The headline
 
@@ -113,9 +113,57 @@ Through the app path (chunking + GuardedScorer + query extraction), 10x-eq gains
 
 LoCoMo and REALTALK move by 2.5 points or less either way, with signs that change between shuffles.
 
-**Decision: PR #12's scorer stays shipped.** The rule since PR #12 has been to ship only a model that loses nowhere. Both 10x models lose significantly on BEAM 1M, the longest chats with enough questions to measure, in every shuffle. Their gain is on MemBench, the corpus that was added. MemBench is easy, short-fact chat where P1's rules already do well.
+**First-round decision: neither ships.** The rule since PR #12 has been to ship only a model that loses nowhere. Both 10x models lose significantly on BEAM 1M, the longest chats with enough questions to measure, in every shuffle. Their gain is on MemBench, the corpus that was added. MemBench is easy, short-fact chat where P1's rules already do well. Section 4b fixes this.
 
-**Why more data did not help (our reading, not tested).** The scorer is a linear model on 399 features. PR #12's set probably already had enough data for it; what it lacks is capacity. The new data adds new kinds of chat, and a linear model has to trade between them. MemBench pulls the weights toward short factual statements, and BEAM's long technical answers lose ranking. The extra data is dominated by negatives: 10M adds 208,696 turns but only a few hundred evidence labels. More data would need a model with more capacity (PR #4 found boosted trees and a small MLP no better at the old size; that is worth retrying at this size), or a gate that picks the scorer by the kind of chat.
+**Why plain 10x did not help (our reading at the time).** The scorer is a linear model on 399 features. PR #12's set probably already had enough data for it; what it lacks is capacity. The new data adds new kinds of chat, and a linear model has to trade between them. MemBench pulls the weights toward short factual statements, and BEAM's long technical answers lose ranking. The extra data is dominated by negatives: 10M adds 208,696 turns but only a few hundred evidence labels. More data would need a model with more capacity (PR #4 found boosted trees and a small MLP no better at the old size; that is worth retrying at this size), or a gate that picks the scorer by the kind of chat.
+
+## 4b. Second round: fixing the BEAM 1M loss, and adding everyday chat
+
+**Asked for:** make a model trained on more data that does not lose on the million-token chats, and train it on some everyday chats as well.
+
+**Everyday chat.** PersonaChat (Zhang et al., 2018): 18,878 casual conversations between two crowdworkers, one of them playing five persona lines ("i like to go hunting ."). The data is the copy the transfer-learning-conv-ai code downloads from s3.amazonaws.com, which the cloud can reach. It has no questions, so its labels are weak: a turn of the persona speaker is evidence when it states one of their lines (at least half the line's content words, and at least two). That covers about 22% of their turns. The partner's own facts are not labelled, because their persona is not in the file. 20 dialogues are joined as the sessions of one long chat. The train split gives 894 such chats and 262,876 turns. The validation split gives 50 chats and 15,602 turns, which are **never trained on by any model** and serve as an everyday-chat test. Each stated persona line is asked as a query (1,762 of them), and the answer is the words of it that the person said. That is a proxy, since query and evidence share wording, but it treats every memory the same. S = 1,024, a quarter of a chat.
+
+**Candidates** (`retrain_10x.py`, names as in `results/scale/summary.json`):
+
+| Name | What it changes | Training turns |
+|---|---|---|
+| 10x-pos | the 10x set, but each family's weight is split among its corpora by **evidence turns**, not equally or by turns. BEAM 10M brings 208,696 turns but few labels, so it now counts for little. | 594,000 |
+| hgb-eq | boosted trees (HistGradientBoosting) instead of logistic regression, on 10x-eq's weights | 594,000 |
+| ens | the mean of the logits of PR #12 and 10x-eq | 594,000 |
+| r2-pos | 10x-pos + PersonaChat as a fifth family ("everyday") | 856,876 |
+| **r2-ens-pos** | **the mean of the logits of PR #12 and r2-pos**. It is still one logistic regression (`collapse()` folds the two into one coef and intercept), so it ships in the same JSON. | **856,876 (14.6x)** |
+
+**Screen** (seed 0, the paper's budgets): boosted trees win big on BEAM (BEAM 500K answer +12.7, **sig**) but lose LoCoMo by **−8.5 [−11.2, −5.3]**, so they are out. The plain blend `ens` is flat. r2-pos alone wins everyday chat by +8.9 but loses BEAM 1M evidence recall by −2.8 (**sig**). 10x-pos and r2-ens-pos had no significant loss at any corpus, so both went to the full check.
+
+**Full check**: three fold shuffles at the paper's budgets, plus every budget on seed 0. The table shows the difference from PR #12; * marks **sig**.
+
+| Corpus | 10x-pos answer | 10x-pos evidence | **r2-ens-pos answer** | **r2-ens-pos evidence** |
+|---|---|---|---|---|
+| LoCoMo | +1.1, +0.8, +0.1 | −0.3, +0.3, +0.4 | +1.5, −0.3, +0.3 | +0.1, −0.2, +0.2 |
+| REALTALK | +4.4, +1.2, +1.2 | −1.0, −0.5, +0.3 | 0.0, 0.0, +0.6 | −0.3, −0.8, +0.2 |
+| BEAM 100K | +5.9, +2.9, −2.9 | −0.1, +0.8, −1.5 | 0.0, +2.9, −2.9 | +1.8, +1.8*, +0.6 |
+| BEAM 500K | 0.0, +1.8, −1.8 | +0.2, +1.4, +1.9 | −1.8, +1.8, +1.8 | +1.6, +2.0, +2.8* |
+| BEAM 1M | +5.8, +5.8, +9.6* | −0.4, −2.1, −0.7 | 0.0, −1.9, +1.9 | +0.3, 0.0, −0.4 |
+| BEAM 10M | −15.4, −7.7, −15.4 | +0.2, −2.2, +0.2 | −15.4, 0.0, −7.7 | −1.2, −1.8, +1.2 |
+| MemBench | +1.6, +1.9, +1.9* | +5.3*, +5.7*, +6.1* | +1.9*, +1.9*, +2.2* | +5.6*, +5.9*, +6.4* |
+| **Everyday chat** (held out) | +4.2*, +4.7*, +4.9* | +5.3*, +5.5*, +5.7* | **+7.6*, +8.2*, +8.0*** | **+8.8*, +9.1*, +9.3*** |
+| App path, BEAM 100K | +8.8, +8.8, +8.8 | +9.4*, +6.8*, +9.4* | **+11.8*, +11.8*, +8.8** | **+12.4*, +11.5*, +11.9*** |
+| App path, LoCoMo | +1.4, +1.0, 0.0 | −0.3, +0.5, +0.4 | +1.5, 0.0, +0.4 | +0.3, +0.1, +0.5 |
+| App path, REALTALK | +3.1, +3.1, +3.8 | −0.9, −0.3, +1.1 | +3.1, +1.9, +0.6 | +0.5, −0.1, 0.0 |
+
+BEAM 10M's answer column rests on 13 questions: one question is 7.7 points, and none of those differences is significant. Its evidence column (128 questions) is flat.
+
+At the other budgets (seed 0), r2-ens-pos has one significant loss: **BEAM 1M evidence recall at S = 8,000, −1.7 [−2.8, −0.6]**, about one cited turn in sixty. 10x-pos has two: the same cell (−2.4) and REALTALK answer recall at S = 1,024 (−3.1). Gains include MemBench +5.6 to +19.3 at S = 512–2,048, everyday chat +2.4 to +11.9 at every budget, and BEAM 100K and 500K evidence recall at S = 8,000.
+
+Everyday chat, held out, S = 1,024: RAG 28.8%, P1 30.4%, PR #12 61.4%, **r2-ens-pos 69.0%** (answer recall, seed 0).
+
+**Shipped: r2-ens-pos.** It meets the rule at the paper's budgets in all three shuffles: no significant loss on any of the eight corpora or the app path. It wins significantly on everyday chat, MemBench and the app path on BEAM 100K. On BEAM 1M it ties PR #12 rather than beating it; the round-1 loss is gone, but there is no gain to claim there. The one significant loss anywhere is the S = 8,000 BEAM 1M cell above, which is off the default budget, small, and is said here rather than hidden.
+
+Why the blend works where the 10x models alone did not (our reading): PR #12's half keeps the ranking that suits BEAM's long answers, and r2-pos's half adds what the new chats taught. Averaging logits keeps both, at a linear model's cost.
+
+**App checks for the shipped file.** Small talk scores 0.00 ("Hi!", "ok thanks", "cool"). A dated short fact scores 0.10 (PR #12: 0.07), and GuardedScorer still floors it at P1's score. `run_tests.py`: 408/408, including `test_scorer.py` and the small-talk checks in `test_ingest.py`. With a document uploaded into a LoCoMo chat (`stress_upload_midchat.py`, both in-sample), recall is 52.2 / 48.5 / 44.6% for no document, 8k and 20k tokens. PR #12 gave 53.4 / 47.3 / 43.6%.
+
+The headline in section 1 (BEAM 1M typed into the app) was measured with PR #12's scorer, before this one shipped. Typing the 33 chats again takes about 10 hours, so it was not repeated. The held-out app-path rows above are this model's.
 
 ## 5. Load
 
@@ -148,6 +196,11 @@ python3 retrain_10x.py --embed-only     # ~2 h on 4 cores, resumable
 python3 retrain_10x.py --sweep          # 5 folds, all budgets, ~3 h
 python3 retrain_10x.py --seeds 0,1,2    # + two reshuffled fold orders, ~2 h
 python3 retrain_10x.py --report         # tables -> results/scale/summary.json
+mkdir -p data/personachat && curl -o data/personachat/personachat_self_original.json \
+  https://s3.amazonaws.com/datasets.huggingface.co/personachat/personachat_self_original.json
+python3 retrain_10x.py --seeds 0 --cands 10x-pos,hgb-eq,ens,r2-pos,r2-ens-pos   # screen
+python3 retrain_10x.py --seeds 0,1,2 --sweep --cands 10x-pos,r2-ens-pos         # full check
+python3 retrain_10x.py --export r2-ens-pos                                      # ship
 python3 scale_app.py --part beam --scales 1M,500K --budgets 26000   # ~10 h
 python3 scale_app.py --part load
 ```
