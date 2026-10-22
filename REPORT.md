@@ -554,11 +554,13 @@ on these answers. Answer recall, %:
 
 - The learned scorer beats both at every budget, every gap significant
   (paired bootstrap and McNemar): over Mem0-style by +7.27, +7.55, +16.50 and
-  +24.62 points, over MemGPT-style by +14.97 to +22.66.
+  +24.62 points, over MemGPT-style by +11.47 to +22.66.
 - The untrained P1 heuristic beats MemGPT-style everywhere (+5.6 to +11.3,
   significant), but **loses to the tuned Mem0-style at S = 4096 (−6.99,
-  significant)**, ties it at 2048 and beats it at 8192 and 16384. That loss is
-  at the budget Mem0's knobs were picked on.
+  significant)**, the budget Mem0's knobs were picked on. It ties at 2048
+  and beats it at 16384. At 8192 its +5.17 is significant by McNemar
+  (p = 0.034) but not once resampled by conversation ([−0.84, +11.30]), so
+  the paper does not claim it.
 - Mem0-style flattens at 52.6% from S = 8192: UPDATE replaces a fact with
   its nearest neighbour, so once the threshold is loose enough to help at
   small S, it throws away distinct facts that merely look alike and the store

@@ -15,5 +15,5 @@ python3 make_tables.py
 python3 check.py
 rm -f ../MemGate_paper_overleaf.zip
 zip -qr ../MemGate_paper_overleaf.zip \
-    main.tex refs.bib tables figures -x '*.DS_Store'
+    main.tex refs.bib tables figures diagrams -x '*.DS_Store'
 echo "wrote MemGate_paper_overleaf.zip ($(du -h ../MemGate_paper_overleaf.zip | cut -f1))"

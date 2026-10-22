@@ -1,0 +1,16 @@
+% Shared TikZ styles for the hand-drawn diagrams (\input by main.tex).
+\tikzset{
+  >={Stealth[length=2mm]},
+  box/.style={draw, rounded corners=2pt, align=center, fill=white,
+              inner sep=3pt, font=\footnotesize},
+  tier/.style={box, fill=blue!6, minimum height=7mm},
+  proc/.style={box, fill=gray!8},
+  model/.style={box, fill=orange!10},
+  dec/.style={draw, diamond, aspect=2.2, align=center, inner sep=1pt,
+              fill=yellow!10, font=\scriptsize},
+  res/.style={box, fill=green!8, font=\scriptsize},
+  bad/.style={box, fill=red!8, font=\scriptsize},
+  lab/.style={font=\scriptsize, inner sep=1pt},
+  flow/.style={->, thick},
+  aux/.style={->, densely dashed},
+}

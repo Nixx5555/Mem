@@ -332,5 +332,199 @@ Arm & Acc. & F1 & Ans.\ present & Acc.$\mid$present \\
                  "n/a" if int(r["n_present"]) == 0
                  else "%.1f" % r["acc_when_present"]))
 
+# ------------------------------------------------------------ Table X
+# MemGPT-style and Mem0-style rebuilds (run_external_baselines.py), LoCoMo,
+# context 2048. The baselines' knobs were tuned on LoCoMo at S = 4096; no
+# MemGate row was. Intervals are the conversation-clustered ones, as for every
+# other table, so a gap the question-level bootstrap calls significant can
+# still print as n.s. here.
+import json
+EXT = load("external_baselines.csv", ("store_budget", "answer_recall", "strict_recall"))
+EXT_SIG = load("external_baselines_sig.csv",
+               ("store_budget", "delta", "conv_lo", "conv_hi", "mcnemar_p"))
+
+
+def ext(policy, S, field="answer_recall"):
+    return [r for r in EXT if r["policy"] == policy and r["store_budget"] == S][0][field]
+
+
+def ext_gap(a, b, S):
+    g = [r for r in EXT_SIG if r["a"] == a and r["b"] == b and r["metric"] == "answer"
+         and r["store_budget"] == S][0]
+    txt = "$%+.1f$" % g["delta"]
+    if not g["conv_lo"] <= 0 <= g["conv_hi"]:
+        txt = "{\\boldmath%s}" % txt
+    return txt
+
+
+rows = []
+for S in (2048, 4096, 8192, 16384):
+    cells = [ext(p, S) for p in ("RAG store-all", "MemGPT-style", "Mem0-style",
+                                 "MemGate P1-S", "MemGate P1-S learned")]
+    rows.append("%d & %.1f & %.1f & %.1f & %.1f & \\textbf{%.1f} & %s & %s%s" % (
+        S, *cells,
+        ext_gap("MemGate P1-S", "Mem0-style", S),
+        ext_gap("MemGate P1-S learned", "Mem0-style", S), EOL))
+write("external.tex", r"""\begin{tabular}{@{}rrrrrrrr@{}}
+\toprule
+& & MemGPT & Mem0 & & & \multicolumn{2}{c}{$\Delta$ vs.\ Mem0-style} \\
+\cmidrule(l){7-8}
+$S$ & RAG & -style & -style & P1-S & P3 & P1-S & P3 \\
+\midrule
+""" + "\n".join(rows) + r"""
+\bottomrule
+\end{tabular}""")
+
+# ----------------------------------------------------------- Table XI
+# Held-out scale test (retrain_10x.py, seed 0): every conversation is scored
+# by models fitted without it, at each corpus's own budget. BEAM 1M and 10M are
+# outside the PR #12 recipe's training set entirely.
+SCALE = json.load(open(os.path.join(RESULTS, "scale", "summary.json"), encoding="utf-8"))
+S_MAIN = {"locomo": 4096, "realtalk": 4096, "beam": 26000, "beam500": 26000,
+          "beam1m": 26000, "beam10m": 26000, "mb1": 2048, "persona_test": 1024}
+CORPUS = {"locomo": "LoCoMo", "realtalk": "REALTALK", "beam": "BEAM 100K",
+          "beam500": "BEAM 500K", "beam1m": "BEAM 1M", "beam10m": "BEAM 10M",
+          "mb1": "MemBench", "persona_test": "Everyday chat$^\\ddagger$"}
+
+
+def scale(corpus, setup, metric="answer", seed=0, S=None):
+    S = S or S_MAIN[corpus]
+    return [r for r in SCALE if r["corpus"] == corpus and r["setup"] == setup
+            and r["metric"] == metric and r["seed"] == seed and r["S"] == S][0]
+
+
+def signed(v, digits=1):
+    """+1.5 / -0.3 / 0.0: no signed zero, which reads as a direction."""
+    t = "%+.*f" % (digits, v)
+    return t[1:] if float(t) == 0 else t
+
+
+def ci_txt(diff, lo, hi, digits=1):
+    t = "$%s$" % signed(diff, digits)
+    if not lo <= 0 <= hi:
+        t = "{\\boldmath%s}" % t
+    return t + " $[%s,\\, %s]$" % (signed(lo, digits), signed(hi, digits))
+
+
+# learned (PR #12 recipe) minus RAG, conversation-clustered, from the report
+VS_RAG = {}
+with open(os.path.join(RESULTS, "scale", "learned_vs_baselines.txt"), encoding="utf-8") as fh:
+    for line in fh:
+        parts = line.split()
+        if parts[0] != "answer":
+            continue
+        corpus = parts[1]
+        d, lo, hi = parts[5], parts[6], parts[7]
+        VS_RAG[corpus] = (float(d), float(lo.strip("[,")), float(hi.strip("],")))
+
+rows = []
+for corpus in S_MAIN:
+    rag, p1, pr12 = (scale(corpus, s) for s in ("rag", "heuristic", "pr12"))
+    ship = scale(corpus, "r2-ens-pos")
+    vr = ci_txt(*VS_RAG[corpus]) if corpus in VS_RAG else "---"
+    vs = ci_txt(ship["diff"], ship["lo"], ship["hi"])
+    S = S_MAIN[corpus]
+    rows.append("%s & %s & %d & %.1f & %.1f & %.1f & %s & %.1f & %s%s" % (
+        CORPUS[corpus], "%dK" % (S // 1000) if S >= 10000 else str(S), rag["n"],
+        rag["value"], p1["value"], pr12["value"], vr, ship["value"], vs, EOL))
+write("scale_heldout.tex", r"""\begin{tabular}{@{}lrrrrrlrl@{}}
+\toprule
+Corpus & $S$ & $n$ & RAG & P1 & P3$_{12}$ & P3$_{12}-$RAG [95\% CI] & P3$_{\mathrm{ship}}$ & P3$_{\mathrm{ship}}-$P3$_{12}$ [95\% CI] \\
+\midrule
+""" + "\n".join(rows) + r"""
+\bottomrule
+\end{tabular}""")
+
+# ---------------------------------------------------------- Table XII
+# Whole BEAM chats typed into the application one message at a time
+# (scale_app.py), S = 26,000 tokens.
+APP = json.load(open(os.path.join(RESULTS, "scale", "app_beam_summary.json"), encoding="utf-8"))
+rows = []
+for r in sorted(APP, key=lambda r: r["said_tokens_mean"], reverse=True):
+    v = r["vs_rag"]
+    rows.append("BEAM %s & %d & %.2f & %d & %.1f & %.1f & \\textbf{%.1f} & %s & %s%s" % (
+        r["scale"], r["chats"], r["said_tokens_mean"] / 1e6, r["questions"],
+        r["window"], r["rag"], r["memgate"], ci_txt(v["diff"], *v["ci"]),
+        sci(v["mcnemar_p"]), EOL))
+write("app_beam.tex", r"""\begin{tabular}{@{}lrrrrrrlr@{}}
+\toprule
+Chats & $N$ & M tok. & $n$ & P0 & RAG & MemGate & $\Delta$ vs.\ RAG [95\% CI] & McNemar $p$ \\
+\midrule
+""" + "\n".join(rows) + r"""
+\bottomrule
+\end{tabular}""")
+
+# --------------------------------------------------------- Table XIII
+# The retrain: the shipped model (r2-ens-pos) and the plain 10x model against
+# PR #12's recipe, in three reshuffled fold orders, at each corpus's budget.
+# Bold: the conversation-clustered interval excludes zero.
+def three(setup, corpus, metric, base="pr12"):
+    out = []
+    for seed in (0, 1, 2):
+        try:
+            r = scale(corpus, setup, metric, seed)
+        except IndexError:                 # 10x was never run on everyday chat
+            return "---"
+        t = "$%s$" % signed(r["diff"])
+        out.append("{\\boldmath%s}" % t if r["sig"] else t)
+    return ", ".join(out)
+
+
+rows = []
+for corpus in S_MAIN:
+    rows.append("%s & %s & %s & %s%s" % (
+        CORPUS[corpus], three("10x", corpus, "soft"),
+        three("r2-ens-pos", corpus, "answer"), three("r2-ens-pos", corpus, "soft"), EOL))
+for corpus, name in (("beam", "App path, BEAM 100K"), ("locomo", "App path, LoCoMo"),
+                     ("realtalk", "App path, REALTALK")):
+    rows.append("%s & %s & %s & %s%s" % (
+        name, three("app:10x", corpus, "soft"),
+        three("app:r2-ens-pos", corpus, "answer"),
+        three("app:r2-ens-pos", corpus, "soft"), EOL))
+write("retrain.tex", r"""\begin{tabular}{@{}llll@{}}
+\toprule
+& 10x (594K turns) & \multicolumn{2}{c}{Shipped (857K turns)} \\
+\cmidrule(lr){2-2}\cmidrule(l){3-4}
+Corpus & Evidence & Answer & Evidence \\
+\midrule
+""" + "\n".join(rows) + r"""
+\bottomrule
+\end{tabular}""")
+
+# ---------------------------------------------------------- Table XIV
+# Answer recall by where the evidence sits in the conversation
+# (stress_questions.py, S = 4096). RAG and P1 are untrained; the learned
+# column is the shipped PR #12 model, in-sample on both corpora.
+AGE = json.load(open(os.path.join(RESULTS, "stress",
+                                  "questions_locomo_realtalk_summary.json"), encoding="utf-8"))
+rows = []
+for corpus, name in (("locomo", "LoCoMo"), ("realtalk", "REALTALK")):
+    for third in ("first third", "middle third", "last third"):
+        a = AGE[corpus]["age"][third]
+        rows.append("%s & %s & %d & %.1f & %.1f & %.1f%s" % (
+            name if third == "first third" else "", third.split()[0],
+            a["rag"]["n_answer"], a["rag"]["answer"], a["heuristic"]["answer"],
+            a["learned"]["answer"], EOL))
+    if corpus == "locomo":
+        rows.append("\\midrule")
+write("age.tex", r"""\begin{tabular}{@{}llrrrr@{}}
+\toprule
+Corpus & Evidence in & $n$ & RAG & P1 & P3$^\ast$ \\
+\midrule
+""" + "\n".join(rows) + r"""
+\bottomrule
+\end{tabular}""")
+
+# Questions buried in a long message (stress_questions.py --long-questions),
+# LoCoMo, app path: printed for the prose, not a table.
+LQ = json.load(open(os.path.join(RESULTS, "stress",
+                                 "questions_locomo_realtalk_longq_summary.json"), encoding="utf-8"))
+for corpus in ("locomo", "realtalk"):
+    cat = LQ[corpus]["category"]
+    for setup in ("app-nofocus", "app-focus", "app"):
+        n = sum(c[setup]["n_answer"] for c in cat.values())
+        a = sum(c[setup]["n_answer"] * c[setup]["answer"] for c in cat.values()) / n
+        print(f"     long questions {corpus:8s} {setup:12s} answer={a:.1f} (n={n})")
+
 written = len([f for f in os.listdir(OUT) if f.endswith(".tex")])
 print(f"\nwrote {written} table fragments to {OUT}")
