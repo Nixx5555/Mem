@@ -29,6 +29,10 @@ beats forgetting the oldest by **+9.4 answer-recall points**: 37.5% against
 28.1%, 95% CI [+5.4, +14.9], p = 2.8×10⁻⁵. A scorer trained on LoCoMo plus
 REALTALK adds **+14.6** more on conversations it never saw (at the same
 S = 4096; the gain is significant at every budget from 2,048 to 16,384 tokens).
+Against rebuilds of **MemGPT's and Mem0's memory designs** at the same
+budgets (tuned on LoCoMo, which favours them), the learned scorer wins at every
+budget: 52.0% against 44.5% (Mem0-style) and 30.2% (MemGPT-style) at S = 4096
+(REPORT.md §3.13).
 
 | | |
 |---|---|
@@ -38,6 +42,6 @@ S = 4096; the gain is significant at every budget from 2,048 to 16,384 tokens).
 | `frontend/index.html` | The interactive results dashboard (opens offline) |
 | `memgate/` | The library, the app (`app.py`), 17 experiment scripts and the tests |
 
-Run all the tests inside `memgate/` with `python run_tests.py` (356 tests in
-eight suites; add `--full` to also re-run the LoCoMo benchmark check). They
+Run all the tests inside `memgate/` with `python run_tests.py` (395 tests in
+nine suites; add `--full` to also re-run the LoCoMo benchmark check). They
 need the downloaded models.

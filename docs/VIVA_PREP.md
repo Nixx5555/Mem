@@ -202,15 +202,18 @@ aren't independent. The headline also passes McNemar (p = 2.8×10⁻⁵).
 ## E. Questions the panel is likely to push on
 
 **Q: How does this compare to Mem0 or MemGPT/Letta?**
-We didn't run their code head to head, and should say so. What we did test
-is the two ideas they rely on, at the same budget as MemGate. Using an LLM to
-judge what matters (as Mem0's extraction and MemGPT's self-editing do) loses
-to our regex scorer by 5.87 points, interval excluding zero (REPORT.md §3.7,
-pre-fix run). Compressing old turns into a gist instead of dropping them,
-the idea behind MemGPT's recursive summary, loses 7.1 points to dropping
-(§3.2), and an LLM that rewrites them still loses by 2.7 at 1,850× the cost
-(§3.10). Our
-claim is about the decision policy, which those systems leave to an LLM.
+We rebuilt both systems' memory management inside our harness, at the same
+budgets, and tuned their knobs on LoCoMo itself, which favours them
+(REPORT.md §3.13, figure 6). At S = 4096 MemGPT-style gets 30.2% answer
+recall, Mem0-style 44.5%, MemGate's learned scorer 52.0%. The learned scorer
+wins at every budget from 2k to 16k, every gap significant. Say the honest
+part before they find it: the untrained P1 heuristic loses to the tuned
+Mem0-style at 4096 (−7.0), the budget Mem0 was tuned on, and wins at 8k and
+16k, where Mem0's merge-by-similarity throws distinct facts away. The rebuilds
+don't call an LLM (no model reachable, and it would change the metric), so
+they are each system's structure, not its prompts. Earlier evidence agrees:
+an LLM judging salience loses to our regex scorer by 5.87 (§3.7), and
+compressing old turns into a gist loses to dropping them (§3.2, §3.10).
 
 **Q: 37.5% answer recall sounds low. Why is that good?**
 It's a stress setting on purpose. At S = 4096 the store keeps about 22% of a
