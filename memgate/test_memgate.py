@@ -435,6 +435,62 @@ check("BEAM evidence lists flatten as given",
 check("BEAM two-sided evidence keeps both sides",
       _beam_ids({"original_info": [86], "updated_info": [114]}) == [86, 114])
 
+from memgate.data import _beam_segments, _resolve_segment, _beam_chat
+_t = lambda i, txt="x": {"id": i, "role": "user", "content": txt}
+_chat = [{"turns": [[_t(0), _t(1)], [_t(2, "my flight is on 14 December")]]},
+         {"turns": [[_t(0), _t(1, "the budget is 85000 rupees")]]}]
+_segs = _beam_segments(_chat)
+check("BEAM 1M: ids that restart begin a new segment",
+      [[t["id"] for s in seg for t in s] for seg in _segs] == [[0, 1, 2], [0, 1]])
+_txt = [{t["id"]: t["content"] for s in seg for t in s} for seg in _segs]
+check("BEAM: a repeated id is pinned to the segment whose words match",
+      _resolve_segment([1], _txt, ["budget", "85000"]) == 1)
+check("BEAM: an id only one segment holds needs no words",
+      _resolve_segment([2], _txt, []) == 0)
+check("BEAM: a repeated id with no matching words is dropped, not guessed",
+      _resolve_segment([0], _txt, ["budget"]) is None)
+_cnt = {"dangling": 0, "empty": 0, "ambiguous": 0}
+_ts, _qs = _beam_chat("b", _segs, {"information_extraction": [
+    {"question": "What is my budget?", "answer": "85000 rupees", "source_chat_ids": [1]},
+    {"question": "Which id?", "answer": "x", "source_chat_ids": [0]}]}, _cnt)
+check("BEAM: segmented turn ids are unique and evidence points at the right copy",
+      len({t.fact_id for t in _ts}) == 5 and _qs[0].evidence_ids == ["b/1:1"]
+      and _cnt["ambiguous"] == 1)
+_ts1, _ = _beam_chat("b", _segs[:1], {}, _cnt)
+check("BEAM 100K/500K (one segment) keep their old ids",
+      [t.fact_id for t in _ts1] == ["b/0", "b/1", "b/2"])
+
+print("\n-- MemBench --")
+import json as _json, tempfile as _tf
+from memgate.data import load_membench
+with _tf.TemporaryDirectory() as _d:
+    _os_ = __import__("os")
+    _os_.makedirs(_os_.path.join(_d, "FirstAgent"))
+    _os_.makedirs(_os_.path.join(_d, "ThirdAgent"))
+    _step = lambda i, u: {"sid": i, "user_message": u, "assistant_message": "nice!"}
+    with open(_os_.path.join(_d, "FirstAgent", "simple.json"), "w") as _f:
+        _json.dump({"roles": {}, "events": [{"tid": 0, "message_list": [
+            [_step(0, "hi"), _step(1, "My uncle lives in Portland, OR.")],
+            [_step(2, "he likes hiking")]],
+            "QA": {"question": "Where does my uncle live?", "answer": "Portland, OR",
+                   "target_step_id": [[1, 0]], "choices": {"A": "Portland, OR"},
+                   "ground_truth": "A"}}]}, _f)
+    with open(_os_.path.join(_d, "ThirdAgent", "simple.json"), "w") as _f:
+        _json.dump({"events": [{"tid": 3, "message_list": [
+            {"mid": 0, "message": "Team Connect is in Boston, MA."}],
+            "QA": {"question": "Where?", "answer": "Boston, MA", "target_step_id": [0],
+                   "choices": {"C": "Boston, MA"}, "ground_truth": "C"}}]}, _f)
+    _mb = load_membench(_d)
+_s1, _t1, _q1 = _mb[0]
+check("MemBench FirstAgent: a step is a user turn then an assistant turn",
+      [t.speaker for t in _t1] == ["user", "assistant"] * 3
+      and [t.session for t in _t1] == [0, 0, 0, 0, 1, 1]
+      and [t.index for t in _t1] == [0, 1, 2, 3, 0, 1])
+check("MemBench FirstAgent: evidence is the user's message of the cited step",
+      _q1[0].evidence_ids == [f"{_s1}/1u"] and _q1[0].answer_recoverable)
+check("MemBench ThirdAgent: evidence is the cited message",
+      _mb[1][2][0].evidence_ids == [f"{_mb[1][0]}/0"] and _mb[1][2][0].answer == "Boston, MA")
+
 print("\n-- offline reproducibility --")
 # A run that can silently fetch a model is a run whose inputs are not pinned,
 # and this project has already lost a results table to a half-downloaded
