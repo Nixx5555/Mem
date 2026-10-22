@@ -265,14 +265,29 @@ R.ChatModel._reply = fake_local
 out = m.reply("notes", "hello")
 check("a lasting 429 answers this message with Qwen but keeps Gemini",
       out == "local answer" and m.backend == "gemini" and local == ["hello"]
-      and "free-tier" in (m.note or ""))
+      and "local model answered" in (m.note or ""))
 gemini_says(ok("gemini again"))
 check("the next message goes back to Gemini and clears the note",
       m.reply("", "y") == "gemini again" and m.note is None)
 gemini_says(OSError("no internet"))
 out = m.reply("notes", "offline?")
-check("no internet switches to Qwen for good",
-      out == "local answer" and m.backend == "hf" and "Gemini failed" in m.note)
+check("no internet: Qwen answers this message, Gemini stays the main model",
+      out == "local answer" and m.backend == "gemini" and "unreachable" in m.note)
+gemini_says(R.Busy(503, "This model is currently experiencing high demand."))
+sent.clear()
+out = m.reply("notes", "busy?")
+check("a lasting 503 tries the other free models, then Qwen for this message",
+      out == "local answer" and m.backend == "gemini"
+      and [x[0] for x in sent] == [R.GEMINI_MODEL, R.GEMINI_MODEL] + list(R.GEMINI_BACKUPS),
+      str([x[0] for x in sent]))
+gemini_says(R.Busy(503, "high demand"), R.Busy(503, "high demand"), ok("from the lite model"))
+sent.clear()
+check("when the main model is overloaded a backup model answers",
+      m.reply("", "z") == "from the lite model" and sent[-1][0] == R.GEMINI_BACKUPS[0])
+gemini_says(R.Busy(503, "x"), R.Busy(503, "x"), R.GeminiError(404, "not found"), ok("2.5"))
+sent.clear()
+check("a retired backup model is skipped", m.reply("", "z") == "2.5"
+      and sent[-1][0] == R.GEMINI_BACKUPS[1])
 R.ChatModel._reply = real_hf_reply
 world(gemini=True)
 m = R.ChatModel("gemini")
