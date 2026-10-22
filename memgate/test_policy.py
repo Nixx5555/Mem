@@ -6,6 +6,9 @@ import os
 import sys
 
 import app as A
+# The policy as the experiments run it: without the app's entry gate,
+# which forgets small talk before the policy sees it (test_app.py covers it).
+A.GATE = False
 from memgate.utils import count_tokens
 
 passed = failed = 0
