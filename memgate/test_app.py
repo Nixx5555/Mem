@@ -223,26 +223,50 @@ check("a restart after a P1-A chat opens a fresh P1-S chat and keeps the old one
 
 print("\n-- where each message is (the tag beside it) --")
 fa = A.App(Echo(), A.Chats(tempfile.mkdtemp()))
-fa.new("p1s", A.STORE_RANGE[0], "compact")
-for t in ["hi", "My exam is on 8 November in Mumbai.", "ok", "lol",
-          "My sister Riya studies medicine at AIIMS.", "haha", "nice",
-          "cool", "yes", "My favourite food is rajma chawal.", "k", "sure"]:
+fa.new("p1s", 300, "full")
+DEMO = ["My capstone final review is on 5 November at 10 am in room 402.",
+        "hi", "lol nice", "ok cool", "haha yes",
+        "My teammate Yash runs the LongMemEval experiments.",
+        "When is my final review?"]
+for t in DEMO:
     fa.say(t)
 st = fa.full_state()
 f = st["fates"]
-check("every transcript entry has a fate",
-      len(f) == len(st["transcript"]) and all(x["tier"] in ("t1", "t2", "t3", "gone") for x in f))
-check("the newest messages are in Tier 1, unscored", f[-1]["tier"] == "t1" and f[-1]["u"] is None)
-check("older messages carry a tier and a score, or are forgotten",
-      all((x["tier"] == "gone") == (x["u"] is None and x["held"] == 0)
-          for x in f if x["tier"] != "t1"))
-check("under compact sizes something has been forgotten", any(x["tier"] == "gone" for x in f),
-      str([x["tier"] for x in f]))
-held = {i["turn"] for k in ("t1", "t2", "t3") for i in st[k]}
-check("a 'gone' message is really not in memory",
-      all(fa.session.spans[i][0] not in held for i, x in enumerate(f) if x["tier"] == "gone"))
+user = [x for x, m in zip(f, st["transcript"]) if m["speaker"] == "user"]
+check("every transcript entry has a fate with a score",
+      len(f) == len(st["transcript"]) and all(x["score"] is not None for x in f))
+check("the review date goes to Tier 3 at once, with its score",
+      user[0]["tier"] == "t3" and user[0]["score"] >= fa.session.policy.tau_fact)
+check("hi, lol nice, ok cool and haha yes are forgotten on arrival as small talk",
+      all(x["tier"] == "gone" and x["why"] == "small talk" for x in user[1:5]),
+      str([(x["tier"], x.get("why")) for x in user[1:5]]))
+check("small talk takes no space in memory",
+      not any(i["text"].endswith(("] hi", "lol nice", "ok cool", "haha yes"))
+              for k in ("t1", "t2", "t3") for i in st[k]))
+check("the forgotten count includes small talk", st["counts"]["dropped"] >= 4)
+check("a question stays in Tier 1 for context", user[-1]["tier"] == "t1")
+w = fa.why(msg=2)
+check("why-this-score works for a forgotten message",
+      w["label"] == "filler" and abs(w["utility"] - user[1]["score"]) < 0.01)
+check("why-this-score works for a fact", fa.why(msg=0)["utility"] >= 0.45)
 fa2 = A.App(Echo(), A.Chats(fa.chats.folder))
-check("fates are rebuilt the same after a restart", fa2.full_state()["fates"] == f)
+check("tags are rebuilt the same after a restart", fa2.full_state()["fates"] == f)
+for mode in ("p1a", "p1"):
+    fm = A.App(Echo(), A.Chats(tempfile.mkdtemp()))
+    fm.new(mode, 300, "full")
+    for t in DEMO:
+        fm.say(t)
+    fu = [x for x, m in zip(fm.full_state()["fates"], fm.session.transcript)
+          if m["speaker"] == "user"]
+    check(f"{mode}: small talk forgotten, the review kept",
+          all(x["tier"] == "gone" for x in fu[1:5]) and fu[0]["tier"] != "gone",
+          str([x["tier"] for x in fu]))
+off = A.Session("p1s", 300, "full", gate=False)
+for t in DEMO:
+    off.add("user", t)
+check("with the gate off, small talk sits in Tier 1 like the experiments",
+      [x["tier"] for x in off.fates()][-3:] == ["t1", "t1", "t1"]
+      and not off.gated)
 for name in os.listdir(folder):
     if name.endswith(".tmp"):
         check("saves leave no temp files behind", False, name)

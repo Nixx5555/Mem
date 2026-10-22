@@ -12,6 +12,9 @@ from http.server import ThreadingHTTPServer
 os.environ.setdefault("MEMGATE_SCORER", "learned")
 
 import app as A
+# These checks compare the app with a bare policy fed the same messages, so
+# they run without the app's entry gate (test_app.py covers the gate).
+A.GATE = False
 from memgate.data import build_dataset
 from memgate.explain import explain
 from memgate.policies import MemGateSelectPolicy
