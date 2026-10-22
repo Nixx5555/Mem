@@ -25,6 +25,7 @@ import platform
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 SYSTEM = ("You are a helpful assistant in a long-running chat. You do not see "
@@ -79,7 +80,9 @@ def _has_key():
 
 
 def _gemini_key():
-    return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    from memgate.envfile import clean_key
+    return clean_key(os.environ.get("GEMINI_API_KEY")
+                     or os.environ.get("GOOGLE_API_KEY") or "")
 
 
 class GeminiError(RuntimeError):
@@ -106,17 +109,46 @@ def _retry_delay(body, headers):
         return 5.0
 
 
+# Ways to send the key. Google documents the header; the newer AQ. keys
+# have been refused by some endpoints that way (a Google bug it has
+# acknowledged), so the others are tried before a key is called invalid.
+AUTH_MODES = ("header", "query", "bearer")
+_auth_ok = {}                   # key -> the way that worked
+
+
 def _gemini_post(model, key, payload, timeout=60.0):
     """POST to generateContent (or, with payload None, GET the model's info,
     which checks the key without using any of the free quota). Returns the
     JSON reply; raises RateLimited on 429 (with .wait) and GeminiError on any
-    other HTTP error."""
+    other HTTP error, after trying each way of sending the key."""
+    last = None
+    for mode in ([_auth_ok[key]] if key in _auth_ok else AUTH_MODES):
+        try:
+            r = _gemini_once(model, key, payload, timeout, mode)
+        except GeminiError as exc:
+            if isinstance(exc, RateLimited) or not _key_rejected(exc):
+                raise
+            last = exc
+            continue
+        _auth_ok[key] = mode
+        return r
+    raise last
+
+
+def _gemini_once(model, key, payload, timeout, mode):
     url = GEMINI_URL.format(model=model)
     if payload is None:
         url = url.rsplit(":", 1)[0]
+    headers = {"Content-Type": "application/json"}
+    if mode == "header":
+        headers["x-goog-api-key"] = key
+    elif mode == "query":
+        url += "?" + urllib.parse.urlencode({"key": key})
+    else:
+        headers["Authorization"] = f"Bearer {key}"
     req = urllib.request.Request(
         url, data=None if payload is None else json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json", "x-goog-api-key": key})
+        headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read().decode())
@@ -188,7 +220,8 @@ def _path_for(backend):
 def _prompt(notes, message):
     return [{"role": "system", "content": SYSTEM},
             {"role": "user", "content":
-             f"Memory notes:\n{notes or '(empty)'}\n\nMessage: {message}"}]
+             f"Memory notes (said earlier in this chat):\n{notes or '(empty)'}"
+             f"\n\nThe user's new message. Reply to this one:\n{message}"}]
 
 
 class ChatModel:
@@ -251,7 +284,17 @@ class ChatModel:
             # Check the key and the internet now, at start, so a bad key or
             # no Wi-Fi switches to the local model before the first message
             try:
-                _gemini_post(self.path, key, None, timeout=15.0)
+                try:
+                    _gemini_post(self.path, key, None, timeout=15.0)
+                except GeminiError as exc:
+                    if isinstance(exc, RateLimited) or not _key_rejected(exc):
+                        raise
+                    # the model-info call refused it; a one-token reply is
+                    # the final word before giving up on the key
+                    _gemini_post(self.path, key, {
+                        "contents": [{"role": "user", "parts": [{"text": "hi"}]}],
+                        "generationConfig": {"maxOutputTokens": 1}},
+                        timeout=20.0)
             except RateLimited:
                 pass                      # the key works; the limit passes
             except GeminiError as exc:
@@ -320,7 +363,10 @@ class ChatModel:
             with torch.no_grad():
                 gen = self._model.generate(
                     ids, attention_mask=enc.get("attention_mask"),
-                    max_new_tokens=512, do_sample=False)
+                    max_new_tokens=512, do_sample=False,
+                    # a small model otherwise tends to repeat a line from
+                    # the notes (its own earlier "Hello! How can I...")
+                    repetition_penalty=1.15)
             out = self._tok.decode(gen[0, ids.shape[-1]:],
                                    skip_special_tokens=True)
         elif self.backend == "gemini":

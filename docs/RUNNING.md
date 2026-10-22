@@ -124,6 +124,14 @@ python set_key.py --remove   # forget it
 
 You can also edit `.env` by hand; `.env.example` shows the format.
 
+**If Google rejects an `AQ.` key** ("API key not valid"), check it with
+`python set_key.py --check`. Some of AI Studio's new `AQ.` keys are refused by
+the Gemini API, a Google bug it has acknowledged. The app already tries every
+way of sending the key. The fix is an older-style `AIza...` key: in the
+Google Cloud console for the same project (https://console.cloud.google.com/apis/credentials),
+Create credentials → API key, then Edit → API restrictions → Restrict key →
+tick **Generative Language API** → Save. Save it with `python set_key.py`.
+
 **Gemini's free tier** allows only a few replies a minute. When it says
 "limit reached", the app waits a few seconds and tries again; if the limit
 lasts, the downloaded Qwen answers that one message and the next one goes back
