@@ -14,6 +14,8 @@ import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ENV_PATH = os.path.join(ROOT, ".env")
+# A .env made next to app.py by mistake is read too, after the main one.
+ALT_PATH = os.path.join(ROOT, "memgate", ".env")
 KEY = "ANTHROPIC_API_KEY"
 GEMINI_KEY = "GEMINI_API_KEY"
 _LINE = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$")
@@ -23,9 +25,8 @@ def read_env(path=ENV_PATH):
     """{name: value} from a .env file; {} when there is none."""
     out = {}
     try:
-        with open(path, encoding="utf-8-sig") as fh:
-            lines = fh.read().splitlines()
-    except OSError:
+        lines = _read_text(path).splitlines()
+    except (OSError, UnicodeDecodeError):
         return out
     for line in lines:
         if not line.strip() or line.lstrip().startswith("#"):
@@ -40,14 +41,26 @@ def read_env(path=ENV_PATH):
     return out
 
 
-def load_env(path=ENV_PATH):
+def _read_text(path):
+    """The file's text. Windows PowerShell's `echo X=1 > .env` writes UTF-16,
+    and Notepad may add a BOM; both are read like plain UTF-8."""
+    with open(path, "rb") as fh:
+        raw = fh.read()
+    if raw[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return raw.decode("utf-16")
+    return raw.decode("utf-8-sig")
+
+
+def load_env(path=None):
     """Copy the file's settings into os.environ without overriding any.
+    With no path, reads .env at the top of the repo, then memgate/.env.
     Returns the names it set."""
     applied = []
-    for name, value in read_env(path).items():
-        if value and not os.environ.get(name):
-            os.environ[name] = value
-            applied.append(name)
+    for p in ([path] if path else [ENV_PATH, ALT_PATH]):
+        for name, value in read_env(p).items():
+            if value and not os.environ.get(name):
+                os.environ[name] = value
+                applied.append(name)
     return applied
 
 
@@ -56,8 +69,10 @@ def looks_like_key(key):
 
 
 def looks_like_gemini_key(key):
-    """Google AI Studio keys start with AIza."""
-    return bool(re.fullmatch(r"AIza[A-Za-z0-9_\-]{30,}", key or ""))
+    """Google AI Studio keys: the older AIza... ones, and the authentication
+    keys (AQ....) it has made by default since May 2026."""
+    return bool(re.fullmatch(r"AIza[A-Za-z0-9_\-]{30,}", key or "")
+                or re.fullmatch(r"AQ\.[A-Za-z0-9_\-.]{20,}", key or ""))
 
 
 def key_name(key):
@@ -73,9 +88,8 @@ def write_setting(name, value, path=ENV_PATH):
     """Set one name in the file, keeping every other line, readable only by
     this user."""
     try:
-        with open(path, encoding="utf-8-sig") as fh:
-            lines = fh.read().splitlines()
-    except OSError:
+        lines = _read_text(path).splitlines()
+    except (OSError, UnicodeDecodeError):
         lines = ["# MemGate private settings. Never commit this file."]
     new = f"{name}={value}"
     for i, line in enumerate(lines):

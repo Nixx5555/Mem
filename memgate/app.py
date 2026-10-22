@@ -48,6 +48,7 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 import uuid
 from collections import OrderedDict
 from http.cookies import SimpleCookie
@@ -189,6 +190,7 @@ class Session:
         self.n = 0             # memory turns observed (pieces of messages)
         self.log = []          # every routing event, newest last
         self.transcript = []   # what was said, in order: the saved form
+        self.spans = []        # transcript entry -> its memory turns [a, b)
         self.lock = threading.Lock()
 
     # -- what the store holds right now
@@ -217,7 +219,35 @@ class Session:
             "messages": len(self.transcript),
             "pieces": self.n,
             "said_tokens": self.said_tokens,
+            "fates": self.fates(),
         }
+
+    def fates(self):
+        """Where each transcript entry is in memory right now, for the tag
+        beside it in the chat: the best tier any of its pieces is held in
+        (t3 kept verbatim or as a fact, t2 a gist, t1 the recent buffer) or
+        "gone" once every piece has been forgotten, with that item's score."""
+        rank = {"t1": 1, "t2": 2, "t3": 3}
+        best = {}                      # memory turn -> (tier, score)
+        st = self.policy.store
+        for items in (st.short, st.working, st.long):
+            for it in items:
+                if it.superseded_by is not None:
+                    continue
+                tier = TIER_KEY[it.tier]
+                u = None if tier == "t1" else round(float(it.utility), 2)
+                for t in self.turn_of.get(it.id, ()):
+                    if t not in best or rank[tier] > rank[best[t][0]]:
+                        best[t] = (tier, u)
+        out = []
+        for a, b in self.spans:
+            held = [best[t] for t in range(a, b) if t in best]
+            if not held:
+                out.append({"tier": "gone", "u": None, "held": 0, "pieces": b - a})
+                continue
+            tier, u = max(held, key=lambda x: (rank[x[0]], x[1] or 0))
+            out.append({"tier": tier, "u": u, "held": len(held), "pieces": b - a})
+        return out
 
     # -- the write path, with every decision it made written to the log
     def add(self, speaker, text, file=None):
@@ -241,6 +271,7 @@ class Session:
             entry["file"] = dict(file, name=name)
             tag = f"file {name}"
         self.transcript.append(entry)
+        self.spans.append((self.n, self.n + len(pieces)))
         if len(pieces) > 1:          # one batched embedder pass, not one per piece
             embed_many([f"[{tag}] {x}" for x in pieces])
         ev = []
@@ -734,7 +765,13 @@ def make_handler(app, passcode=None):
             except BadRequest as exc:
                 return self._send(400, {"error": str(exc)})
             except Exception as exc:          # show it on the page, keep serving
-                return self._send(500, {"error": f"{type(exc).__name__}: {exc}"})
+                # The whole traceback goes to the terminal, so a bug report
+                # can include where it happened, not just its name
+                traceback.print_exc()
+                where = traceback.extract_tb(exc.__traceback__)[-1]
+                msg = str(exc) or (f"in {os.path.basename(where.filename)} "
+                                   f"line {where.lineno}")
+                return self._send(500, {"error": f"{type(exc).__name__}: {msg}"})
             self._send(404, {"error": "not found"})
     return H
 
@@ -747,7 +784,10 @@ class App:
         self.lock = threading.Lock()
         saved = self.chats.list()
         self.chat = None
-        if saved:                              # pick up where it was left
+        # Pick up where it was left, but always open on P1-S (the paper's
+        # best policy): a chat left in another mode stays in the list, and
+        # the app starts a fresh P1-S chat instead.
+        if saved and saved[0].get("mode", "p1s") == "p1s":
             try:
                 self.chat = self.chats.load(saved[0]["id"])
             except (OSError, ValueError, KeyError):
@@ -961,6 +1001,10 @@ def main():
     print("MemGate")
     if loaded:
         print(f"  settings from {ENV_PATH}: {', '.join(loaded)}")
+    if model.backend in ("mlx", "hf", "none") and args.llm == "auto":
+        print(f"  no Gemini or Anthropic key found, so replies use the local "
+              f"model. To use Gemini, put  GEMINI_API_KEY=<your key>  in "
+              f"{ENV_PATH}  (or run  python set_key.py ) and start again.")
     print("  warming the embedder ...", flush=True)
     from memgate.utils import embed
     embed("warm up")
@@ -978,7 +1022,7 @@ def main():
                 model.load()
         except Exception as exc:
             print(f"  [MemGate] WARNING: chat model did not load "
-                  f"({type(exc).__name__}: {str(exc)[:120]}); continuing "
+                  f"({type(exc).__name__}: {str(exc)[:300]}); continuing "
                   f"without it. The memory side works unchanged.", flush=True)
             model.disable()
     else:
@@ -990,7 +1034,13 @@ def main():
         app = App(model)
     if args.passcode:
         print("  passcode required to open the app")
-    srv = Server((args.host, args.port), make_handler(app, args.passcode or None))
+    try:
+        srv = Server((args.host, args.port), make_handler(app, args.passcode or None))
+    except OSError as exc:
+        print(f"\n  Port {args.port} is already in use ({exc.strerror}). MemGate may "
+              f"already be running in another window: close it, or start on "
+              f"another port with  --port 9000", flush=True)
+        return 1
     print(f"\n  model: {model.name}")
     print(f"  chats saved in {CHATS}")
     if args.public:

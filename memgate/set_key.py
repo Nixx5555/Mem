@@ -8,7 +8,7 @@ file, once.
 
 The key goes into .env at the top of the repo, which git ignores, so it stays
 on this laptop. An Anthropic key (sk-ant-...) makes Claude write the replies;
-a Gemini key (AIza..., free from https://aistudio.google.com/apikey) makes
+a Gemini key (AQ. or AIza..., free from https://aistudio.google.com/apikey) makes
 Gemini write them. The kind is told from the key itself.
 """
 import argparse
@@ -43,7 +43,7 @@ def main():
         return 0
 
     print("\n  Optional: an API key lets Claude or Gemini write the replies.")
-    print("  Paste an Anthropic key (sk-ant-...) or a Gemini key (AIza...)")
+    print("  Paste an Anthropic key (sk-ant-...) or a Gemini key (AQ.... or AIza...)")
     print("  and press Enter (it won't show), or just press Enter to skip.")
     for _ in range(3):
         key = getpass.getpass("  API key: ").strip()
@@ -58,7 +58,7 @@ def main():
                   f"never committed). The app will answer with {LABEL[name]}.")
             return 0
         print("  That doesn't look like an Anthropic key (sk-ant-...) or a "
-              "Gemini key (AIza...). Try again, or press Enter to skip.")
+              "Gemini key (AQ.... or AIza...). Try again, or press Enter to skip.")
     return 0
 
 

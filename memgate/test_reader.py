@@ -281,8 +281,9 @@ try:
     m.reply("notes", "hello")
     check("a rejected Gemini key says how to replace it", False)
 except RuntimeError as exc:
-    check("a rejected Gemini key says how to replace it",
-          "Gemini" in str(exc) and "set_key.py" in str(exc))
+    check("a rejected Gemini key says how to replace it, with Google's reason",
+          "Gemini" in str(exc) and "set_key.py" in str(exc)
+          and "API key not valid" in str(exc))
 world()
 try:
     R.ChatModel("gemini").load()
@@ -294,6 +295,47 @@ check("Google's retryDelay is read from a 429 body",
       and R._retry_delay("not json", {"Retry-After": "4"}) == 4.0
       and R._retry_delay("", {}) == 5.0)
 R._gemini_post, R.time.sleep = real[4], real[5]
+
+print("\n-- the local Qwen backend, transformers 4 and 5 (faked) --")
+import contextlib
+import numpy as np
+
+
+class Enc(dict):
+    """transformers 5's BatchEncoding: a dict whose missing attributes raise a
+    bare AttributeError, the 'Error: AttributeError:' seen on Windows."""
+    def __getattr__(self, k):
+        raise AttributeError
+
+
+class Tok:
+    def __init__(self):
+        self.kw = None
+
+    def apply_chat_template(self, msgs, **kw):
+        self.kw = kw
+        ids = np.array([[5, 6, 7]])
+        if kw.get("return_dict"):
+            return Enc(input_ids=ids, attention_mask=np.ones_like(ids))
+        return Enc(input_ids=ids)          # v5 ignores the missing flag too
+
+    def decode(self, ids, skip_special_tokens=True):
+        return " " + " ".join(str(int(i)) for i in ids) + "\n"
+
+
+class Model:
+    def generate(self, ids, attention_mask=None, **kw):
+        self.mask = attention_mask
+        return np.concatenate([ids, np.array([[42, 43]])], axis=1)
+
+
+sys.modules.setdefault("torch", types.SimpleNamespace(no_grad=contextlib.nullcontext))
+m = R.ChatModel("hf")
+m._tok, m._model = Tok(), Model()
+out = m.reply("[user] My birthday is on 19 October.", "hello")
+check("Qwen replies under transformers 5 (no AttributeError)", out == "42 43", repr(out))
+check("the attention mask is passed on", m._model.mask is not None
+      and m._tok.kw.get("return_dict") is True)
 
 print("\n-- the saved key (.env) --")
 d = tempfile.mkdtemp()
@@ -330,6 +372,16 @@ gk = "AIza" + "Sy-_9" * 7
 check("Gemini keys are recognised and routed to GEMINI_API_KEY",
       E.key_name(gk) == "GEMINI_API_KEY" and E.key_name(key) == "ANTHROPIC_API_KEY"
       and E.key_name("AIza-short") is None and E.key_name("hello") is None)
+aq = "AQ.Ab8RN6L" + "x_Y-z.9" * 8
+check("new AI Studio keys (AQ.) are Gemini keys too",
+      E.key_name(aq) == "GEMINI_API_KEY" and E.key_name("AQ.short") is None)
+u16 = os.path.join(d, "u16.env")
+with open(u16, "w", encoding="utf-16") as fh:   # PowerShell's  echo X=1 > .env
+    fh.write("GEMINI_API_KEY=" + aq + "\n")
+check("a UTF-16 .env (made by PowerShell echo) is read",
+      E.read_env(u16) == {"GEMINI_API_KEY": aq}, str(E.read_env(u16)))
+check("memgate/.env is read too, after the main one",
+      E.ALT_PATH == os.path.join(os.path.dirname(E.ENV_PATH), "memgate", ".env"))
 check(".env sits at the top of the repo", E.ENV_PATH == os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 import subprocess

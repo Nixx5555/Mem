@@ -18,7 +18,7 @@ What the Space does, from `deploy/huggingface/`:
 ## Steps (about 10 minutes, once)
 
 1. **A key.** Either Gemini, free: https://aistudio.google.com/apikey →
-   Create API key (it starts with `AIza`). Or Anthropic: at
+   Create API key (it starts with `AQ.`, or `AIza` for older keys). Or Anthropic: at
    https://console.anthropic.com, add a little credit under Billing, then
    create a key under API keys (it starts with `sk-ant-`).
 2. **Hugging Face account.** Sign up at https://huggingface.co/join (free).
@@ -60,6 +60,6 @@ What the Space does, from `deploy/huggingface/`:
 ## Run the same image on your own machine
 
     docker build -t memgate deploy/huggingface
-    docker run -p 7860:7860 -e GEMINI_API_KEY=AIza... -e MEMGATE_PASSCODE=jury memgate
+    docker run -p 7860:7860 -e GEMINI_API_KEY=AQ.... -e MEMGATE_PASSCODE=jury memgate
 
 then open http://localhost:7860.

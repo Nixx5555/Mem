@@ -213,6 +213,36 @@ check("a corrupt chat file is skipped, not fatal",
 empty = tempfile.mkdtemp()
 check("a first start with no chats opens a new one",
       A.App(Echo(), A.Chats(empty)).chat["title"] == "New chat")
+pa = A.App(Echo(), A.Chats(tempfile.mkdtemp()))
+pa.new("p1a"); pa.say("My exam is on 8 November.")
+check("a new chat defaults to P1-S", A.App(Echo(), A.Chats(empty)).session.mode == "p1s")
+restarted = A.App(Echo(), A.Chats(pa.chats.folder))
+check("a restart after a P1-A chat opens a fresh P1-S chat and keeps the old one",
+      restarted.session.mode == "p1s" and restarted.chat["id"] != pa.chat["id"]
+      and pa.chat["id"] in [c["id"] for c in restarted.chats.list()])
+
+print("\n-- where each message is (the tag beside it) --")
+fa = A.App(Echo(), A.Chats(tempfile.mkdtemp()))
+fa.new("p1s", A.STORE_RANGE[0], "compact")
+for t in ["hi", "My exam is on 8 November in Mumbai.", "ok", "lol",
+          "My sister Riya studies medicine at AIIMS.", "haha", "nice",
+          "cool", "yes", "My favourite food is rajma chawal.", "k", "sure"]:
+    fa.say(t)
+st = fa.full_state()
+f = st["fates"]
+check("every transcript entry has a fate",
+      len(f) == len(st["transcript"]) and all(x["tier"] in ("t1", "t2", "t3", "gone") for x in f))
+check("the newest messages are in Tier 1, unscored", f[-1]["tier"] == "t1" and f[-1]["u"] is None)
+check("older messages carry a tier and a score, or are forgotten",
+      all((x["tier"] == "gone") == (x["u"] is None and x["held"] == 0)
+          for x in f if x["tier"] != "t1"))
+check("under compact sizes something has been forgotten", any(x["tier"] == "gone" for x in f),
+      str([x["tier"] for x in f]))
+held = {i["turn"] for k in ("t1", "t2", "t3") for i in st[k]}
+check("a 'gone' message is really not in memory",
+      all(fa.session.spans[i][0] not in held for i, x in enumerate(f) if x["tier"] == "gone"))
+fa2 = A.App(Echo(), A.Chats(fa.chats.folder))
+check("fates are rebuilt the same after a restart", fa2.full_state()["fates"] == f)
 for name in os.listdir(folder):
     if name.endswith(".tmp"):
         check("saves leave no temp files behind", False, name)
