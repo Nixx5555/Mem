@@ -913,6 +913,18 @@ def _on(value):
     return (value or "").lower() in ("1", "true", "yes")
 
 
+class Server(ThreadingHTTPServer):
+    """ThreadingHTTPServer with a deeper accept queue.
+
+    The standard library listens with a backlog of 5. When 200 visitors sent
+    messages at once (scale_app.py), 314 of 2,000 requests were refused with
+    "connection reset" before a thread could pick them up, and 12 of 100
+    messages sent into one chat at the same moment never arrived. Each
+    request is handled on its own thread, so only the queue was too short.
+    """
+    request_queue_size = 256
+
+
 def main():
     # The private settings setup saved (the Anthropic key), before anything
     # reads the environment. A key exported in the terminal still wins.
@@ -977,8 +989,7 @@ def main():
         app = App(model)
     if args.passcode:
         print("  passcode required to open the app")
-    srv = ThreadingHTTPServer((args.host, args.port),
-                              make_handler(app, args.passcode or None))
+    srv = Server((args.host, args.port), make_handler(app, args.passcode or None))
     print(f"\n  model: {model.name}")
     print(f"  chats saved in {CHATS}")
     if args.public:

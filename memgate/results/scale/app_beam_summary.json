@@ -1,0 +1,64 @@
+[
+ {
+  "scale": "500K",
+  "chats": 33,
+  "questions": 55,
+  "said_tokens_mean": 523509,
+  "ms_per_message_mean": 430,
+  "max_stored_tokens": 26000,
+  "memgate": 65.5,
+  "window": 12.7,
+  "rag": 30.9,
+  "vs_rag": {
+   "diff": 34.5,
+   "ci": [
+    19.6,
+    49.1
+   ],
+   "memgate_only": 23,
+   "rag_only": 4,
+   "mcnemar_p": 0.000310748815536499
+  },
+  "vs_window": {
+   "diff": 52.7,
+   "ci": [
+    39.6,
+    65.5
+   ],
+   "memgate_only": 30,
+   "window_only": 1,
+   "mcnemar_p": 2.9802322387695312e-08
+  }
+ },
+ {
+  "scale": "1M",
+  "chats": 33,
+  "questions": 52,
+  "said_tokens_mean": 1067990,
+  "ms_per_message_mean": 488,
+  "max_stored_tokens": 25999,
+  "memgate": 51.9,
+  "window": 9.6,
+  "rag": 19.2,
+  "vs_rag": {
+   "diff": 32.7,
+   "ci": [
+    19.2,
+    46.3
+   ],
+   "memgate_only": 21,
+   "rag_only": 4,
+   "mcnemar_p": 0.0009105205535888672
+  },
+  "vs_window": {
+   "diff": 42.3,
+   "ci": [
+    28.6,
+    56.1
+   ],
+   "memgate_only": 24,
+   "window_only": 2,
+   "mcnemar_p": 1.049041748046875e-05
+  }
+ }
+]

@@ -20,6 +20,10 @@ memgate/data/realtalk/
 # BEAM 100K and 500K chats (chat.json + probing_questions.json, 96 MB), from
 # mohammadtavakoli78/BEAM chats/<scale>/<n>/.
 memgate/data/beam/
+# MemBench (MemData/, 775 MB with the repo), from import-myself/Membench.
+memgate/data/membench
+# PersonaChat (personachat_self_original.json, 200 MB), from s3.amazonaws.com/datasets.huggingface.co.
+memgate/data/personachat/
 # retrain_scorer.py's saved MiniLM embeddings, rebuildable
 memgate/data/cache/
 

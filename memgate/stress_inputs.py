@@ -43,7 +43,6 @@ import time
 import urllib.error
 import urllib.request
 import zipfile
-from http.server import ThreadingHTTPServer
 
 import app as A
 from memgate.reader import ChatModel
@@ -123,7 +122,7 @@ class Client:
 
 
 def serve(app):
-    srv = ThreadingHTTPServer(("127.0.0.1", 0), A.make_handler(app))
+    srv = A.Server(("127.0.0.1", 0), A.make_handler(app))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv, f"http://127.0.0.1:{srv.server_address[1]}"
 

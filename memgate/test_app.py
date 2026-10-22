@@ -295,5 +295,29 @@ check("a malformed visitor id is replaced, not used as a path",
                              cookie=PASS)[2].get("Set-Cookie") or ""))
 pub.shutdown()
 
+print("\n-- many requests at once --")
+# The standard library's accept queue is 5 deep; 200 visitors at once had
+# 314 of 2,000 requests reset before a thread picked them up (scale_app.py).
+burst = A.Server(("127.0.0.1", 0), A.make_handler(A.App(Echo(), A.Chats(tempfile.mkdtemp()))))
+threading.Thread(target=burst.serve_forever, daemon=True).start()
+codes = []
+def _one(k):
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{burst.server_address[1]}/api/chat",
+        data=json.dumps({"text": f"burst note {k}"}).encode(),
+        headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            codes.append(r.status)
+    except Exception as e:
+        codes.append(type(e).__name__)
+_ths = [threading.Thread(target=_one, args=(k,)) for k in range(60)]
+[t.start() for t in _ths]
+[t.join() for t in _ths]
+check("the app server queues a burst of 60 requests instead of resetting them",
+      A.Server.request_queue_size >= 128 and codes.count(200) == 60,
+      str([c for c in codes if c != 200][:3]))
+burst.shutdown()
+
 print(f"\n{'='*46}\n  {passed} passed, {failed} failed\n{'='*46}")
 sys.exit(1 if failed else 0)

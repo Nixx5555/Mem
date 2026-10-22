@@ -569,6 +569,24 @@ on these answers. Answer recall, %:
 Source: `results/external_baselines.csv`, `external_baselines_sig.csv`,
 figure `results/figures/fig6_external.png`. Tests: `test_baselines.py`.
 
+### 3.14 At scale: chats of up to 10M tokens, and ten times the training data
+
+`docs/SCALE_TEST.md`. Held-out (5-fold by conversation), the learned scorer
+beats RAG significantly on all seven corpora tested, including BEAM 1M
+(answer recall 50.0% vs 13.5%) and BEAM 10M (53.8% vs 7.7%, 13 questions),
+which are not in its training set at all. Typed into the real app one message
+at a time, 33 BEAM 1M chats (~1.07M tokens each, S = 26,000) keep the answer
+for 51.9% of questions, against RAG's 19.2% (+32.7 [+19.2, +46.3]).
+Retraining on 594,000 turns (10.1x, adding BEAM 1M/10M and MemBench) gains on
+MemBench but loses BEAM 1M evidence recall in all three fold shuffles. A second
+round fixes that: weight each corpus by its evidence labels, add 262,876
+turns of everyday chat (PersonaChat), and average the logits with PR #12's
+model. That model is trained on 856,876 turns (14.6x) and is now shipped. In
+all three shuffles at the paper's budgets it loses nowhere significantly. It
+gains on held-out everyday chat (answer recall +7.6 to +8.2), MemBench, and
+the app path on BEAM 100K (evidence +11.5 to +12.4), and it ties on BEAM 1M. The load test found the server's 5-deep accept queue
+dropping requests under bursts; fixed.
+
 ---
 
 ## 4. Methodological findings

@@ -1,0 +1,14 @@
+answer locomo 4096 vs rag: +22.2 [+17.5, +27.6] SIG | vs heuristic: +12.9 [+7.6, +17.2] SIG
+answer realtalk 4096 vs rag: +19.4 [+7.5, +26.4] SIG | vs heuristic: +3.8 [-10.1, +11.8]
+answer beam 26000 vs rag: +41.2 [+14.3, +67.6] SIG | vs heuristic: +38.2 [+14.7, +62.9] SIG
+answer beam500 26000 vs rag: +30.9 [+16.7, +44.8] SIG | vs heuristic: +30.9 [+15.0, +46.3] SIG
+answer beam1m 26000 vs rag: +36.5 [+21.8, +51.0] SIG | vs heuristic: +38.5 [+23.6, +52.7] SIG
+answer beam10m 26000 vs rag: +46.2 [+10.0, +76.9] SIG | vs heuristic: +30.8 [+9.1, +53.8] SIG
+answer mb1 2048 vs rag: +18.8 [+14.2, +23.7] SIG | vs heuristic: -1.9 [-3.8, +0.0]
+soft locomo 4096 vs rag: +19.5 [+16.2, +22.7] SIG | vs heuristic: +15.1 [+8.4, +21.2] SIG
+soft realtalk 4096 vs rag: +14.4 [+6.6, +21.8] SIG | vs heuristic: +9.9 [+2.7, +16.8] SIG
+soft beam 26000 vs rag: +41.2 [+34.3, +47.7] SIG | vs heuristic: +40.7 [+33.5, +47.7] SIG
+soft beam500 26000 vs rag: +35.0 [+30.2, +39.7] SIG | vs heuristic: +33.7 [+28.9, +38.4] SIG
+soft beam1m 26000 vs rag: +21.3 [+18.2, +24.4] SIG | vs heuristic: +21.0 [+17.9, +24.2] SIG
+soft beam10m 26000 vs rag: +3.9 [+0.3, +9.5] SIG | vs heuristic: +3.9 [+0.3, +9.5] SIG
+soft mb1 2048 vs rag: +36.5 [+33.2, +39.9] SIG | vs heuristic: -4.6 [-5.9, -3.4] SIG

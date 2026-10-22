@@ -1,0 +1,826 @@
+answer seed 0  locomo    S=1024   rag           9.1%  n=715   convs=10
+answer seed 0  locomo    S=1024   heuristic    15.8%  n=715   convs=10
+answer seed 0  locomo    S=1024   pr12         19.7%  n=715   convs=10
+answer seed 0  locomo    S=1024   beam         19.3%  n=715   convs=10   vs pr12:  -0.4 [ -2.1,  +1.6] n.s.
+answer seed 0  locomo    S=1024   10x          19.0%  n=715   convs=10   vs pr12:  -0.7 [ -3.0,  +1.8] n.s.
+answer seed 0  locomo    S=1024   10x-eq       18.9%  n=715   convs=10   vs pr12:  -0.8 [ -3.4,  +1.8] n.s.
+answer seed 0  locomo    S=1024   10x-pos      18.5%  n=715   convs=10   vs pr12:  -1.3 [ -2.8,  +0.1] n.s.
+answer seed 0  locomo    S=1024   r2-ens-pos   18.0%  n=715   convs=10   vs pr12:  -1.7 [ -3.5,  +0.0] n.s.
+answer seed 0  locomo    S=2048   rag          18.3%  n=715   convs=10
+answer seed 0  locomo    S=2048   heuristic    27.8%  n=715   convs=10
+answer seed 0  locomo    S=2048   pr12         32.3%  n=715   convs=10
+answer seed 0  locomo    S=2048   beam         32.6%  n=715   convs=10   vs pr12:  +0.3 [ -2.4,  +2.9] n.s.
+answer seed 0  locomo    S=2048   10x          33.1%  n=715   convs=10   vs pr12:  +0.8 [ -3.1,  +4.5] n.s.
+answer seed 0  locomo    S=2048   10x-eq       32.9%  n=715   convs=10   vs pr12:  +0.6 [ -2.9,  +4.0] n.s.
+answer seed 0  locomo    S=2048   10x-pos      33.0%  n=715   convs=10   vs pr12:  +0.7 [ -2.2,  +3.2] n.s.
+answer seed 0  locomo    S=2048   r2-ens-pos   33.3%  n=715   convs=10   vs pr12:  +1.0 [ -0.8,  +2.7] n.s.
+answer seed 0  locomo    S=4096   rag          28.1%  n=715   convs=10
+answer seed 0  locomo    S=4096   heuristic    37.5%  n=715   convs=10
+answer seed 0  locomo    S=4096   pr12         50.3%  n=715   convs=10
+answer seed 0  locomo    S=4096   beam         50.3%  n=715   convs=10   vs pr12:  +0.0 [ -1.9,  +2.6] n.s.
+answer seed 0  locomo    S=4096   10x          49.5%  n=715   convs=10   vs pr12:  -0.8 [ -2.6,  +1.4] n.s.
+answer seed 0  locomo    S=4096   10x-eq       52.2%  n=715   convs=10   vs pr12:  +1.8 [ +0.0,  +4.2] n.s.
+answer seed 0  locomo    S=4096   10x-pos      51.5%  n=715   convs=10   vs pr12:  +1.1 [ -1.3,  +4.0] n.s.
+answer seed 0  locomo    S=4096   hgb-eq       41.8%  n=715   convs=10   vs pr12:  -8.5 [-11.1,  -5.3] SIG
+answer seed 0  locomo    S=4096   ens          51.5%  n=715   convs=10   vs pr12:  +1.1 [ -0.6,  +3.3] n.s.
+answer seed 0  locomo    S=4096   r2-pos       50.9%  n=715   convs=10   vs pr12:  +0.6 [ -1.5,  +2.8] n.s.
+answer seed 0  locomo    S=4096   r2-ens-pos   51.9%  n=715   convs=10   vs pr12:  +1.5 [ -0.2,  +3.4] n.s.
+answer seed 0  locomo    S=4096   app:pr12     50.3%  n=715   convs=10
+answer seed 0  locomo    S=4096   app:10x      49.4%  n=715   convs=10   vs app:pr12:  -1.0 [ -2.9,  +1.3] n.s.
+answer seed 0  locomo    S=4096   app:10x-eq   52.3%  n=715   convs=10   vs app:pr12:  +2.0 [ +0.2,  +4.2] SIG
+answer seed 0  locomo    S=4096   app:10x-pos  51.7%  n=715   convs=10   vs app:pr12:  +1.4 [ -1.0,  +4.1] n.s.
+answer seed 0  locomo    S=4096   app:hgb-eq   41.8%  n=715   convs=10   vs app:pr12:  -8.5 [-11.2,  -5.3] SIG
+answer seed 0  locomo    S=4096   app:ens      51.5%  n=715   convs=10   vs app:pr12:  +1.1 [ -0.6,  +3.3] n.s.
+answer seed 0  locomo    S=4096   app:r2-pos   51.2%  n=715   convs=10   vs app:pr12:  +0.8 [ -1.5,  +3.4] n.s.
+answer seed 0  locomo    S=4096   app:r2-ens-pos  51.9%  n=715   convs=10   vs app:pr12:  +1.5 [ -0.2,  +3.4] n.s.
+answer seed 0  locomo    S=8192   rag          44.3%  n=715   convs=10
+answer seed 0  locomo    S=8192   heuristic    57.8%  n=715   convs=10
+answer seed 0  locomo    S=8192   pr12         69.8%  n=715   convs=10
+answer seed 0  locomo    S=8192   beam         69.0%  n=715   convs=10   vs pr12:  -0.8 [ -2.4,  +0.5] n.s.
+answer seed 0  locomo    S=8192   10x          68.3%  n=715   convs=10   vs pr12:  -1.5 [ -3.4,  +0.6] n.s.
+answer seed 0  locomo    S=8192   10x-eq       68.1%  n=715   convs=10   vs pr12:  -1.7 [ -3.2,  +0.3] n.s.
+answer seed 0  locomo    S=8192   10x-pos      68.0%  n=715   convs=10   vs pr12:  -1.8 [ -3.2,  +0.0] n.s.
+answer seed 0  locomo    S=8192   r2-ens-pos   70.5%  n=715   convs=10   vs pr12:  +0.7 [ -0.6,  +2.3] n.s.
+answer seed 0  locomo    S=16384  rag          66.4%  n=715   convs=10
+answer seed 0  locomo    S=16384  heuristic    71.3%  n=715   convs=10
+answer seed 0  locomo    S=16384  pr12         77.6%  n=715   convs=10
+answer seed 0  locomo    S=16384  beam         77.5%  n=715   convs=10   vs pr12:  -0.1 [ -0.6,  +0.3] n.s.
+answer seed 0  locomo    S=16384  10x          77.1%  n=715   convs=10   vs pr12:  -0.6 [ -1.3,  +0.3] n.s.
+answer seed 0  locomo    S=16384  10x-eq       77.1%  n=715   convs=10   vs pr12:  -0.6 [ -1.1,  +0.2] n.s.
+answer seed 0  locomo    S=16384  10x-pos      76.8%  n=715   convs=10   vs pr12:  -0.8 [ -1.5,  +0.0] n.s.
+answer seed 0  locomo    S=16384  r2-ens-pos   77.2%  n=715   convs=10   vs pr12:  -0.4 [ -1.0,  +0.0] n.s.
+answer seed 0  realtalk  S=1024   rag           9.4%  n=160   convs=10
+answer seed 0  realtalk  S=1024   heuristic     8.1%  n=160   convs=10
+answer seed 0  realtalk  S=1024   pr12         10.6%  n=160   convs=10
+answer seed 0  realtalk  S=1024   beam          8.8%  n=160   convs=10   vs pr12:  -1.9 [ -4.1,  +0.7] n.s.
+answer seed 0  realtalk  S=1024   10x           7.5%  n=160   convs=10   vs pr12:  -3.1 [ -5.1,  -1.3] SIG
+answer seed 0  realtalk  S=1024   10x-eq        8.1%  n=160   convs=10   vs pr12:  -2.5 [ -4.5,  -0.8] SIG
+answer seed 0  realtalk  S=1024   10x-pos       7.5%  n=160   convs=10   vs pr12:  -3.1 [ -5.1,  -0.8] SIG
+answer seed 0  realtalk  S=1024   r2-ens-pos    8.1%  n=160   convs=10   vs pr12:  -2.5 [ -5.4,  +0.0] n.s.
+answer seed 0  realtalk  S=2048   rag          15.0%  n=160   convs=10
+answer seed 0  realtalk  S=2048   heuristic    16.2%  n=160   convs=10
+answer seed 0  realtalk  S=2048   pr12         21.2%  n=160   convs=10
+answer seed 0  realtalk  S=2048   beam         21.2%  n=160   convs=10   vs pr12:  +0.0 [ -4.9,  +5.9] n.s.
+answer seed 0  realtalk  S=2048   10x          18.8%  n=160   convs=10   vs pr12:  -2.5 [-12.3,  +4.2] n.s.
+answer seed 0  realtalk  S=2048   10x-eq       19.4%  n=160   convs=10   vs pr12:  -1.9 [ -6.6,  +2.4] n.s.
+answer seed 0  realtalk  S=2048   10x-pos      17.5%  n=160   convs=10   vs pr12:  -3.8 [ -8.3,  +0.0] n.s.
+answer seed 0  realtalk  S=2048   r2-ens-pos   19.4%  n=160   convs=10   vs pr12:  -1.9 [ -4.0,  +1.2] n.s.
+answer seed 0  realtalk  S=4096   rag          16.9%  n=160   convs=10
+answer seed 0  realtalk  S=4096   heuristic    32.5%  n=160   convs=10
+answer seed 0  realtalk  S=4096   pr12         36.2%  n=160   convs=10
+answer seed 0  realtalk  S=4096   beam         38.1%  n=160   convs=10   vs pr12:  +1.9 [ -2.0,  +6.7] n.s.
+answer seed 0  realtalk  S=4096   10x          38.8%  n=160   convs=10   vs pr12:  +2.5 [ -3.4, +10.5] n.s.
+answer seed 0  realtalk  S=4096   10x-eq       38.1%  n=160   convs=10   vs pr12:  +1.9 [ -3.5,  +7.4] n.s.
+answer seed 0  realtalk  S=4096   10x-pos      40.6%  n=160   convs=10   vs pr12:  +4.4 [ -2.3, +11.3] n.s.
+answer seed 0  realtalk  S=4096   hgb-eq       35.0%  n=160   convs=10   vs pr12:  -1.2 [ -6.8,  +4.8] n.s.
+answer seed 0  realtalk  S=4096   ens          39.4%  n=160   convs=10   vs pr12:  +3.1 [ +0.0,  +7.0] n.s.
+answer seed 0  realtalk  S=4096   r2-pos       36.9%  n=160   convs=10   vs pr12:  +0.6 [ -7.0, +12.2] n.s.
+answer seed 0  realtalk  S=4096   r2-ens-pos   36.2%  n=160   convs=10   vs pr12:  +0.0 [ -3.3,  +3.1] n.s.
+answer seed 0  realtalk  S=4096   app:pr12     38.1%  n=160   convs=10
+answer seed 0  realtalk  S=4096   app:10x      43.1%  n=160   convs=10   vs app:pr12:  +5.0 [ +0.0, +10.9] n.s.
+answer seed 0  realtalk  S=4096   app:10x-eq   40.0%  n=160   convs=10   vs app:pr12:  +1.9 [ -4.0,  +7.1] n.s.
+answer seed 0  realtalk  S=4096   app:10x-pos  41.2%  n=160   convs=10   vs app:pr12:  +3.1 [ -2.3,  +8.4] n.s.
+answer seed 0  realtalk  S=4096   app:hgb-eq   38.1%  n=160   convs=10   vs app:pr12:  +0.0 [ -4.6,  +5.6] n.s.
+answer seed 0  realtalk  S=4096   app:ens      40.6%  n=160   convs=10   vs app:pr12:  +2.5 [ -2.2,  +6.3] n.s.
+answer seed 0  realtalk  S=4096   app:r2-pos   41.2%  n=160   convs=10   vs app:pr12:  +3.1 [ -3.0, +13.3] n.s.
+answer seed 0  realtalk  S=4096   app:r2-ens-pos  41.2%  n=160   convs=10   vs app:pr12:  +3.1 [ +0.0,  +5.6] n.s.
+answer seed 0  realtalk  S=8192   rag          24.4%  n=160   convs=10
+answer seed 0  realtalk  S=8192   heuristic    41.2%  n=160   convs=10
+answer seed 0  realtalk  S=8192   pr12         59.4%  n=160   convs=10
+answer seed 0  realtalk  S=8192   beam         59.4%  n=160   convs=10   vs pr12:  +0.0 [ -6.2,  +7.6] n.s.
+answer seed 0  realtalk  S=8192   10x          63.1%  n=160   convs=10   vs pr12:  +3.8 [ +0.0,  +7.4] n.s.
+answer seed 0  realtalk  S=8192   10x-eq       58.8%  n=160   convs=10   vs pr12:  -0.6 [ -3.8,  +1.9] n.s.
+answer seed 0  realtalk  S=8192   10x-pos      60.6%  n=160   convs=10   vs pr12:  +1.2 [ -1.4,  +3.0] n.s.
+answer seed 0  realtalk  S=8192   r2-ens-pos   58.1%  n=160   convs=10   vs pr12:  -1.2 [ -4.3,  +1.6] n.s.
+answer seed 0  realtalk  S=16384  rag          43.1%  n=160   convs=10
+answer seed 0  realtalk  S=16384  heuristic    61.3%  n=160   convs=10
+answer seed 0  realtalk  S=16384  pr12         65.6%  n=160   convs=10
+answer seed 0  realtalk  S=16384  beam         67.5%  n=160   convs=10   vs pr12:  +1.9 [ +0.0,  +3.6] n.s.
+answer seed 0  realtalk  S=16384  10x          66.2%  n=160   convs=10   vs pr12:  +0.6 [ -2.0,  +4.1] n.s.
+answer seed 0  realtalk  S=16384  10x-eq       67.5%  n=160   convs=10   vs pr12:  +1.9 [ -2.7,  +6.8] n.s.
+answer seed 0  realtalk  S=16384  10x-pos      66.9%  n=160   convs=10   vs pr12:  +1.2 [ -3.2,  +4.5] n.s.
+answer seed 0  realtalk  S=16384  r2-ens-pos   65.0%  n=160   convs=10   vs pr12:  -0.6 [ -3.6,  +1.9] n.s.
+answer seed 0  beam      S=8000   rag          17.6%  n=34    convs=20
+answer seed 0  beam      S=8000   heuristic    17.6%  n=34    convs=20
+answer seed 0  beam      S=8000   pr12         61.8%  n=34    convs=20
+answer seed 0  beam      S=8000   beam         58.8%  n=34    convs=20   vs pr12:  -2.9 [-12.9,  +6.7] n.s.
+answer seed 0  beam      S=8000   10x          58.8%  n=34    convs=20   vs pr12:  -2.9 [-19.4, +13.5] n.s.
+answer seed 0  beam      S=8000   10x-eq       64.7%  n=34    convs=20   vs pr12:  +2.9 [ -6.9, +12.8] n.s.
+answer seed 0  beam      S=8000   10x-pos      61.8%  n=34    convs=20   vs pr12:  +0.0 [-11.4, +11.8] n.s.
+answer seed 0  beam      S=8000   r2-ens-pos   61.8%  n=34    convs=20   vs pr12:  +0.0 [-11.4, +11.8] n.s.
+answer seed 0  beam      S=26000  rag          32.4%  n=34    convs=20
+answer seed 0  beam      S=26000  heuristic    35.3%  n=34    convs=20
+answer seed 0  beam      S=26000  pr12         73.5%  n=34    convs=20
+answer seed 0  beam      S=26000  beam         76.5%  n=34    convs=20   vs pr12:  +2.9 [ -8.8, +15.4] n.s.
+answer seed 0  beam      S=26000  10x          70.6%  n=34    convs=20   vs pr12:  -2.9 [ -9.4,  +0.0] n.s.
+answer seed 0  beam      S=26000  10x-eq       73.5%  n=34    convs=20   vs pr12:  +0.0 [ +0.0,  +0.0] n.s.
+answer seed 0  beam      S=26000  10x-pos      79.4%  n=34    convs=20   vs pr12:  +5.9 [ +0.0, +16.7] n.s.
+answer seed 0  beam      S=26000  hgb-eq       76.5%  n=34    convs=20   vs pr12:  +2.9 [ -8.8, +15.8] n.s.
+answer seed 0  beam      S=26000  ens          73.5%  n=34    convs=20   vs pr12:  +0.0 [ +0.0,  +0.0] n.s.
+answer seed 0  beam      S=26000  r2-pos       73.5%  n=34    convs=20   vs pr12:  +0.0 [ +0.0,  +0.0] n.s.
+answer seed 0  beam      S=26000  r2-ens-pos   73.5%  n=34    convs=20   vs pr12:  +0.0 [ +0.0,  +0.0] n.s.
+answer seed 0  beam      S=26000  app:pr12     79.4%  n=34    convs=20
+answer seed 0  beam      S=26000  app:10x      88.2%  n=34    convs=20   vs app:pr12:  +8.8 [ +0.0, +20.0] n.s.
+answer seed 0  beam      S=26000  app:10x-eq   88.2%  n=34    convs=20   vs app:pr12:  +8.8 [ +0.0, +19.4] n.s.
+answer seed 0  beam      S=26000  app:10x-pos  88.2%  n=34    convs=20   vs app:pr12:  +8.8 [ +0.0, +20.0] n.s.
+answer seed 0  beam      S=26000  app:hgb-eq   94.1%  n=34    convs=20   vs app:pr12: +14.7 [ +5.0, +27.3] SIG
+answer seed 0  beam      S=26000  app:ens      88.2%  n=34    convs=20   vs app:pr12:  +8.8 [ +0.0, +20.0] n.s.
+answer seed 0  beam      S=26000  app:r2-pos   88.2%  n=34    convs=20   vs app:pr12:  +8.8 [ +0.0, +20.0] n.s.
+answer seed 0  beam      S=26000  app:r2-ens-pos  91.2%  n=34    convs=20   vs app:pr12: +11.8 [ +2.7, +23.5] SIG
+answer seed 0  beam      S=64000  rag          44.1%  n=34    convs=20
+answer seed 0  beam      S=64000  heuristic    61.8%  n=34    convs=20
+answer seed 0  beam      S=64000  pr12         82.4%  n=34    convs=20
+answer seed 0  beam      S=64000  beam         85.3%  n=34    convs=20   vs pr12:  +2.9 [ +0.0,  +9.7] n.s.
+answer seed 0  beam      S=64000  10x          82.4%  n=34    convs=20   vs pr12:  +0.0 [-12.1, +10.8] n.s.
+answer seed 0  beam      S=64000  10x-eq       82.4%  n=34    convs=20   vs pr12:  +0.0 [-12.1, +10.8] n.s.
+answer seed 0  beam      S=64000  10x-pos      79.4%  n=34    convs=20   vs pr12:  -2.9 [-14.7,  +5.7] n.s.
+answer seed 0  beam      S=64000  r2-ens-pos   82.4%  n=34    convs=20   vs pr12:  +0.0 [ +0.0,  +0.0] n.s.
+answer seed 0  beam500   S=8000   rag          23.6%  n=55    convs=35
+answer seed 0  beam500   S=8000   heuristic    16.4%  n=55    convs=35
+answer seed 0  beam500   S=8000   pr12         52.7%  n=55    convs=35
+answer seed 0  beam500   S=8000   beam         50.9%  n=55    convs=35   vs pr12:  -1.8 [-10.3,  +5.4] n.s.
+answer seed 0  beam500   S=8000   10x          49.1%  n=55    convs=35   vs pr12:  -3.6 [-10.9,  +3.6] n.s.
+answer seed 0  beam500   S=8000   10x-eq       50.9%  n=55    convs=35   vs pr12:  -1.8 [-11.1,  +7.7] n.s.
+answer seed 0  beam500   S=8000   10x-pos      50.9%  n=55    convs=35   vs pr12:  -1.8 [ -9.6,  +5.9] n.s.
+answer seed 0  beam500   S=8000   r2-ens-pos   54.5%  n=55    convs=35   vs pr12:  +1.8 [ -4.0,  +8.0] n.s.
+answer seed 0  beam500   S=26000  rag          32.7%  n=55    convs=35
+answer seed 0  beam500   S=26000  heuristic    32.7%  n=55    convs=35
+answer seed 0  beam500   S=26000  pr12         63.6%  n=55    convs=35
+answer seed 0  beam500   S=26000  beam         56.4%  n=55    convs=35   vs pr12:  -7.3 [-17.5,  +1.9] n.s.
+answer seed 0  beam500   S=26000  10x          58.2%  n=55    convs=35   vs pr12:  -5.5 [-16.1,  +4.9] n.s.
+answer seed 0  beam500   S=26000  10x-eq       56.4%  n=55    convs=35   vs pr12:  -7.3 [-17.3,  +1.9] n.s.
+answer seed 0  beam500   S=26000  10x-pos      63.6%  n=55    convs=35   vs pr12:  +0.0 [-10.5, +10.0] n.s.
+answer seed 0  beam500   S=26000  hgb-eq       76.4%  n=55    convs=35   vs pr12: +12.7 [ +3.8, +23.5] SIG
+answer seed 0  beam500   S=26000  ens          58.2%  n=55    convs=35   vs pr12:  -5.5 [-13.7,  +1.8] n.s.
+answer seed 0  beam500   S=26000  r2-pos       61.8%  n=55    convs=35   vs pr12:  -1.8 [-11.5,  +7.5] n.s.
+answer seed 0  beam500   S=26000  r2-ens-pos   61.8%  n=55    convs=35   vs pr12:  -1.8 [-10.0,  +5.8] n.s.
+answer seed 0  beam500   S=64000  rag          36.4%  n=55    convs=35
+answer seed 0  beam500   S=64000  heuristic    29.1%  n=55    convs=35
+answer seed 0  beam500   S=64000  pr12         80.0%  n=55    convs=35
+answer seed 0  beam500   S=64000  beam         67.3%  n=55    convs=35   vs pr12: -12.7 [-23.7,  -2.0] SIG
+answer seed 0  beam500   S=64000  10x          74.5%  n=55    convs=35   vs pr12:  -5.5 [-18.4,  +6.8] n.s.
+answer seed 0  beam500   S=64000  10x-eq       80.0%  n=55    convs=35   vs pr12:  +0.0 [-11.3, +11.7] n.s.
+answer seed 0  beam500   S=64000  10x-pos      80.0%  n=55    convs=35   vs pr12:  +0.0 [-10.0, +10.0] n.s.
+answer seed 0  beam500   S=64000  r2-ens-pos   83.6%  n=55    convs=35   vs pr12:  +3.6 [ -5.2, +12.5] n.s.
+answer seed 0  beam1m    S=8000   rag           7.7%  n=52    convs=35
+answer seed 0  beam1m    S=8000   heuristic    13.5%  n=52    convs=35
+answer seed 0  beam1m    S=8000   pr12         23.1%  n=52    convs=35
+answer seed 0  beam1m    S=8000   beam         23.1%  n=52    convs=35   vs pr12:  +0.0 [ -9.3,  +9.1] n.s.
+answer seed 0  beam1m    S=8000   10x          21.2%  n=52    convs=35   vs pr12:  -1.9 [-10.6,  +6.1] n.s.
+answer seed 0  beam1m    S=8000   10x-eq       25.0%  n=52    convs=35   vs pr12:  +1.9 [ -9.8, +13.0] n.s.
+answer seed 0  beam1m    S=8000   10x-pos      23.1%  n=52    convs=35   vs pr12:  +0.0 [ -9.6,  +9.3] n.s.
+answer seed 0  beam1m    S=8000   r2-ens-pos   25.0%  n=52    convs=35   vs pr12:  +1.9 [ -4.1,  +8.3] n.s.
+answer seed 0  beam1m    S=26000  rag          13.5%  n=52    convs=35
+answer seed 0  beam1m    S=26000  heuristic    11.5%  n=52    convs=35
+answer seed 0  beam1m    S=26000  pr12         50.0%  n=52    convs=35
+answer seed 0  beam1m    S=26000  beam         44.2%  n=52    convs=35   vs pr12:  -5.8 [-14.0,  +2.0] n.s.
+answer seed 0  beam1m    S=26000  10x          51.9%  n=52    convs=35   vs pr12:  +1.9 [ -7.8, +12.5] n.s.
+answer seed 0  beam1m    S=26000  10x-eq       51.9%  n=52    convs=35   vs pr12:  +1.9 [ -4.0,  +9.1] n.s.
+answer seed 0  beam1m    S=26000  10x-pos      55.8%  n=52    convs=35   vs pr12:  +5.8 [ +0.0, +13.0] n.s.
+answer seed 0  beam1m    S=26000  hgb-eq       61.5%  n=52    convs=35   vs pr12: +11.5 [ +0.0, +25.0] n.s.
+answer seed 0  beam1m    S=26000  ens          48.1%  n=52    convs=35   vs pr12:  -1.9 [ -8.3,  +4.3] n.s.
+answer seed 0  beam1m    S=26000  r2-pos       42.3%  n=52    convs=35   vs pr12:  -7.7 [-17.5,  +2.1] n.s.
+answer seed 0  beam1m    S=26000  r2-ens-pos   50.0%  n=52    convs=35   vs pr12:  +0.0 [ -7.3,  +8.0] n.s.
+answer seed 0  beam1m    S=64000  rag          19.2%  n=52    convs=35
+answer seed 0  beam1m    S=64000  heuristic    17.3%  n=52    convs=35
+answer seed 0  beam1m    S=64000  pr12         69.2%  n=52    convs=35
+answer seed 0  beam1m    S=64000  beam         63.5%  n=52    convs=35   vs pr12:  -5.8 [-17.3,  +5.5] n.s.
+answer seed 0  beam1m    S=64000  10x          63.5%  n=52    convs=35   vs pr12:  -5.8 [-17.4,  +5.5] n.s.
+answer seed 0  beam1m    S=64000  10x-eq       65.4%  n=52    convs=35   vs pr12:  -3.8 [-15.7,  +7.8] n.s.
+answer seed 0  beam1m    S=64000  10x-pos      69.2%  n=52    convs=35   vs pr12:  +0.0 [-10.6, +10.5] n.s.
+answer seed 0  beam1m    S=64000  r2-ens-pos   71.2%  n=52    convs=35   vs pr12:  +1.9 [ -6.4, +10.5] n.s.
+answer seed 0  beam10m   S=8000   rag           0.0%  n=13    convs=10
+answer seed 0  beam10m   S=8000   heuristic    15.4%  n=13    convs=10
+answer seed 0  beam10m   S=8000   pr12          7.7%  n=13    convs=10
+answer seed 0  beam10m   S=8000   beam          7.7%  n=13    convs=10   vs pr12:  +0.0 [ +0.0,  +0.0] n.s.
+answer seed 0  beam10m   S=8000   10x           7.7%  n=13    convs=10   vs pr12:  +0.0 [ +0.0,  +0.0] n.s.
+answer seed 0  beam10m   S=8000   10x-eq        7.7%  n=13    convs=10   vs pr12:  +0.0 [ +0.0,  +0.0] n.s.
+answer seed 0  beam10m   S=8000   10x-pos      23.1%  n=13    convs=10   vs pr12: +15.4 [ +0.0, +37.5] n.s.
+answer seed 0  beam10m   S=8000   r2-ens-pos    7.7%  n=13    convs=10   vs pr12:  +0.0 [ +0.0,  +0.0] n.s.
+answer seed 0  beam10m   S=26000  rag           7.7%  n=13    convs=10
+answer seed 0  beam10m   S=26000  heuristic    23.1%  n=13    convs=10
+answer seed 0  beam10m   S=26000  pr12         53.8%  n=13    convs=10
+answer seed 0  beam10m   S=26000  beam         30.8%  n=13    convs=10   vs pr12: -23.1 [-46.2,  +0.0] n.s.
+answer seed 0  beam10m   S=26000  10x          30.8%  n=13    convs=10   vs pr12: -23.1 [-46.7,  +0.0] n.s.
+answer seed 0  beam10m   S=26000  10x-eq       46.2%  n=13    convs=10   vs pr12:  -7.7 [-33.3, +18.2] n.s.
+answer seed 0  beam10m   S=26000  10x-pos      38.5%  n=13    convs=10   vs pr12: -15.4 [-45.5, +14.3] n.s.
+answer seed 0  beam10m   S=26000  hgb-eq       23.1%  n=13    convs=10   vs pr12: -30.8 [-54.5,  -9.1] SIG
+answer seed 0  beam10m   S=26000  ens          46.2%  n=13    convs=10   vs pr12:  -7.7 [-33.3, +16.7] n.s.
+answer seed 0  beam10m   S=26000  r2-pos       38.5%  n=13    convs=10   vs pr12: -15.4 [-33.3,  +0.0] n.s.
+answer seed 0  beam10m   S=26000  r2-ens-pos   38.5%  n=13    convs=10   vs pr12: -15.4 [-44.4,  +0.0] n.s.
+answer seed 0  beam10m   S=64000  rag          15.4%  n=13    convs=10
+answer seed 0  beam10m   S=64000  heuristic    30.8%  n=13    convs=10
+answer seed 0  beam10m   S=64000  pr12         46.2%  n=13    convs=10
+answer seed 0  beam10m   S=64000  beam         61.5%  n=13    convs=10   vs pr12: +15.4 [ +0.0, +38.5] n.s.
+answer seed 0  beam10m   S=64000  10x          46.2%  n=13    convs=10   vs pr12:  +0.0 [-20.0, +25.0] n.s.
+answer seed 0  beam10m   S=64000  10x-eq       69.2%  n=13    convs=10   vs pr12: +23.1 [ +5.9, +45.5] SIG
+answer seed 0  beam10m   S=64000  10x-pos      76.9%  n=13    convs=10   vs pr12: +30.8 [ +9.1, +53.8] SIG
+answer seed 0  beam10m   S=64000  r2-ens-pos   53.8%  n=13    convs=10   vs pr12:  +7.7 [-16.7, +33.3] n.s.
+answer seed 0  mb1       S=512    rag          36.0%  n=367   convs=874
+answer seed 0  mb1       S=512    heuristic    53.7%  n=367   convs=874
+answer seed 0  mb1       S=512    pr12         66.8%  n=367   convs=874
+answer seed 0  mb1       S=512    beam         65.4%  n=367   convs=874   vs pr12:  -1.4 [ -3.8,  +1.1] n.s.
+answer seed 0  mb1       S=512    10x          93.7%  n=367   convs=874   vs pr12: +27.0 [+22.1, +31.9] SIG
+answer seed 0  mb1       S=512    10x-eq       94.6%  n=367   convs=874   vs pr12: +27.8 [+22.9, +32.7] SIG
+answer seed 0  mb1       S=512    10x-pos      93.7%  n=367   convs=874   vs pr12: +27.0 [+22.1, +31.9] SIG
+answer seed 0  mb1       S=512    r2-ens-pos   75.5%  n=367   convs=874   vs pr12:  +8.7 [ +5.2, +12.3] SIG
+answer seed 0  mb1       S=1024   rag          56.1%  n=367   convs=874
+answer seed 0  mb1       S=1024   heuristic    99.2%  n=367   convs=874
+answer seed 0  mb1       S=1024   pr12         80.7%  n=367   convs=874
+answer seed 0  mb1       S=1024   beam         83.9%  n=367   convs=874   vs pr12:  +3.3 [ +1.1,  +5.7] SIG
+answer seed 0  mb1       S=1024   10x          99.2%  n=367   convs=874   vs pr12: +18.5 [+14.7, +22.6] SIG
+answer seed 0  mb1       S=1024   10x-eq       99.2%  n=367   convs=874   vs pr12: +18.5 [+14.7, +22.6] SIG
+answer seed 0  mb1       S=1024   10x-pos      99.2%  n=367   convs=874   vs pr12: +18.5 [+14.7, +22.6] SIG
+answer seed 0  mb1       S=1024   r2-ens-pos   96.2%  n=367   convs=874   vs pr12: +15.5 [+12.0, +19.3] SIG
+answer seed 0  mb1       S=2048   rag          76.8%  n=367   convs=874
+answer seed 0  mb1       S=2048   heuristic    97.5%  n=367   convs=874
+answer seed 0  mb1       S=2048   pr12         95.6%  n=367   convs=874
+answer seed 0  mb1       S=2048   beam         96.2%  n=367   convs=874   vs pr12:  +0.5 [ -0.8,  +2.2] n.s.
+answer seed 0  mb1       S=2048   10x          97.3%  n=367   convs=874   vs pr12:  +1.6 [ +0.0,  +3.3] n.s.
+answer seed 0  mb1       S=2048   10x-eq       97.3%  n=367   convs=874   vs pr12:  +1.6 [ +0.0,  +3.3] n.s.
+answer seed 0  mb1       S=2048   10x-pos      97.3%  n=367   convs=874   vs pr12:  +1.6 [ +0.0,  +3.3] n.s.
+answer seed 0  mb1       S=2048   hgb-eq       97.8%  n=367   convs=874   vs pr12:  +2.2 [ +0.3,  +4.1] SIG
+answer seed 0  mb1       S=2048   ens          97.3%  n=367   convs=874   vs pr12:  +1.6 [ +0.3,  +3.3] SIG
+answer seed 0  mb1       S=2048   r2-pos       97.8%  n=367   convs=874   vs pr12:  +2.2 [ +0.5,  +4.1] SIG
+answer seed 0  mb1       S=2048   r2-ens-pos   97.5%  n=367   convs=874   vs pr12:  +1.9 [ +0.3,  +3.8] SIG
+answer seed 0  persona_test S=512    rag          14.7%  n=1762  convs=50
+answer seed 0  persona_test S=512    heuristic    19.7%  n=1762  convs=50
+answer seed 0  persona_test S=512    pr12         33.8%  n=1762  convs=50
+answer seed 0  persona_test S=512    10x-pos      34.2%  n=1762  convs=50   vs pr12:  +0.4 [ -1.7,  +2.4] n.s.
+answer seed 0  persona_test S=512    r2-ens-pos   37.0%  n=1762  convs=50   vs pr12:  +3.2 [ +1.9,  +4.6] SIG
+answer seed 0  persona_test S=1024   rag          28.8%  n=1762  convs=50
+answer seed 0  persona_test S=1024   heuristic    30.4%  n=1762  convs=50
+answer seed 0  persona_test S=1024   pr12         61.4%  n=1762  convs=50
+answer seed 0  persona_test S=1024   10x-pos      65.6%  n=1762  convs=50   vs pr12:  +4.2 [ +2.4,  +6.0] SIG
+answer seed 0  persona_test S=1024   r2-pos       70.3%  n=1762  convs=50   vs pr12:  +8.9 [ +6.9, +11.0] SIG
+answer seed 0  persona_test S=1024   r2-ens-pos   69.0%  n=1762  convs=50   vs pr12:  +7.6 [ +5.9,  +9.5] SIG
+answer seed 0  persona_test S=2048   rag          52.6%  n=1762  convs=50
+answer seed 0  persona_test S=2048   heuristic    85.8%  n=1762  convs=50
+answer seed 0  persona_test S=2048   pr12         88.1%  n=1762  convs=50
+answer seed 0  persona_test S=2048   10x-pos      93.3%  n=1762  convs=50   vs pr12:  +5.2 [ +3.9,  +6.6] SIG
+answer seed 0  persona_test S=2048   r2-ens-pos   97.3%  n=1762  convs=50   vs pr12:  +9.2 [ +7.7, +10.7] SIG
+answer seed 1  locomo    S=4096   rag          28.1%  n=715   convs=10
+answer seed 1  locomo    S=4096   heuristic    37.5%  n=715   convs=10
+answer seed 1  locomo    S=4096   pr12         50.6%  n=715   convs=10
+answer seed 1  locomo    S=4096   beam         50.6%  n=715   convs=10   vs pr12:  +0.0 [ -2.0,  +1.8] n.s.
+answer seed 1  locomo    S=4096   10x          51.2%  n=715   convs=10   vs pr12:  +0.6 [ -2.2,  +3.3] n.s.
+answer seed 1  locomo    S=4096   10x-eq       50.2%  n=715   convs=10   vs pr12:  -0.4 [ -2.5,  +1.6] n.s.
+answer seed 1  locomo    S=4096   10x-pos      51.5%  n=715   convs=10   vs pr12:  +0.8 [ -0.9,  +2.8] n.s.
+answer seed 1  locomo    S=4096   r2-ens-pos   50.3%  n=715   convs=10   vs pr12:  -0.3 [ -2.2,  +1.5] n.s.
+answer seed 1  locomo    S=4096   app:pr12     50.6%  n=715   convs=10
+answer seed 1  locomo    S=4096   app:10x      51.0%  n=715   convs=10   vs app:pr12:  +0.4 [ -2.5,  +3.3] n.s.
+answer seed 1  locomo    S=4096   app:10x-eq   50.3%  n=715   convs=10   vs app:pr12:  -0.3 [ -2.2,  +1.7] n.s.
+answer seed 1  locomo    S=4096   app:10x-pos  51.6%  n=715   convs=10   vs app:pr12:  +1.0 [ -0.8,  +3.0] n.s.
+answer seed 1  locomo    S=4096   app:r2-ens-pos  50.6%  n=715   convs=10   vs app:pr12:  +0.0 [ -1.8,  +1.9] n.s.
+answer seed 1  realtalk  S=4096   rag          16.9%  n=160   convs=10
+answer seed 1  realtalk  S=4096   heuristic    32.5%  n=160   convs=10
+answer seed 1  realtalk  S=4096   pr12         38.8%  n=160   convs=10
+answer seed 1  realtalk  S=4096   beam         40.6%  n=160   convs=10   vs pr12:  +1.9 [ -0.8,  +3.6] n.s.
+answer seed 1  realtalk  S=4096   10x          37.5%  n=160   convs=10   vs pr12:  -1.2 [ -6.9,  +2.8] n.s.
+answer seed 1  realtalk  S=4096   10x-eq       40.6%  n=160   convs=10   vs pr12:  +1.9 [ -6.6,  +7.8] n.s.
+answer seed 1  realtalk  S=4096   10x-pos      40.0%  n=160   convs=10   vs pr12:  +1.2 [ -6.1,  +7.1] n.s.
+answer seed 1  realtalk  S=4096   r2-ens-pos   38.8%  n=160   convs=10   vs pr12:  +0.0 [ -3.4,  +4.0] n.s.
+answer seed 1  realtalk  S=4096   app:pr12     40.0%  n=160   convs=10
+answer seed 1  realtalk  S=4096   app:10x      41.2%  n=160   convs=10   vs app:pr12:  +1.2 [ -3.3,  +5.8] n.s.
+answer seed 1  realtalk  S=4096   app:10x-eq   43.1%  n=160   convs=10   vs app:pr12:  +3.1 [ -2.2,  +7.5] n.s.
+answer seed 1  realtalk  S=4096   app:10x-pos  43.1%  n=160   convs=10   vs app:pr12:  +3.1 [ -3.6,  +9.2] n.s.
+answer seed 1  realtalk  S=4096   app:r2-ens-pos  41.9%  n=160   convs=10   vs app:pr12:  +1.9 [ -1.8,  +6.4] n.s.
+answer seed 1  beam      S=26000  rag          32.4%  n=34    convs=20
+answer seed 1  beam      S=26000  heuristic    35.3%  n=34    convs=20
+answer seed 1  beam      S=26000  pr12         70.6%  n=34    convs=20
+answer seed 1  beam      S=26000  beam         70.6%  n=34    convs=20   vs pr12:  +0.0 [-15.6, +12.8] n.s.
+answer seed 1  beam      S=26000  10x          76.5%  n=34    convs=20   vs pr12:  +5.9 [ +0.0, +13.5] n.s.
+answer seed 1  beam      S=26000  10x-eq       73.5%  n=34    convs=20   vs pr12:  +2.9 [ +0.0,  +9.4] n.s.
+answer seed 1  beam      S=26000  10x-pos      73.5%  n=34    convs=20   vs pr12:  +2.9 [ +0.0,  +9.7] n.s.
+answer seed 1  beam      S=26000  r2-ens-pos   73.5%  n=34    convs=20   vs pr12:  +2.9 [ +0.0,  +9.4] n.s.
+answer seed 1  beam      S=26000  app:pr12     79.4%  n=34    convs=20
+answer seed 1  beam      S=26000  app:10x      88.2%  n=34    convs=20   vs app:pr12:  +8.8 [ +0.0, +19.4] n.s.
+answer seed 1  beam      S=26000  app:10x-eq   91.2%  n=34    convs=20   vs app:pr12: +11.8 [ +2.8, +23.3] SIG
+answer seed 1  beam      S=26000  app:10x-pos  88.2%  n=34    convs=20   vs app:pr12:  +8.8 [ +0.0, +20.0] n.s.
+answer seed 1  beam      S=26000  app:r2-ens-pos  91.2%  n=34    convs=20   vs app:pr12: +11.8 [ +2.7, +23.5] SIG
+answer seed 1  beam500   S=26000  rag          32.7%  n=55    convs=35
+answer seed 1  beam500   S=26000  heuristic    32.7%  n=55    convs=35
+answer seed 1  beam500   S=26000  pr12         63.6%  n=55    convs=35
+answer seed 1  beam500   S=26000  beam         52.7%  n=55    convs=35   vs pr12: -10.9 [-20.0,  -3.5] SIG
+answer seed 1  beam500   S=26000  10x          54.5%  n=55    convs=35   vs pr12:  -9.1 [-19.6,  +0.0] n.s.
+answer seed 1  beam500   S=26000  10x-eq       61.8%  n=55    convs=35   vs pr12:  -1.8 [-12.0,  +7.1] n.s.
+answer seed 1  beam500   S=26000  10x-pos      65.5%  n=55    convs=35   vs pr12:  +1.8 [ -6.1,  +9.4] n.s.
+answer seed 1  beam500   S=26000  r2-ens-pos   65.5%  n=55    convs=35   vs pr12:  +1.8 [ -7.8, +10.9] n.s.
+answer seed 1  beam1m    S=26000  rag          13.5%  n=52    convs=35
+answer seed 1  beam1m    S=26000  heuristic    11.5%  n=52    convs=35
+answer seed 1  beam1m    S=26000  pr12         48.1%  n=52    convs=35
+answer seed 1  beam1m    S=26000  beam         44.2%  n=52    convs=35   vs pr12:  -3.8 [-11.1,  +3.9] n.s.
+answer seed 1  beam1m    S=26000  10x          42.3%  n=52    convs=35   vs pr12:  -5.8 [-15.1,  +4.1] n.s.
+answer seed 1  beam1m    S=26000  10x-eq       51.9%  n=52    convs=35   vs pr12:  +3.8 [ -5.3, +13.5] n.s.
+answer seed 1  beam1m    S=26000  10x-pos      53.8%  n=52    convs=35   vs pr12:  +5.8 [ -3.8, +16.0] n.s.
+answer seed 1  beam1m    S=26000  r2-ens-pos   46.2%  n=52    convs=35   vs pr12:  -1.9 [-10.4,  +6.1] n.s.
+answer seed 1  beam10m   S=26000  rag           7.7%  n=13    convs=10
+answer seed 1  beam10m   S=26000  heuristic    23.1%  n=13    convs=10
+answer seed 1  beam10m   S=26000  pr12         46.2%  n=13    convs=10
+answer seed 1  beam10m   S=26000  beam         23.1%  n=13    convs=10   vs pr12: -23.1 [-41.7,  +0.0] n.s.
+answer seed 1  beam10m   S=26000  10x          38.5%  n=13    convs=10   vs pr12:  -7.7 [-18.8,  +0.0] n.s.
+answer seed 1  beam10m   S=26000  10x-eq       46.2%  n=13    convs=10   vs pr12:  +0.0 [-18.8, +21.4] n.s.
+answer seed 1  beam10m   S=26000  10x-pos      38.5%  n=13    convs=10   vs pr12:  -7.7 [-31.6, +18.2] n.s.
+answer seed 1  beam10m   S=26000  r2-ens-pos   46.2%  n=13    convs=10   vs pr12:  +0.0 [ +0.0,  +0.0] n.s.
+answer seed 1  mb1       S=2048   rag          76.8%  n=367   convs=874
+answer seed 1  mb1       S=2048   heuristic    97.5%  n=367   convs=874
+answer seed 1  mb1       S=2048   pr12         95.6%  n=367   convs=874
+answer seed 1  mb1       S=2048   beam         95.9%  n=367   convs=874   vs pr12:  +0.3 [ -1.4,  +1.9] n.s.
+answer seed 1  mb1       S=2048   10x          97.8%  n=367   convs=874   vs pr12:  +2.2 [ +0.5,  +3.8] SIG
+answer seed 1  mb1       S=2048   10x-eq       97.8%  n=367   convs=874   vs pr12:  +2.2 [ +0.5,  +3.8] SIG
+answer seed 1  mb1       S=2048   10x-pos      97.5%  n=367   convs=874   vs pr12:  +1.9 [ +0.0,  +3.8] n.s.
+answer seed 1  mb1       S=2048   r2-ens-pos   97.5%  n=367   convs=874   vs pr12:  +1.9 [ +0.3,  +3.8] SIG
+answer seed 1  persona_test S=1024   rag          28.8%  n=1762  convs=50
+answer seed 1  persona_test S=1024   heuristic    30.4%  n=1762  convs=50
+answer seed 1  persona_test S=1024   pr12         60.9%  n=1762  convs=50
+answer seed 1  persona_test S=1024   10x-pos      65.6%  n=1762  convs=50   vs pr12:  +4.7 [ +2.5,  +6.9] SIG
+answer seed 1  persona_test S=1024   r2-ens-pos   69.1%  n=1762  convs=50   vs pr12:  +8.2 [ +6.5, +10.0] SIG
+answer seed 2  locomo    S=4096   rag          28.1%  n=715   convs=10
+answer seed 2  locomo    S=4096   heuristic    37.5%  n=715   convs=10
+answer seed 2  locomo    S=4096   pr12         50.9%  n=715   convs=10
+answer seed 2  locomo    S=4096   beam         49.8%  n=715   convs=10   vs pr12:  -1.1 [ -2.9,  +0.6] n.s.
+answer seed 2  locomo    S=4096   10x          49.8%  n=715   convs=10   vs pr12:  -1.1 [ -3.6,  +1.6] n.s.
+answer seed 2  locomo    S=4096   10x-eq       50.5%  n=715   convs=10   vs pr12:  -0.4 [ -2.1,  +1.0] n.s.
+answer seed 2  locomo    S=4096   10x-pos      51.0%  n=715   convs=10   vs pr12:  +0.1 [ -1.5,  +1.9] n.s.
+answer seed 2  locomo    S=4096   r2-ens-pos   51.2%  n=715   convs=10   vs pr12:  +0.3 [ -1.4,  +1.8] n.s.
+answer seed 2  locomo    S=4096   app:pr12     51.0%  n=715   convs=10
+answer seed 2  locomo    S=4096   app:10x      49.8%  n=715   convs=10   vs app:pr12:  -1.3 [ -3.6,  +1.3] n.s.
+answer seed 2  locomo    S=4096   app:10x-eq   50.6%  n=715   convs=10   vs app:pr12:  -0.4 [ -2.1,  +1.1] n.s.
+answer seed 2  locomo    S=4096   app:10x-pos  51.0%  n=715   convs=10   vs app:pr12:  +0.0 [ -1.8,  +1.9] n.s.
+answer seed 2  locomo    S=4096   app:r2-ens-pos  51.5%  n=715   convs=10   vs app:pr12:  +0.4 [ -1.0,  +1.9] n.s.
+answer seed 2  realtalk  S=4096   rag          16.9%  n=160   convs=10
+answer seed 2  realtalk  S=4096   heuristic    32.5%  n=160   convs=10
+answer seed 2  realtalk  S=4096   pr12         41.9%  n=160   convs=10
+answer seed 2  realtalk  S=4096   beam         41.2%  n=160   convs=10   vs pr12:  -0.6 [ -4.9,  +4.6] n.s.
+answer seed 2  realtalk  S=4096   10x          41.9%  n=160   convs=10   vs pr12:  +0.0 [ -6.2,  +7.7] n.s.
+answer seed 2  realtalk  S=4096   10x-eq       41.2%  n=160   convs=10   vs pr12:  -0.6 [ -6.8,  +4.7] n.s.
+answer seed 2  realtalk  S=4096   10x-pos      43.1%  n=160   convs=10   vs pr12:  +1.2 [ -4.5,  +7.5] n.s.
+answer seed 2  realtalk  S=4096   r2-ens-pos   42.5%  n=160   convs=10   vs pr12:  +0.6 [ -2.3,  +3.6] n.s.
+answer seed 2  realtalk  S=4096   app:pr12     43.1%  n=160   convs=10
+answer seed 2  realtalk  S=4096   app:10x      41.9%  n=160   convs=10   vs app:pr12:  -1.2 [ -5.4,  +3.9] n.s.
+answer seed 2  realtalk  S=4096   app:10x-eq   42.5%  n=160   convs=10   vs app:pr12:  -0.6 [ -7.5,  +5.2] n.s.
+answer seed 2  realtalk  S=4096   app:10x-pos  46.9%  n=160   convs=10   vs app:pr12:  +3.8 [ -2.8,  +9.7] n.s.
+answer seed 2  realtalk  S=4096   app:r2-ens-pos  43.8%  n=160   convs=10   vs app:pr12:  +0.6 [ -3.4,  +3.9] n.s.
+answer seed 2  beam      S=26000  rag          32.4%  n=34    convs=20
+answer seed 2  beam      S=26000  heuristic    35.3%  n=34    convs=20
+answer seed 2  beam      S=26000  pr12         79.4%  n=34    convs=20
+answer seed 2  beam      S=26000  beam         70.6%  n=34    convs=20   vs pr12:  -8.8 [-18.4,  +0.0] n.s.
+answer seed 2  beam      S=26000  10x          76.5%  n=34    convs=20   vs pr12:  -2.9 [ -8.3,  +0.0] n.s.
+answer seed 2  beam      S=26000  10x-eq       73.5%  n=34    convs=20   vs pr12:  -5.9 [-16.7,  +0.0] n.s.
+answer seed 2  beam      S=26000  10x-pos      76.5%  n=34    convs=20   vs pr12:  -2.9 [ -8.3,  +0.0] n.s.
+answer seed 2  beam      S=26000  r2-ens-pos   76.5%  n=34    convs=20   vs pr12:  -2.9 [ -8.3,  +0.0] n.s.
+answer seed 2  beam      S=26000  app:pr12     79.4%  n=34    convs=20
+answer seed 2  beam      S=26000  app:10x      91.2%  n=34    convs=20   vs app:pr12: +11.8 [ +2.7, +23.3] SIG
+answer seed 2  beam      S=26000  app:10x-eq   91.2%  n=34    convs=20   vs app:pr12: +11.8 [ +2.8, +23.5] SIG
+answer seed 2  beam      S=26000  app:10x-pos  88.2%  n=34    convs=20   vs app:pr12:  +8.8 [ +0.0, +20.0] n.s.
+answer seed 2  beam      S=26000  app:r2-ens-pos  88.2%  n=34    convs=20   vs app:pr12:  +8.8 [ +0.0, +19.4] n.s.
+answer seed 2  beam500   S=26000  rag          32.7%  n=55    convs=35
+answer seed 2  beam500   S=26000  heuristic    32.7%  n=55    convs=35
+answer seed 2  beam500   S=26000  pr12         65.5%  n=55    convs=35
+answer seed 2  beam500   S=26000  beam         60.0%  n=55    convs=35   vs pr12:  -5.5 [-16.0,  +5.1] n.s.
+answer seed 2  beam500   S=26000  10x          60.0%  n=55    convs=35   vs pr12:  -5.5 [-16.3,  +5.1] n.s.
+answer seed 2  beam500   S=26000  10x-eq       65.5%  n=55    convs=35   vs pr12:  +0.0 [-10.2, +10.0] n.s.
+answer seed 2  beam500   S=26000  10x-pos      63.6%  n=55    convs=35   vs pr12:  -1.8 [ -8.7,  +3.6] n.s.
+answer seed 2  beam500   S=26000  r2-ens-pos   67.3%  n=55    convs=35   vs pr12:  +1.8 [ -6.1,  +9.4] n.s.
+answer seed 2  beam1m    S=26000  rag          13.5%  n=52    convs=35
+answer seed 2  beam1m    S=26000  heuristic    11.5%  n=52    convs=35
+answer seed 2  beam1m    S=26000  pr12         48.1%  n=52    convs=35
+answer seed 2  beam1m    S=26000  beam         46.2%  n=52    convs=35   vs pr12:  -1.9 [-10.2,  +6.5] n.s.
+answer seed 2  beam1m    S=26000  10x          42.3%  n=52    convs=35   vs pr12:  -5.8 [-15.8,  +3.8] n.s.
+answer seed 2  beam1m    S=26000  10x-eq       50.0%  n=52    convs=35   vs pr12:  +1.9 [ -4.3,  +8.5] n.s.
+answer seed 2  beam1m    S=26000  10x-pos      57.7%  n=52    convs=35   vs pr12:  +9.6 [ +2.1, +17.6] SIG
+answer seed 2  beam1m    S=26000  r2-ens-pos   50.0%  n=52    convs=35   vs pr12:  +1.9 [ -4.3,  +8.7] n.s.
+answer seed 2  beam10m   S=26000  rag           7.7%  n=13    convs=10
+answer seed 2  beam10m   S=26000  heuristic    23.1%  n=13    convs=10
+answer seed 2  beam10m   S=26000  pr12         61.5%  n=13    convs=10
+answer seed 2  beam10m   S=26000  beam         38.5%  n=13    convs=10   vs pr12: -23.1 [-41.7,  +0.0] n.s.
+answer seed 2  beam10m   S=26000  10x          46.2%  n=13    convs=10   vs pr12: -15.4 [-44.4,  +0.0] n.s.
+answer seed 2  beam10m   S=26000  10x-eq       53.8%  n=13    convs=10   vs pr12:  -7.7 [-27.3,  +0.0] n.s.
+answer seed 2  beam10m   S=26000  10x-pos      46.2%  n=13    convs=10   vs pr12: -15.4 [-45.5, +15.4] n.s.
+answer seed 2  beam10m   S=26000  r2-ens-pos   53.8%  n=13    convs=10   vs pr12:  -7.7 [-27.3,  +0.0] n.s.
+answer seed 2  mb1       S=2048   rag          76.8%  n=367   convs=874
+answer seed 2  mb1       S=2048   heuristic    97.5%  n=367   convs=874
+answer seed 2  mb1       S=2048   pr12         95.1%  n=367   convs=874
+answer seed 2  mb1       S=2048   beam         95.4%  n=367   convs=874   vs pr12:  +0.3 [ -1.1,  +1.6] n.s.
+answer seed 2  mb1       S=2048   10x          97.3%  n=367   convs=874   vs pr12:  +2.2 [ +0.3,  +4.4] SIG
+answer seed 2  mb1       S=2048   10x-eq       97.0%  n=367   convs=874   vs pr12:  +1.9 [ +0.3,  +3.8] SIG
+answer seed 2  mb1       S=2048   10x-pos      97.0%  n=367   convs=874   vs pr12:  +1.9 [ +0.3,  +3.8] SIG
+answer seed 2  mb1       S=2048   r2-ens-pos   97.3%  n=367   convs=874   vs pr12:  +2.2 [ +0.5,  +4.1] SIG
+answer seed 2  persona_test S=1024   rag          28.8%  n=1762  convs=50
+answer seed 2  persona_test S=1024   heuristic    30.4%  n=1762  convs=50
+answer seed 2  persona_test S=1024   pr12         59.9%  n=1762  convs=50
+answer seed 2  persona_test S=1024   10x-pos      64.8%  n=1762  convs=50   vs pr12:  +4.9 [ +2.9,  +7.0] SIG
+answer seed 2  persona_test S=1024   r2-ens-pos   67.9%  n=1762  convs=50   vs pr12:  +8.0 [ +6.1,  +9.9] SIG
+soft   seed 0  locomo    S=1024   rag           4.9%  n=1527  convs=10
+soft   seed 0  locomo    S=1024   heuristic     7.1%  n=1527  convs=10
+soft   seed 0  locomo    S=1024   pr12         11.2%  n=1527  convs=10
+soft   seed 0  locomo    S=1024   beam         11.3%  n=1527  convs=10   vs pr12:  +0.1 [ -1.2,  +1.2] n.s.
+soft   seed 0  locomo    S=1024   10x          11.2%  n=1527  convs=10   vs pr12:  +0.0 [ -1.4,  +1.5] n.s.
+soft   seed 0  locomo    S=1024   10x-eq       11.5%  n=1527  convs=10   vs pr12:  +0.3 [ -0.9,  +1.3] n.s.
+soft   seed 0  locomo    S=1024   10x-pos      11.8%  n=1527  convs=10   vs pr12:  +0.6 [ -0.4,  +1.6] n.s.
+soft   seed 0  locomo    S=1024   r2-ens-pos   10.8%  n=1527  convs=10   vs pr12:  -0.4 [ -1.2,  +0.4] n.s.
+soft   seed 0  locomo    S=2048   rag          11.4%  n=1527  convs=10
+soft   seed 0  locomo    S=2048   heuristic    15.5%  n=1527  convs=10
+soft   seed 0  locomo    S=2048   pr12         21.8%  n=1527  convs=10
+soft   seed 0  locomo    S=2048   beam         22.2%  n=1527  convs=10   vs pr12:  +0.3 [ -1.1,  +1.9] n.s.
+soft   seed 0  locomo    S=2048   10x          21.6%  n=1527  convs=10   vs pr12:  -0.2 [ -1.8,  +1.4] n.s.
+soft   seed 0  locomo    S=2048   10x-eq       22.6%  n=1527  convs=10   vs pr12:  +0.8 [ -0.7,  +2.3] n.s.
+soft   seed 0  locomo    S=2048   10x-pos      22.5%  n=1527  convs=10   vs pr12:  +0.7 [ -0.6,  +2.1] n.s.
+soft   seed 0  locomo    S=2048   r2-ens-pos   22.5%  n=1527  convs=10   vs pr12:  +0.7 [ -0.4,  +1.6] n.s.
+soft   seed 0  locomo    S=4096   rag          20.5%  n=1527  convs=10
+soft   seed 0  locomo    S=4096   heuristic    24.9%  n=1527  convs=10
+soft   seed 0  locomo    S=4096   pr12         40.0%  n=1527  convs=10
+soft   seed 0  locomo    S=4096   beam         39.4%  n=1527  convs=10   vs pr12:  -0.6 [ -2.4,  +1.3] n.s.
+soft   seed 0  locomo    S=4096   10x          39.7%  n=1527  convs=10   vs pr12:  -0.4 [ -2.4,  +2.0] n.s.
+soft   seed 0  locomo    S=4096   10x-eq       39.7%  n=1527  convs=10   vs pr12:  -0.4 [ -2.0,  +1.9] n.s.
+soft   seed 0  locomo    S=4096   10x-pos      39.7%  n=1527  convs=10   vs pr12:  -0.3 [ -2.7,  +2.6] n.s.
+soft   seed 0  locomo    S=4096   hgb-eq       33.3%  n=1527  convs=10   vs pr12:  -6.7 [ -9.3,  -3.9] SIG
+soft   seed 0  locomo    S=4096   ens          40.0%  n=1527  convs=10   vs pr12:  -0.0 [ -0.8,  +1.0] n.s.
+soft   seed 0  locomo    S=4096   r2-pos       38.9%  n=1527  convs=10   vs pr12:  -1.1 [ -2.7,  +0.6] n.s.
+soft   seed 0  locomo    S=4096   r2-ens-pos   40.1%  n=1527  convs=10   vs pr12:  +0.1 [ -1.1,  +1.4] n.s.
+soft   seed 0  locomo    S=4096   app:pr12     40.0%  n=1527  convs=10
+soft   seed 0  locomo    S=4096   app:10x      39.5%  n=1527  convs=10   vs app:pr12:  -0.5 [ -2.7,  +1.9] n.s.
+soft   seed 0  locomo    S=4096   app:10x-eq   39.7%  n=1527  convs=10   vs app:pr12:  -0.4 [ -2.0,  +1.8] n.s.
+soft   seed 0  locomo    S=4096   app:10x-pos  39.7%  n=1527  convs=10   vs app:pr12:  -0.3 [ -2.7,  +2.6] n.s.
+soft   seed 0  locomo    S=4096   app:hgb-eq   33.4%  n=1527  convs=10   vs app:pr12:  -6.6 [ -9.3,  -3.9] SIG
+soft   seed 0  locomo    S=4096   app:ens      40.0%  n=1527  convs=10   vs app:pr12:  -0.0 [ -0.8,  +1.0] n.s.
+soft   seed 0  locomo    S=4096   app:r2-pos   38.9%  n=1527  convs=10   vs app:pr12:  -1.1 [ -2.7,  +0.5] n.s.
+soft   seed 0  locomo    S=4096   app:r2-ens-pos  40.3%  n=1527  convs=10   vs app:pr12:  +0.3 [ -0.9,  +1.6] n.s.
+soft   seed 0  locomo    S=8192   rag          34.9%  n=1527  convs=10
+soft   seed 0  locomo    S=8192   heuristic    44.6%  n=1527  convs=10
+soft   seed 0  locomo    S=8192   pr12         61.5%  n=1527  convs=10
+soft   seed 0  locomo    S=8192   beam         61.0%  n=1527  convs=10   vs pr12:  -0.5 [ -1.5,  +0.7] n.s.
+soft   seed 0  locomo    S=8192   10x          59.6%  n=1527  convs=10   vs pr12:  -1.9 [ -3.6,  +0.2] n.s.
+soft   seed 0  locomo    S=8192   10x-eq       60.4%  n=1527  convs=10   vs pr12:  -1.1 [ -2.9,  +0.7] n.s.
+soft   seed 0  locomo    S=8192   10x-pos      61.2%  n=1527  convs=10   vs pr12:  -0.2 [ -2.3,  +2.1] n.s.
+soft   seed 0  locomo    S=8192   r2-ens-pos   61.9%  n=1527  convs=10   vs pr12:  +0.4 [ -1.0,  +1.9] n.s.
+soft   seed 0  locomo    S=16384  rag          60.0%  n=1527  convs=10
+soft   seed 0  locomo    S=16384  heuristic    64.7%  n=1527  convs=10
+soft   seed 0  locomo    S=16384  pr12         71.6%  n=1527  convs=10
+soft   seed 0  locomo    S=16384  beam         71.7%  n=1527  convs=10   vs pr12:  +0.1 [ -0.2,  +0.4] n.s.
+soft   seed 0  locomo    S=16384  10x          71.5%  n=1527  convs=10   vs pr12:  -0.1 [ -0.8,  +0.4] n.s.
+soft   seed 0  locomo    S=16384  10x-eq       71.4%  n=1527  convs=10   vs pr12:  -0.2 [ -0.7,  +0.3] n.s.
+soft   seed 0  locomo    S=16384  10x-pos      71.8%  n=1527  convs=10   vs pr12:  +0.1 [ -0.2,  +0.6] n.s.
+soft   seed 0  locomo    S=16384  r2-ens-pos   71.8%  n=1527  convs=10   vs pr12:  +0.2 [ -0.2,  +0.6] n.s.
+soft   seed 0  realtalk  S=1024   rag           2.7%  n=660   convs=10
+soft   seed 0  realtalk  S=1024   heuristic     5.3%  n=660   convs=10
+soft   seed 0  realtalk  S=1024   pr12          5.7%  n=660   convs=10
+soft   seed 0  realtalk  S=1024   beam          7.0%  n=660   convs=10   vs pr12:  +1.2 [ -0.3,  +3.1] n.s.
+soft   seed 0  realtalk  S=1024   10x           6.5%  n=660   convs=10   vs pr12:  +0.8 [ -0.7,  +2.5] n.s.
+soft   seed 0  realtalk  S=1024   10x-eq        5.7%  n=660   convs=10   vs pr12:  +0.0 [ -1.6,  +1.9] n.s.
+soft   seed 0  realtalk  S=1024   10x-pos       6.2%  n=660   convs=10   vs pr12:  +0.5 [ -1.1,  +2.5] n.s.
+soft   seed 0  realtalk  S=1024   r2-ens-pos    6.0%  n=660   convs=10   vs pr12:  +0.3 [ -0.5,  +1.3] n.s.
+soft   seed 0  realtalk  S=2048   rag           7.1%  n=660   convs=10
+soft   seed 0  realtalk  S=2048   heuristic     9.7%  n=660   convs=10
+soft   seed 0  realtalk  S=2048   pr12         14.8%  n=660   convs=10
+soft   seed 0  realtalk  S=2048   beam         14.5%  n=660   convs=10   vs pr12:  -0.3 [ -1.9,  +1.2] n.s.
+soft   seed 0  realtalk  S=2048   10x          14.6%  n=660   convs=10   vs pr12:  -0.2 [ -2.3,  +1.8] n.s.
+soft   seed 0  realtalk  S=2048   10x-eq       14.3%  n=660   convs=10   vs pr12:  -0.5 [ -2.9,  +1.5] n.s.
+soft   seed 0  realtalk  S=2048   10x-pos      15.0%  n=660   convs=10   vs pr12:  +0.2 [ -1.9,  +2.1] n.s.
+soft   seed 0  realtalk  S=2048   r2-ens-pos   13.8%  n=660   convs=10   vs pr12:  -1.0 [ -3.2,  +1.1] n.s.
+soft   seed 0  realtalk  S=4096   rag          14.7%  n=660   convs=10
+soft   seed 0  realtalk  S=4096   heuristic    19.3%  n=660   convs=10
+soft   seed 0  realtalk  S=4096   pr12         29.2%  n=660   convs=10
+soft   seed 0  realtalk  S=4096   beam         30.8%  n=660   convs=10   vs pr12:  +1.6 [ -0.3,  +3.5] n.s.
+soft   seed 0  realtalk  S=4096   10x          29.3%  n=660   convs=10   vs pr12:  +0.1 [ -2.5,  +2.9] n.s.
+soft   seed 0  realtalk  S=4096   10x-eq       28.6%  n=660   convs=10   vs pr12:  -0.5 [ -3.6,  +2.4] n.s.
+soft   seed 0  realtalk  S=4096   10x-pos      28.1%  n=660   convs=10   vs pr12:  -1.0 [ -3.3,  +1.4] n.s.
+soft   seed 0  realtalk  S=4096   hgb-eq       25.3%  n=660   convs=10   vs pr12:  -3.9 [-10.4,  +1.8] n.s.
+soft   seed 0  realtalk  S=4096   ens          29.5%  n=660   convs=10   vs pr12:  +0.4 [ -1.4,  +2.3] n.s.
+soft   seed 0  realtalk  S=4096   r2-pos       27.4%  n=660   convs=10   vs pr12:  -1.7 [ -4.8,  +1.2] n.s.
+soft   seed 0  realtalk  S=4096   r2-ens-pos   28.9%  n=660   convs=10   vs pr12:  -0.3 [ -2.2,  +1.7] n.s.
+soft   seed 0  realtalk  S=4096   app:pr12     30.9%  n=660   convs=10
+soft   seed 0  realtalk  S=4096   app:10x      31.6%  n=660   convs=10   vs app:pr12:  +0.7 [ -1.1,  +2.7] n.s.
+soft   seed 0  realtalk  S=4096   app:10x-eq   30.4%  n=660   convs=10   vs app:pr12:  -0.5 [ -2.8,  +1.8] n.s.
+soft   seed 0  realtalk  S=4096   app:10x-pos  30.0%  n=660   convs=10   vs app:pr12:  -0.9 [ -2.1,  +0.4] n.s.
+soft   seed 0  realtalk  S=4096   app:hgb-eq   25.8%  n=660   convs=10   vs app:pr12:  -5.1 [-10.7,  -0.1] SIG
+soft   seed 0  realtalk  S=4096   app:ens      31.4%  n=660   convs=10   vs app:pr12:  +0.5 [ -0.8,  +2.2] n.s.
+soft   seed 0  realtalk  S=4096   app:r2-pos   30.2%  n=660   convs=10   vs app:pr12:  -0.7 [ -2.5,  +0.7] n.s.
+soft   seed 0  realtalk  S=4096   app:r2-ens-pos  31.4%  n=660   convs=10   vs app:pr12:  +0.5 [ -0.9,  +2.1] n.s.
+soft   seed 0  realtalk  S=8192   rag          24.1%  n=660   convs=10
+soft   seed 0  realtalk  S=8192   heuristic    31.2%  n=660   convs=10
+soft   seed 0  realtalk  S=8192   pr12         49.1%  n=660   convs=10
+soft   seed 0  realtalk  S=8192   beam         47.4%  n=660   convs=10   vs pr12:  -1.7 [ -4.4,  +1.3] n.s.
+soft   seed 0  realtalk  S=8192   10x          47.7%  n=660   convs=10   vs pr12:  -1.4 [ -3.2,  +0.5] n.s.
+soft   seed 0  realtalk  S=8192   10x-eq       47.6%  n=660   convs=10   vs pr12:  -1.5 [ -3.6,  +0.7] n.s.
+soft   seed 0  realtalk  S=8192   10x-pos      48.8%  n=660   convs=10   vs pr12:  -0.3 [ -2.3,  +1.8] n.s.
+soft   seed 0  realtalk  S=8192   r2-ens-pos   48.8%  n=660   convs=10   vs pr12:  -0.3 [ -2.1,  +1.3] n.s.
+soft   seed 0  realtalk  S=16384  rag          45.6%  n=660   convs=10
+soft   seed 0  realtalk  S=16384  heuristic    50.1%  n=660   convs=10
+soft   seed 0  realtalk  S=16384  pr12         66.0%  n=660   convs=10
+soft   seed 0  realtalk  S=16384  beam         65.6%  n=660   convs=10   vs pr12:  -0.4 [ -1.5,  +0.6] n.s.
+soft   seed 0  realtalk  S=16384  10x          65.0%  n=660   convs=10   vs pr12:  -1.0 [ -2.6,  +0.4] n.s.
+soft   seed 0  realtalk  S=16384  10x-eq       64.3%  n=660   convs=10   vs pr12:  -1.7 [ -3.1,  -0.3] SIG
+soft   seed 0  realtalk  S=16384  10x-pos      65.1%  n=660   convs=10   vs pr12:  -0.8 [ -2.0,  +0.4] n.s.
+soft   seed 0  realtalk  S=16384  r2-ens-pos   65.9%  n=660   convs=10   vs pr12:  -0.1 [ -0.9,  +0.6] n.s.
+soft   seed 0  beam      S=8000   rag           1.6%  n=355   convs=20
+soft   seed 0  beam      S=8000   heuristic     1.1%  n=355   convs=20
+soft   seed 0  beam      S=8000   pr12         29.9%  n=355   convs=20
+soft   seed 0  beam      S=8000   beam         26.1%  n=355   convs=20   vs pr12:  -3.8 [ -8.6,  +0.8] n.s.
+soft   seed 0  beam      S=8000   10x          27.1%  n=355   convs=20   vs pr12:  -2.8 [ -7.7,  +1.6] n.s.
+soft   seed 0  beam      S=8000   10x-eq       29.9%  n=355   convs=20   vs pr12:  -0.1 [ -4.5,  +3.6] n.s.
+soft   seed 0  beam      S=8000   10x-pos      29.5%  n=355   convs=20   vs pr12:  -0.4 [ -4.8,  +4.2] n.s.
+soft   seed 0  beam      S=8000   r2-ens-pos   33.1%  n=355   convs=20   vs pr12:  +3.2 [ +1.3,  +5.3] SIG
+soft   seed 0  beam      S=26000  rag           5.1%  n=355   convs=20
+soft   seed 0  beam      S=26000  heuristic     5.6%  n=355   convs=20
+soft   seed 0  beam      S=26000  pr12         46.3%  n=355   convs=20
+soft   seed 0  beam      S=26000  beam         44.8%  n=355   convs=20   vs pr12:  -1.5 [ -4.0,  +0.9] n.s.
+soft   seed 0  beam      S=26000  10x          45.0%  n=355   convs=20   vs pr12:  -1.3 [ -4.8,  +2.0] n.s.
+soft   seed 0  beam      S=26000  10x-eq       46.9%  n=355   convs=20   vs pr12:  +0.6 [ -2.0,  +3.2] n.s.
+soft   seed 0  beam      S=26000  10x-pos      46.2%  n=355   convs=20   vs pr12:  -0.1 [ -2.7,  +2.2] n.s.
+soft   seed 0  beam      S=26000  hgb-eq       50.4%  n=355   convs=20   vs pr12:  +4.1 [ +0.6,  +7.4] SIG
+soft   seed 0  beam      S=26000  ens          47.8%  n=355   convs=20   vs pr12:  +1.5 [ -0.3,  +3.4] n.s.
+soft   seed 0  beam      S=26000  r2-pos       49.3%  n=355   convs=20   vs pr12:  +2.9 [ +0.2,  +5.8] SIG
+soft   seed 0  beam      S=26000  r2-ens-pos   48.1%  n=355   convs=20   vs pr12:  +1.8 [ -0.4,  +4.2] n.s.
+soft   seed 0  beam      S=26000  app:pr12     43.0%  n=355   convs=20
+soft   seed 0  beam      S=26000  app:10x      49.1%  n=355   convs=20   vs app:pr12:  +6.1 [ +0.4, +11.9] SIG
+soft   seed 0  beam      S=26000  app:10x-eq   53.6%  n=355   convs=20   vs app:pr12: +10.6 [ +6.1, +15.2] SIG
+soft   seed 0  beam      S=26000  app:10x-pos  52.4%  n=355   convs=20   vs app:pr12:  +9.4 [ +4.4, +14.6] SIG
+soft   seed 0  beam      S=26000  app:hgb-eq   64.1%  n=355   convs=20   vs app:pr12: +21.1 [+16.8, +25.5] SIG
+soft   seed 0  beam      S=26000  app:ens      49.8%  n=355   convs=20   vs app:pr12:  +6.7 [ +4.0,  +9.7] SIG
+soft   seed 0  beam      S=26000  app:r2-pos   55.8%  n=355   convs=20   vs app:pr12: +12.8 [ +8.3, +17.4] SIG
+soft   seed 0  beam      S=26000  app:r2-ens-pos  55.4%  n=355   convs=20   vs app:pr12: +12.4 [ +7.9, +17.1] SIG
+soft   seed 0  beam      S=64000  rag          14.3%  n=355   convs=20
+soft   seed 0  beam      S=64000  heuristic    14.8%  n=355   convs=20
+soft   seed 0  beam      S=64000  pr12         48.3%  n=355   convs=20
+soft   seed 0  beam      S=64000  beam         49.4%  n=355   convs=20   vs pr12:  +1.1 [ -0.6,  +2.9] n.s.
+soft   seed 0  beam      S=64000  10x          49.3%  n=355   convs=20   vs pr12:  +1.1 [ -1.5,  +3.9] n.s.
+soft   seed 0  beam      S=64000  10x-eq       48.2%  n=355   convs=20   vs pr12:  -0.0 [ -1.8,  +1.8] n.s.
+soft   seed 0  beam      S=64000  10x-pos      48.1%  n=355   convs=20   vs pr12:  -0.1 [ -1.9,  +1.7] n.s.
+soft   seed 0  beam      S=64000  r2-ens-pos   48.1%  n=355   convs=20   vs pr12:  -0.2 [ -1.8,  +1.5] n.s.
+soft   seed 0  beam500   S=8000   rag           0.9%  n=629   convs=35
+soft   seed 0  beam500   S=8000   heuristic     0.6%  n=629   convs=35
+soft   seed 0  beam500   S=8000   pr12         13.7%  n=629   convs=35
+soft   seed 0  beam500   S=8000   beam         13.5%  n=629   convs=35   vs pr12:  -0.2 [ -2.4,  +1.8] n.s.
+soft   seed 0  beam500   S=8000   10x          12.6%  n=629   convs=35   vs pr12:  -1.1 [ -3.4,  +1.1] n.s.
+soft   seed 0  beam500   S=8000   10x-eq       13.1%  n=629   convs=35   vs pr12:  -0.6 [ -2.6,  +1.3] n.s.
+soft   seed 0  beam500   S=8000   10x-pos      13.4%  n=629   convs=35   vs pr12:  -0.3 [ -2.1,  +1.5] n.s.
+soft   seed 0  beam500   S=8000   r2-ens-pos   15.3%  n=629   convs=35   vs pr12:  +1.6 [ +0.1,  +3.2] SIG
+soft   seed 0  beam500   S=26000  rag           1.4%  n=629   convs=35
+soft   seed 0  beam500   S=26000  heuristic     2.7%  n=629   convs=35
+soft   seed 0  beam500   S=26000  pr12         36.4%  n=629   convs=35
+soft   seed 0  beam500   S=26000  beam         32.1%  n=629   convs=35   vs pr12:  -4.3 [ -6.8,  -1.8] SIG
+soft   seed 0  beam500   S=26000  10x          31.2%  n=629   convs=35   vs pr12:  -5.2 [ -8.1,  -2.2] SIG
+soft   seed 0  beam500   S=26000  10x-eq       34.1%  n=629   convs=35   vs pr12:  -2.3 [ -4.9,  +0.2] n.s.
+soft   seed 0  beam500   S=26000  10x-pos      36.6%  n=629   convs=35   vs pr12:  +0.2 [ -2.1,  +2.5] n.s.
+soft   seed 0  beam500   S=26000  hgb-eq       46.4%  n=629   convs=35   vs pr12: +10.0 [ +6.6, +13.4] SIG
+soft   seed 0  beam500   S=26000  ens          36.5%  n=629   convs=35   vs pr12:  +0.1 [ -1.7,  +2.0] n.s.
+soft   seed 0  beam500   S=26000  r2-pos       35.2%  n=629   convs=35   vs pr12:  -1.2 [ -4.3,  +1.7] n.s.
+soft   seed 0  beam500   S=26000  r2-ens-pos   38.0%  n=629   convs=35   vs pr12:  +1.6 [ -0.7,  +3.8] n.s.
+soft   seed 0  beam500   S=64000  rag           2.4%  n=629   convs=35
+soft   seed 0  beam500   S=64000  heuristic     5.6%  n=629   convs=35
+soft   seed 0  beam500   S=64000  pr12         45.9%  n=629   convs=35
+soft   seed 0  beam500   S=64000  beam         44.0%  n=629   convs=35   vs pr12:  -1.9 [ -4.1,  +0.3] n.s.
+soft   seed 0  beam500   S=64000  10x          43.3%  n=629   convs=35   vs pr12:  -2.6 [ -5.8,  +0.5] n.s.
+soft   seed 0  beam500   S=64000  10x-eq       45.6%  n=629   convs=35   vs pr12:  -0.3 [ -2.8,  +2.3] n.s.
+soft   seed 0  beam500   S=64000  10x-pos      47.7%  n=629   convs=35   vs pr12:  +1.8 [ -0.4,  +4.2] n.s.
+soft   seed 0  beam500   S=64000  r2-ens-pos   47.4%  n=629   convs=35   vs pr12:  +1.5 [ -1.3,  +4.1] n.s.
+soft   seed 0  beam1m    S=8000   rag           0.7%  n=622   convs=35
+soft   seed 0  beam1m    S=8000   heuristic     0.8%  n=622   convs=35
+soft   seed 0  beam1m    S=8000   pr12          7.7%  n=622   convs=35
+soft   seed 0  beam1m    S=8000   beam          5.1%  n=622   convs=35   vs pr12:  -2.6 [ -4.4,  -0.9] SIG
+soft   seed 0  beam1m    S=8000   10x           4.4%  n=622   convs=35   vs pr12:  -3.3 [ -4.8,  -1.9] SIG
+soft   seed 0  beam1m    S=8000   10x-eq        4.6%  n=622   convs=35   vs pr12:  -3.1 [ -4.4,  -1.8] SIG
+soft   seed 0  beam1m    S=8000   10x-pos       5.3%  n=622   convs=35   vs pr12:  -2.4 [ -3.8,  -1.1] SIG
+soft   seed 0  beam1m    S=8000   r2-ens-pos    6.0%  n=622   convs=35   vs pr12:  -1.7 [ -2.8,  -0.6] SIG
+soft   seed 0  beam1m    S=26000  rag           0.9%  n=622   convs=35
+soft   seed 0  beam1m    S=26000  heuristic     1.2%  n=622   convs=35
+soft   seed 0  beam1m    S=26000  pr12         22.2%  n=622   convs=35
+soft   seed 0  beam1m    S=26000  beam         19.2%  n=622   convs=35   vs pr12:  -3.0 [ -4.9,  -1.1] SIG
+soft   seed 0  beam1m    S=26000  10x          17.1%  n=622   convs=35   vs pr12:  -5.1 [ -7.3,  -3.1] SIG
+soft   seed 0  beam1m    S=26000  10x-eq       20.2%  n=622   convs=35   vs pr12:  -2.0 [ -3.7,  -0.4] SIG
+soft   seed 0  beam1m    S=26000  10x-pos      21.8%  n=622   convs=35   vs pr12:  -0.4 [ -2.3,  +1.4] n.s.
+soft   seed 0  beam1m    S=26000  hgb-eq       26.9%  n=622   convs=35   vs pr12:  +4.7 [ +1.7,  +7.7] SIG
+soft   seed 0  beam1m    S=26000  ens          22.7%  n=622   convs=35   vs pr12:  +0.5 [ -0.6,  +1.6] n.s.
+soft   seed 0  beam1m    S=26000  r2-pos       19.4%  n=622   convs=35   vs pr12:  -2.8 [ -5.1,  -0.6] SIG
+soft   seed 0  beam1m    S=26000  r2-ens-pos   22.5%  n=622   convs=35   vs pr12:  +0.3 [ -1.4,  +2.0] n.s.
+soft   seed 0  beam1m    S=64000  rag           0.9%  n=622   convs=35
+soft   seed 0  beam1m    S=64000  heuristic     1.7%  n=622   convs=35
+soft   seed 0  beam1m    S=64000  pr12         33.9%  n=622   convs=35
+soft   seed 0  beam1m    S=64000  beam         30.1%  n=622   convs=35   vs pr12:  -3.7 [ -6.2,  -1.3] SIG
+soft   seed 0  beam1m    S=64000  10x          28.9%  n=622   convs=35   vs pr12:  -5.0 [ -7.6,  -2.5] SIG
+soft   seed 0  beam1m    S=64000  10x-eq       32.4%  n=622   convs=35   vs pr12:  -1.4 [ -3.5,  +0.7] n.s.
+soft   seed 0  beam1m    S=64000  10x-pos      33.6%  n=622   convs=35   vs pr12:  -0.3 [ -2.2,  +1.6] n.s.
+soft   seed 0  beam1m    S=64000  r2-ens-pos   35.3%  n=622   convs=35   vs pr12:  +1.4 [ -0.2,  +3.1] n.s.
+soft   seed 0  beam10m   S=8000   rag           0.0%  n=128   convs=10
+soft   seed 0  beam10m   S=8000   heuristic     0.0%  n=128   convs=10
+soft   seed 0  beam10m   S=8000   pr12          0.0%  n=128   convs=10
+soft   seed 0  beam10m   S=8000   beam          0.0%  n=128   convs=10   vs pr12:  +0.0 [ +0.0,  +0.0] n.s.
+soft   seed 0  beam10m   S=8000   10x           0.0%  n=128   convs=10   vs pr12:  +0.0 [ +0.0,  +0.0] n.s.
+soft   seed 0  beam10m   S=8000   10x-eq        0.0%  n=128   convs=10   vs pr12:  +0.0 [ +0.0,  +0.0] n.s.
+soft   seed 0  beam10m   S=8000   10x-pos       0.4%  n=128   convs=10   vs pr12:  +0.4 [ +0.0,  +1.2] n.s.
+soft   seed 0  beam10m   S=8000   r2-ens-pos    0.0%  n=128   convs=10   vs pr12:  +0.0 [ +0.0,  +0.0] n.s.
+soft   seed 0  beam10m   S=26000  rag           0.0%  n=128   convs=10
+soft   seed 0  beam10m   S=26000  heuristic     0.0%  n=128   convs=10
+soft   seed 0  beam10m   S=26000  pr12          3.9%  n=128   convs=10
+soft   seed 0  beam10m   S=26000  beam          1.6%  n=128   convs=10   vs pr12:  -2.3 [ -5.9,  +0.3] n.s.
+soft   seed 0  beam10m   S=26000  10x           1.7%  n=128   convs=10   vs pr12:  -2.3 [ -5.6,  -0.1] SIG
+soft   seed 0  beam10m   S=26000  10x-eq        2.1%  n=128   convs=10   vs pr12:  -1.8 [ -5.2,  +0.6] n.s.
+soft   seed 0  beam10m   S=26000  10x-pos       4.1%  n=128   convs=10   vs pr12:  +0.2 [ -2.2,  +2.6] n.s.
+soft   seed 0  beam10m   S=26000  hgb-eq        0.4%  n=128   convs=10   vs pr12:  -3.5 [ -9.1,  -0.3] SIG
+soft   seed 0  beam10m   S=26000  ens           2.0%  n=128   convs=10   vs pr12:  -2.0 [ -5.5,  +0.2] n.s.
+soft   seed 0  beam10m   S=26000  r2-pos        2.6%  n=128   convs=10   vs pr12:  -1.3 [ -2.9,  -0.2] SIG
+soft   seed 0  beam10m   S=26000  r2-ens-pos    2.7%  n=128   convs=10   vs pr12:  -1.2 [ -2.8,  +0.0] n.s.
+soft   seed 0  beam10m   S=64000  rag           0.0%  n=128   convs=10
+soft   seed 0  beam10m   S=64000  heuristic     0.5%  n=128   convs=10
+soft   seed 0  beam10m   S=64000  pr12         10.0%  n=128   convs=10
+soft   seed 0  beam10m   S=64000  beam          5.5%  n=128   convs=10   vs pr12:  -4.6 [ -9.5,  -0.1] SIG
+soft   seed 0  beam10m   S=64000  10x           4.4%  n=128   convs=10   vs pr12:  -5.6 [ -9.7,  -2.3] SIG
+soft   seed 0  beam10m   S=64000  10x-eq        8.4%  n=128   convs=10   vs pr12:  -1.6 [ -3.8,  +0.4] n.s.
+soft   seed 0  beam10m   S=64000  10x-pos       8.3%  n=128   convs=10   vs pr12:  -1.7 [ -4.3,  +0.9] n.s.
+soft   seed 0  beam10m   S=64000  r2-ens-pos    8.9%  n=128   convs=10   vs pr12:  -1.2 [ -5.8,  +4.7] n.s.
+soft   seed 0  mb1       S=512    rag          12.4%  n=874   convs=874
+soft   seed 0  mb1       S=512    heuristic    39.0%  n=874   convs=874
+soft   seed 0  mb1       S=512    pr12         38.5%  n=874   convs=874
+soft   seed 0  mb1       S=512    beam         39.3%  n=874   convs=874   vs pr12:  +0.9 [ -0.9,  +2.7] n.s.
+soft   seed 0  mb1       S=512    10x          81.5%  n=874   convs=874   vs pr12: +43.1 [+40.2, +45.8] SIG
+soft   seed 0  mb1       S=512    10x-eq       78.5%  n=874   convs=874   vs pr12: +40.1 [+37.2, +42.9] SIG
+soft   seed 0  mb1       S=512    10x-pos      73.3%  n=874   convs=874   vs pr12: +34.9 [+32.0, +37.8] SIG
+soft   seed 0  mb1       S=512    r2-ens-pos   51.3%  n=874   convs=874   vs pr12: +12.8 [+10.9, +14.8] SIG
+soft   seed 0  mb1       S=1024   rag          25.6%  n=874   convs=874
+soft   seed 0  mb1       S=1024   heuristic    90.8%  n=874   convs=874
+soft   seed 0  mb1       S=1024   pr12         66.7%  n=874   convs=874
+soft   seed 0  mb1       S=1024   beam         68.5%  n=874   convs=874   vs pr12:  +1.8 [ +0.4,  +3.1] SIG
+soft   seed 0  mb1       S=1024   10x          96.1%  n=874   convs=874   vs pr12: +29.5 [+26.9, +32.0] SIG
+soft   seed 0  mb1       S=1024   10x-eq       95.0%  n=874   convs=874   vs pr12: +28.3 [+25.8, +30.8] SIG
+soft   seed 0  mb1       S=1024   10x-pos      94.3%  n=874   convs=874   vs pr12: +27.6 [+25.2, +30.1] SIG
+soft   seed 0  mb1       S=1024   r2-ens-pos   86.0%  n=874   convs=874   vs pr12: +19.3 [+17.2, +21.5] SIG
+soft   seed 0  mb1       S=2048   rag          51.4%  n=874   convs=874
+soft   seed 0  mb1       S=2048   heuristic    92.5%  n=874   convs=874
+soft   seed 0  mb1       S=2048   pr12         87.9%  n=874   convs=874
+soft   seed 0  mb1       S=2048   beam         88.2%  n=874   convs=874   vs pr12:  +0.3 [ -0.5,  +1.2] n.s.
+soft   seed 0  mb1       S=2048   10x          93.4%  n=874   convs=874   vs pr12:  +5.5 [ +4.3,  +6.8] SIG
+soft   seed 0  mb1       S=2048   10x-eq       93.2%  n=874   convs=874   vs pr12:  +5.4 [ +4.2,  +6.6] SIG
+soft   seed 0  mb1       S=2048   10x-pos      93.2%  n=874   convs=874   vs pr12:  +5.3 [ +4.1,  +6.6] SIG
+soft   seed 0  mb1       S=2048   hgb-eq       93.5%  n=874   convs=874   vs pr12:  +5.6 [ +4.4,  +6.9] SIG
+soft   seed 0  mb1       S=2048   ens          93.5%  n=874   convs=874   vs pr12:  +5.6 [ +4.5,  +6.8] SIG
+soft   seed 0  mb1       S=2048   r2-pos       93.5%  n=874   convs=874   vs pr12:  +5.7 [ +4.5,  +7.0] SIG
+soft   seed 0  mb1       S=2048   r2-ens-pos   93.5%  n=874   convs=874   vs pr12:  +5.6 [ +4.4,  +6.9] SIG
+soft   seed 0  persona_test S=512    rag          11.5%  n=1762  convs=50
+soft   seed 0  persona_test S=512    heuristic    16.6%  n=1762  convs=50
+soft   seed 0  persona_test S=512    pr12         29.3%  n=1762  convs=50
+soft   seed 0  persona_test S=512    10x-pos      30.1%  n=1762  convs=50   vs pr12:  +0.8 [ -0.9,  +2.6] n.s.
+soft   seed 0  persona_test S=512    r2-ens-pos   31.6%  n=1762  convs=50   vs pr12:  +2.4 [ +1.2,  +3.6] SIG
+soft   seed 0  persona_test S=1024   rag          22.6%  n=1762  convs=50
+soft   seed 0  persona_test S=1024   heuristic    23.7%  n=1762  convs=50
+soft   seed 0  persona_test S=1024   pr12         54.4%  n=1762  convs=50
+soft   seed 0  persona_test S=1024   10x-pos      59.6%  n=1762  convs=50   vs pr12:  +5.3 [ +3.9,  +6.5] SIG
+soft   seed 0  persona_test S=1024   r2-pos       64.9%  n=1762  convs=50   vs pr12: +10.5 [ +8.8, +12.3] SIG
+soft   seed 0  persona_test S=1024   r2-ens-pos   63.2%  n=1762  convs=50   vs pr12:  +8.8 [ +7.4, +10.3] SIG
+soft   seed 0  persona_test S=2048   rag          44.0%  n=1762  convs=50
+soft   seed 0  persona_test S=2048   heuristic    80.7%  n=1762  convs=50
+soft   seed 0  persona_test S=2048   pr12         84.1%  n=1762  convs=50
+soft   seed 0  persona_test S=2048   10x-pos      90.8%  n=1762  convs=50   vs pr12:  +6.7 [ +5.3,  +8.3] SIG
+soft   seed 0  persona_test S=2048   r2-ens-pos   96.0%  n=1762  convs=50   vs pr12: +11.9 [+10.2, +13.6] SIG
+soft   seed 1  locomo    S=4096   rag          20.5%  n=1527  convs=10
+soft   seed 1  locomo    S=4096   heuristic    24.9%  n=1527  convs=10
+soft   seed 1  locomo    S=4096   pr12         41.3%  n=1527  convs=10
+soft   seed 1  locomo    S=4096   beam         40.7%  n=1527  convs=10   vs pr12:  -0.6 [ -2.6,  +1.3] n.s.
+soft   seed 1  locomo    S=4096   10x          40.4%  n=1527  convs=10   vs pr12:  -0.8 [ -2.6,  +1.0] n.s.
+soft   seed 1  locomo    S=4096   10x-eq       40.2%  n=1527  convs=10   vs pr12:  -1.1 [ -3.3,  +1.8] n.s.
+soft   seed 1  locomo    S=4096   10x-pos      41.6%  n=1527  convs=10   vs pr12:  +0.3 [ -2.0,  +3.1] n.s.
+soft   seed 1  locomo    S=4096   r2-ens-pos   41.1%  n=1527  convs=10   vs pr12:  -0.2 [ -1.2,  +0.7] n.s.
+soft   seed 1  locomo    S=4096   app:pr12     41.3%  n=1527  convs=10
+soft   seed 1  locomo    S=4096   app:10x      40.6%  n=1527  convs=10   vs app:pr12:  -0.7 [ -2.6,  +1.1] n.s.
+soft   seed 1  locomo    S=4096   app:10x-eq   40.3%  n=1527  convs=10   vs app:pr12:  -0.9 [ -3.0,  +1.8] n.s.
+soft   seed 1  locomo    S=4096   app:10x-pos  41.8%  n=1527  convs=10   vs app:pr12:  +0.5 [ -1.6,  +3.2] n.s.
+soft   seed 1  locomo    S=4096   app:r2-ens-pos  41.3%  n=1527  convs=10   vs app:pr12:  +0.1 [ -0.6,  +0.8] n.s.
+soft   seed 1  realtalk  S=4096   rag          14.7%  n=660   convs=10
+soft   seed 1  realtalk  S=4096   heuristic    19.3%  n=660   convs=10
+soft   seed 1  realtalk  S=4096   pr12         30.0%  n=660   convs=10
+soft   seed 1  realtalk  S=4096   beam         30.8%  n=660   convs=10   vs pr12:  +0.8 [ -1.7,  +3.7] n.s.
+soft   seed 1  realtalk  S=4096   10x          28.4%  n=660   convs=10   vs pr12:  -1.6 [ -5.1,  +1.1] n.s.
+soft   seed 1  realtalk  S=4096   10x-eq       28.7%  n=660   convs=10   vs pr12:  -1.3 [ -4.5,  +1.7] n.s.
+soft   seed 1  realtalk  S=4096   10x-pos      29.5%  n=660   convs=10   vs pr12:  -0.5 [ -4.0,  +2.6] n.s.
+soft   seed 1  realtalk  S=4096   r2-ens-pos   29.3%  n=660   convs=10   vs pr12:  -0.8 [ -3.8,  +1.9] n.s.
+soft   seed 1  realtalk  S=4096   app:pr12     31.6%  n=660   convs=10
+soft   seed 1  realtalk  S=4096   app:10x      31.9%  n=660   convs=10   vs app:pr12:  +0.3 [ -1.2,  +2.1] n.s.
+soft   seed 1  realtalk  S=4096   app:10x-eq   30.9%  n=660   convs=10   vs app:pr12:  -0.7 [ -3.0,  +1.8] n.s.
+soft   seed 1  realtalk  S=4096   app:10x-pos  31.3%  n=660   convs=10   vs app:pr12:  -0.3 [ -3.0,  +2.5] n.s.
+soft   seed 1  realtalk  S=4096   app:r2-ens-pos  31.6%  n=660   convs=10   vs app:pr12:  -0.1 [ -2.2,  +2.2] n.s.
+soft   seed 1  beam      S=26000  rag           5.1%  n=355   convs=20
+soft   seed 1  beam      S=26000  heuristic     5.6%  n=355   convs=20
+soft   seed 1  beam      S=26000  pr12         45.6%  n=355   convs=20
+soft   seed 1  beam      S=26000  beam         43.9%  n=355   convs=20   vs pr12:  -1.7 [ -3.2,  -0.0] SIG
+soft   seed 1  beam      S=26000  10x          44.8%  n=355   convs=20   vs pr12:  -0.8 [ -3.2,  +1.6] n.s.
+soft   seed 1  beam      S=26000  10x-eq       45.3%  n=355   convs=20   vs pr12:  -0.3 [ -2.4,  +1.9] n.s.
+soft   seed 1  beam      S=26000  10x-pos      46.4%  n=355   convs=20   vs pr12:  +0.8 [ -1.0,  +2.6] n.s.
+soft   seed 1  beam      S=26000  r2-ens-pos   47.4%  n=355   convs=20   vs pr12:  +1.8 [ +0.1,  +3.6] SIG
+soft   seed 1  beam      S=26000  app:pr12     44.1%  n=355   convs=20
+soft   seed 1  beam      S=26000  app:10x      48.3%  n=355   convs=20   vs app:pr12:  +4.2 [ -1.6,  +9.8] n.s.
+soft   seed 1  beam      S=26000  app:10x-eq   53.1%  n=355   convs=20   vs app:pr12:  +9.0 [ +4.8, +13.2] SIG
+soft   seed 1  beam      S=26000  app:10x-pos  50.9%  n=355   convs=20   vs app:pr12:  +6.8 [ +1.3, +11.6] SIG
+soft   seed 1  beam      S=26000  app:r2-ens-pos  55.6%  n=355   convs=20   vs app:pr12: +11.5 [ +7.2, +15.7] SIG
+soft   seed 1  beam500   S=26000  rag           1.4%  n=629   convs=35
+soft   seed 1  beam500   S=26000  heuristic     2.7%  n=629   convs=35
+soft   seed 1  beam500   S=26000  pr12         35.6%  n=629   convs=35
+soft   seed 1  beam500   S=26000  beam         31.5%  n=629   convs=35   vs pr12:  -4.1 [ -6.3,  -2.1] SIG
+soft   seed 1  beam500   S=26000  10x          31.2%  n=629   convs=35   vs pr12:  -4.4 [ -6.4,  -2.5] SIG
+soft   seed 1  beam500   S=26000  10x-eq       34.7%  n=629   convs=35   vs pr12:  -0.9 [ -2.6,  +0.8] n.s.
+soft   seed 1  beam500   S=26000  10x-pos      37.0%  n=629   convs=35   vs pr12:  +1.4 [ -0.5,  +3.4] n.s.
+soft   seed 1  beam500   S=26000  r2-ens-pos   37.6%  n=629   convs=35   vs pr12:  +2.0 [ -0.0,  +3.8] n.s.
+soft   seed 1  beam1m    S=26000  rag           0.9%  n=622   convs=35
+soft   seed 1  beam1m    S=26000  heuristic     1.2%  n=622   convs=35
+soft   seed 1  beam1m    S=26000  pr12         22.8%  n=622   convs=35
+soft   seed 1  beam1m    S=26000  beam         18.1%  n=622   convs=35   vs pr12:  -4.8 [ -6.7,  -2.8] SIG
+soft   seed 1  beam1m    S=26000  10x          17.2%  n=622   convs=35   vs pr12:  -5.6 [ -7.9,  -3.3] SIG
+soft   seed 1  beam1m    S=26000  10x-eq       19.7%  n=622   convs=35   vs pr12:  -3.1 [ -5.0,  -1.2] SIG
+soft   seed 1  beam1m    S=26000  10x-pos      20.7%  n=622   convs=35   vs pr12:  -2.1 [ -4.5,  +0.4] n.s.
+soft   seed 1  beam1m    S=26000  r2-ens-pos   22.9%  n=622   convs=35   vs pr12:  +0.0 [ -2.2,  +2.2] n.s.
+soft   seed 1  beam10m   S=26000  rag           0.0%  n=128   convs=10
+soft   seed 1  beam10m   S=26000  heuristic     0.0%  n=128   convs=10
+soft   seed 1  beam10m   S=26000  pr12          5.1%  n=128   convs=10
+soft   seed 1  beam10m   S=26000  beam          1.6%  n=128   convs=10   vs pr12:  -3.5 [ -7.5,  +0.0] n.s.
+soft   seed 1  beam10m   S=26000  10x           2.6%  n=128   convs=10   vs pr12:  -2.5 [ -7.2,  +2.2] n.s.
+soft   seed 1  beam10m   S=26000  10x-eq        2.2%  n=128   convs=10   vs pr12:  -2.9 [ -7.3,  +1.0] n.s.
+soft   seed 1  beam10m   S=26000  10x-pos       2.9%  n=128   convs=10   vs pr12:  -2.2 [ -6.1,  +1.1] n.s.
+soft   seed 1  beam10m   S=26000  r2-ens-pos    3.3%  n=128   convs=10   vs pr12:  -1.8 [ -3.8,  +0.0] n.s.
+soft   seed 1  mb1       S=2048   rag          51.4%  n=874   convs=874
+soft   seed 1  mb1       S=2048   heuristic    92.5%  n=874   convs=874
+soft   seed 1  mb1       S=2048   pr12         87.7%  n=874   convs=874
+soft   seed 1  mb1       S=2048   beam         88.0%  n=874   convs=874   vs pr12:  +0.3 [ -0.6,  +1.2] n.s.
+soft   seed 1  mb1       S=2048   10x          93.5%  n=874   convs=874   vs pr12:  +5.8 [ +4.6,  +6.9] SIG
+soft   seed 1  mb1       S=2048   10x-eq       93.5%  n=874   convs=874   vs pr12:  +5.8 [ +4.6,  +7.0] SIG
+soft   seed 1  mb1       S=2048   10x-pos      93.4%  n=874   convs=874   vs pr12:  +5.7 [ +4.5,  +6.9] SIG
+soft   seed 1  mb1       S=2048   r2-ens-pos   93.7%  n=874   convs=874   vs pr12:  +5.9 [ +4.8,  +7.1] SIG
+soft   seed 1  persona_test S=1024   rag          22.6%  n=1762  convs=50
+soft   seed 1  persona_test S=1024   heuristic    23.7%  n=1762  convs=50
+soft   seed 1  persona_test S=1024   pr12         54.4%  n=1762  convs=50
+soft   seed 1  persona_test S=1024   10x-pos      59.9%  n=1762  convs=50   vs pr12:  +5.5 [ +3.7,  +7.3] SIG
+soft   seed 1  persona_test S=1024   r2-ens-pos   63.5%  n=1762  convs=50   vs pr12:  +9.1 [ +7.6, +10.6] SIG
+soft   seed 2  locomo    S=4096   rag          20.5%  n=1527  convs=10
+soft   seed 2  locomo    S=4096   heuristic    24.9%  n=1527  convs=10
+soft   seed 2  locomo    S=4096   pr12         39.8%  n=1527  convs=10
+soft   seed 2  locomo    S=4096   beam         40.0%  n=1527  convs=10   vs pr12:  +0.2 [ -1.6,  +1.9] n.s.
+soft   seed 2  locomo    S=4096   10x          39.6%  n=1527  convs=10   vs pr12:  -0.2 [ -2.6,  +2.5] n.s.
+soft   seed 2  locomo    S=4096   10x-eq       39.5%  n=1527  convs=10   vs pr12:  -0.3 [ -1.7,  +1.5] n.s.
+soft   seed 2  locomo    S=4096   10x-pos      40.2%  n=1527  convs=10   vs pr12:  +0.4 [ -1.5,  +2.7] n.s.
+soft   seed 2  locomo    S=4096   r2-ens-pos   40.0%  n=1527  convs=10   vs pr12:  +0.2 [ -0.6,  +1.0] n.s.
+soft   seed 2  locomo    S=4096   app:pr12     39.8%  n=1527  convs=10
+soft   seed 2  locomo    S=4096   app:10x      39.6%  n=1527  convs=10   vs app:pr12:  -0.2 [ -2.6,  +2.5] n.s.
+soft   seed 2  locomo    S=4096   app:10x-eq   39.5%  n=1527  convs=10   vs app:pr12:  -0.3 [ -1.7,  +1.6] n.s.
+soft   seed 2  locomo    S=4096   app:10x-pos  40.2%  n=1527  convs=10   vs app:pr12:  +0.4 [ -1.5,  +2.6] n.s.
+soft   seed 2  locomo    S=4096   app:r2-ens-pos  40.3%  n=1527  convs=10   vs app:pr12:  +0.5 [ -0.3,  +1.3] n.s.
+soft   seed 2  realtalk  S=4096   rag          14.7%  n=660   convs=10
+soft   seed 2  realtalk  S=4096   heuristic    19.3%  n=660   convs=10
+soft   seed 2  realtalk  S=4096   pr12         29.8%  n=660   convs=10
+soft   seed 2  realtalk  S=4096   beam         30.9%  n=660   convs=10   vs pr12:  +1.0 [ -0.5,  +2.4] n.s.
+soft   seed 2  realtalk  S=4096   10x          29.8%  n=660   convs=10   vs pr12:  -0.0 [ -2.6,  +2.7] n.s.
+soft   seed 2  realtalk  S=4096   10x-eq       29.1%  n=660   convs=10   vs pr12:  -0.8 [ -2.8,  +1.2] n.s.
+soft   seed 2  realtalk  S=4096   10x-pos      30.2%  n=660   convs=10   vs pr12:  +0.3 [ -1.9,  +2.5] n.s.
+soft   seed 2  realtalk  S=4096   r2-ens-pos   30.1%  n=660   convs=10   vs pr12:  +0.2 [ -1.9,  +2.4] n.s.
+soft   seed 2  realtalk  S=4096   app:pr12     31.2%  n=660   convs=10
+soft   seed 2  realtalk  S=4096   app:10x      30.9%  n=660   convs=10   vs app:pr12:  -0.3 [ -2.9,  +2.3] n.s.
+soft   seed 2  realtalk  S=4096   app:10x-eq   30.5%  n=660   convs=10   vs app:pr12:  -0.7 [ -2.4,  +0.8] n.s.
+soft   seed 2  realtalk  S=4096   app:10x-pos  32.3%  n=660   convs=10   vs app:pr12:  +1.1 [ -0.6,  +2.6] n.s.
+soft   seed 2  realtalk  S=4096   app:r2-ens-pos  31.2%  n=660   convs=10   vs app:pr12:  -0.0 [ -0.8,  +1.0] n.s.
+soft   seed 2  beam      S=26000  rag           5.1%  n=355   convs=20
+soft   seed 2  beam      S=26000  heuristic     5.6%  n=355   convs=20
+soft   seed 2  beam      S=26000  pr12         47.6%  n=355   convs=20
+soft   seed 2  beam      S=26000  beam         45.6%  n=355   convs=20   vs pr12:  -2.0 [ -4.7,  +0.6] n.s.
+soft   seed 2  beam      S=26000  10x          43.9%  n=355   convs=20   vs pr12:  -3.7 [ -6.9,  -0.8] SIG
+soft   seed 2  beam      S=26000  10x-eq       47.0%  n=355   convs=20   vs pr12:  -0.7 [ -2.8,  +1.5] n.s.
+soft   seed 2  beam      S=26000  10x-pos      46.1%  n=355   convs=20   vs pr12:  -1.5 [ -3.7,  +0.4] n.s.
+soft   seed 2  beam      S=26000  r2-ens-pos   48.2%  n=355   convs=20   vs pr12:  +0.6 [ -1.7,  +2.9] n.s.
+soft   seed 2  beam      S=26000  app:pr12     42.9%  n=355   convs=20
+soft   seed 2  beam      S=26000  app:10x      48.9%  n=355   convs=20   vs app:pr12:  +6.0 [ -0.5, +12.6] n.s.
+soft   seed 2  beam      S=26000  app:10x-eq   55.2%  n=355   convs=20   vs app:pr12: +12.3 [ +7.5, +17.6] SIG
+soft   seed 2  beam      S=26000  app:10x-pos  52.3%  n=355   convs=20   vs app:pr12:  +9.4 [ +2.4, +16.0] SIG
+soft   seed 2  beam      S=26000  app:r2-ens-pos  54.8%  n=355   convs=20   vs app:pr12: +11.9 [ +6.9, +17.0] SIG
+soft   seed 2  beam500   S=26000  rag           1.4%  n=629   convs=35
+soft   seed 2  beam500   S=26000  heuristic     2.7%  n=629   convs=35
+soft   seed 2  beam500   S=26000  pr12         34.3%  n=629   convs=35
+soft   seed 2  beam500   S=26000  beam         30.0%  n=629   convs=35   vs pr12:  -4.3 [ -6.6,  -2.0] SIG
+soft   seed 2  beam500   S=26000  10x          31.3%  n=629   convs=35   vs pr12:  -3.0 [ -5.2,  -0.9] SIG
+soft   seed 2  beam500   S=26000  10x-eq       33.8%  n=629   convs=35   vs pr12:  -0.5 [ -3.0,  +2.1] n.s.
+soft   seed 2  beam500   S=26000  10x-pos      36.2%  n=629   convs=35   vs pr12:  +1.9 [ -0.5,  +4.3] n.s.
+soft   seed 2  beam500   S=26000  r2-ens-pos   37.1%  n=629   convs=35   vs pr12:  +2.8 [ +1.0,  +4.5] SIG
+soft   seed 2  beam1m    S=26000  rag           0.9%  n=622   convs=35
+soft   seed 2  beam1m    S=26000  heuristic     1.2%  n=622   convs=35
+soft   seed 2  beam1m    S=26000  pr12         22.1%  n=622   convs=35
+soft   seed 2  beam1m    S=26000  beam         18.6%  n=622   convs=35   vs pr12:  -3.5 [ -5.6,  -1.5] SIG
+soft   seed 2  beam1m    S=26000  10x          16.8%  n=622   convs=35   vs pr12:  -5.3 [ -7.8,  -2.8] SIG
+soft   seed 2  beam1m    S=26000  10x-eq       19.8%  n=622   convs=35   vs pr12:  -2.3 [ -4.0,  -0.6] SIG
+soft   seed 2  beam1m    S=26000  10x-pos      21.4%  n=622   convs=35   vs pr12:  -0.7 [ -2.3,  +1.0] n.s.
+soft   seed 2  beam1m    S=26000  r2-ens-pos   21.7%  n=622   convs=35   vs pr12:  -0.4 [ -2.1,  +1.4] n.s.
+soft   seed 2  beam10m   S=26000  rag           0.0%  n=128   convs=10
+soft   seed 2  beam10m   S=26000  heuristic     0.0%  n=128   convs=10
+soft   seed 2  beam10m   S=26000  pr12          2.8%  n=128   convs=10
+soft   seed 2  beam10m   S=26000  beam          1.4%  n=128   convs=10   vs pr12:  -1.5 [ -4.4,  +0.3] n.s.
+soft   seed 2  beam10m   S=26000  10x           2.3%  n=128   convs=10   vs pr12:  -0.5 [ -1.0,  +0.0] n.s.
+soft   seed 2  beam10m   S=26000  10x-eq        3.2%  n=128   convs=10   vs pr12:  +0.4 [ -0.9,  +2.3] n.s.
+soft   seed 2  beam10m   S=26000  10x-pos       3.1%  n=128   convs=10   vs pr12:  +0.2 [ -2.0,  +2.4] n.s.
+soft   seed 2  beam10m   S=26000  r2-ens-pos    4.0%  n=128   convs=10   vs pr12:  +1.2 [ -0.7,  +3.5] n.s.
+soft   seed 2  mb1       S=2048   rag          51.4%  n=874   convs=874
+soft   seed 2  mb1       S=2048   heuristic    92.5%  n=874   convs=874
+soft   seed 2  mb1       S=2048   pr12         87.0%  n=874   convs=874
+soft   seed 2  mb1       S=2048   beam         87.3%  n=874   convs=874   vs pr12:  +0.3 [ -0.7,  +1.3] n.s.
+soft   seed 2  mb1       S=2048   10x          93.2%  n=874   convs=874   vs pr12:  +6.2 [ +4.8,  +7.5] SIG
+soft   seed 2  mb1       S=2048   10x-eq       93.1%  n=874   convs=874   vs pr12:  +6.1 [ +4.8,  +7.4] SIG
+soft   seed 2  mb1       S=2048   10x-pos      93.1%  n=874   convs=874   vs pr12:  +6.1 [ +4.9,  +7.5] SIG
+soft   seed 2  mb1       S=2048   r2-ens-pos   93.4%  n=874   convs=874   vs pr12:  +6.4 [ +5.2,  +7.7] SIG
+soft   seed 2  persona_test S=1024   rag          22.6%  n=1762  convs=50
+soft   seed 2  persona_test S=1024   heuristic    23.7%  n=1762  convs=50
+soft   seed 2  persona_test S=1024   pr12         53.4%  n=1762  convs=50
+soft   seed 2  persona_test S=1024   10x-pos      59.1%  n=1762  convs=50   vs pr12:  +5.7 [ +4.0,  +7.5] SIG
+soft   seed 2  persona_test S=1024   r2-ens-pos   62.7%  n=1762  convs=50   vs pr12:  +9.3 [ +7.5, +11.2] SIG
