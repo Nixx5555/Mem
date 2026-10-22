@@ -52,7 +52,8 @@ import time
 
 import numpy as np
 
-from memgate.data import load_locomo, load_realtalk, load_beam, load_membench
+from memgate.data import (load_locomo, load_realtalk, load_beam, load_membench,
+                          load_personachat)
 from memgate.harness import run_policy
 from memgate.ingest import GuardedScorer, chunk, queries
 from memgate.policies import MemGateSelectPolicy, RAGPolicy
@@ -78,20 +79,26 @@ LOADERS = {
     "beam10m": lambda: load_beam(scales=("10M",)),
     "mb3": lambda: load_membench(agents=("ThirdAgent",)),
     "mb1": lambda: load_membench(agents=("FirstAgent",), per_kind=125),
+    "persona": lambda: load_personachat(split="train"),
+    "persona_test": lambda: load_personachat(split="valid"),
 }
 PR12 = ("locomo", "realtalk", "beam", "beam500")
 BEAM = PR12 + ("beam1m", "beam10m")
+TENX = BEAM + ("mb1", "mb3")                  # the first round's 10x set
+R2 = TENX + ("persona",)                       # + everyday chat (round 2)
 FAMILY = {"beam500": "beam", "beam1m": "beam", "beam10m": "beam",
-          "mb1": "membench", "mb3": "membench"}
+          "mb1": "membench", "mb3": "membench", "persona": "everyday"}
 # The paper's budgets (S main), and the sweep. MemBench FirstAgent chats are
 # ~3,600 tokens, so 2048 makes it forget about half.
 S_MAIN = {"locomo": 4096, "realtalk": 4096, "beam": 26000, "beam500": 26000,
-          "beam1m": 26000, "beam10m": 26000, "mb1": 2048}
+          "beam1m": 26000, "beam10m": 26000, "mb1": 2048, "persona_test": 1024}
 S_SWEEP = {"locomo": (1024, 2048, 8192, 16384), "realtalk": (1024, 2048, 8192, 16384),
            "mb1": (512, 1024), "beam": (8000, 64000), "beam500": (8000, 64000),
-           "beam1m": (8000, 64000), "beam10m": (8000, 64000)}
+           "beam1m": (8000, 64000), "beam10m": (8000, 64000),
+           "persona_test": (512, 2048)}
 APP = ("locomo", "realtalk", "beam")          # chunked app path; see PR #12
-EVAL = ("locomo", "realtalk", "beam", "beam500", "beam1m", "beam10m", "mb1")
+EVAL = ("locomo", "realtalk", "beam", "beam500", "beam1m", "beam10m", "mb1",
+        "persona_test")
 
 
 def log(*a):
@@ -150,45 +157,97 @@ def replay(pol, ts, qs):
             [round(d["soft"], 4) for d in det])
 
 
-def fit_eq(feats, units, idx, talk):
+def fit_eq(feats, units, idx, talk, within="equal", kind="lr"):
     """As R.fit, but every corpus weighs the same within its family, so BEAM
-    10M's 208,696 turns (and 128 questions) do not swamp BEAM's other scales."""
+    10M's 208,696 turns (and 128 questions) do not swamp BEAM's other scales.
+
+    within="pos" splits a family's weight by evidence turns instead of
+    equally, so a corpus counts by how many labels it brings, not turns.
+    kind="hgb" fits boosted trees instead of the logistic regression."""
     X = np.concatenate([feats[j][0] for j in idx])
     y = np.concatenate([feats[j][1] for j in idx])
     corp = np.concatenate([np.full(len(feats[j][1]), units[j][0]) for j in idx])
     fam_of = {c: FAMILY.get(c, c) for c in set(corp)}
     fams = set(fam_of.values())
-    per_fam = {f: sum(1 for c in fam_of if fam_of[c] == f) for f in fams}
     n = {c: (corp == c).sum() for c in fam_of}
-    w = np.array([len(y) / (len(fams) * per_fam[fam_of[c]] * n[c]) for c in corp])
+    if within == "pos":
+        pos = {c: max(1, int(y[corp == c].sum())) for c in fam_of}
+        share = {c: pos[c] / sum(pos[d] for d in fam_of if fam_of[d] == fam_of[c])
+                 for c in fam_of}
+    else:
+        per_fam = {f: sum(1 for c in fam_of if fam_of[c] == f) for f in fams}
+        share = {c: 1 / per_fam[fam_of[c]] for c in fam_of}
+    w = np.array([len(y) * share[c] / (len(fams) * n[c]) for c in corp])
     Xt, yt = talk
     X = np.concatenate([X, Xt])
     y = np.concatenate([y, yt])
     w = np.concatenate([w, np.full(len(yt), 0.05 * len(w) / len(yt))])
-    m = R.make_model("lr")
+    m = R.make_model(kind)
+    if kind == "hgb":
+        return m.fit(X, y, sample_weight=w)
     return m.fit(X, y, **{f"{m.steps[-1][0]}__sample_weight": w})
 
 
-def fold_models(feats, units, tr, talk, seed, k):
-    """The candidates fitted on fold k's training units, pickled."""
+class LogitMean:
+    """The mean of two logistic regressions' logits. Still one logistic
+    regression (export folds it into a single coef / intercept), so it ships
+    in the same JSON as any other."""
+
+    def __init__(self, a, b):
+        self.parts = (a, b)
+
+    def decision_function(self, X):
+        return np.mean([m.decision_function(X) for m in self.parts], axis=0)
+
+    def predict_proba(self, X):
+        p = 1 / (1 + np.exp(-self.decision_function(X)))
+        return np.stack([1 - p, p], axis=1)
+
+
+# name -> (corpora it trains on, None = all; fit function)
+CANDS = {
+    "pr12": (PR12, R.fit),
+    "beam": (BEAM, R.fit),
+    "10x": (TENX, R.fit),
+    "10x-eq": (TENX, fit_eq),
+    "10x-pos": (TENX, lambda *a: fit_eq(*a, within="pos")),
+    "hgb-eq": (TENX, lambda *a: fit_eq(*a, kind="hgb")),
+    "r2-eq": (R2, fit_eq),
+    "r2-pos": (R2, lambda *a: fit_eq(*a, within="pos")),
+    "r2-hgb": (R2, lambda *a: fit_eq(*a, kind="hgb")),
+}
+# Logit means of two fitted candidates; no fit of their own.
+ENS = {"ens": ("pr12", "10x-eq"), "r2-ens": ("pr12", "r2-eq"),
+       "r2-ens-pos": ("pr12", "r2-pos")}
+FIRST = ("pr12", "beam", "10x", "10x-eq")      # the first round (PR #14)
+
+
+def fold_models(feats, units, tr, talk, seed, k, names=FIRST):
+    """The candidates fitted on fold k's training units, pickled. "ens" is
+    the logit mean of pr12 and 10x-eq, so it needs no fit of its own."""
     os.makedirs(MODELS, exist_ok=True)
     out = {}
-    for name, keep in (("pr12", PR12), ("beam", BEAM), ("10x", None), ("10x-eq", None)):
+    need = set(names) | {p for n in names if n in ENS for p in ENS[n]}
+    for name in [n for n in CANDS if n in need]:
+        keep, fitter = CANDS[name]
         fn = os.path.join(MODELS, f"seed{seed}_fold{k}_{name}.pkl")
         if os.path.exists(fn):
             with open(fn, "rb") as f:
                 out[name] = pickle.load(f)
             continue
-        idx = [j for j in tr if keep is None or units[j][0] in keep]
+        idx = [j for j in tr if units[j][0] in keep]
         t0 = time.time()
-        m = (fit_eq if name == "10x-eq" else R.fit)(feats, units, idx, talk)
+        m = fitter(feats, units, idx, talk)
         with open(fn + ".tmp", "wb") as f:
             pickle.dump(m, f)
         os.replace(fn + ".tmp", fn)
         log(f"    fitted {name} on {sum(len(feats[j][1]) for j in idx):,} turns "
             f"({time.time() - t0:.0f}s)")
         out[name] = m
-    return out
+    for n in names:
+        if n in ENS:
+            out[n] = LogitMean(*(out[p] for p in ENS[n]))
+    return {n: out[n] for n in names}
 
 
 def run(args, units, feats, talk):
@@ -202,7 +261,7 @@ def run(args, units, feats, talk):
             tr = [j for j in range(len(units)) if fold[j] != k]
             te = [j for j in range(len(units)) if fold[j] == k
                   and units[j][0] in EVAL and units[j][3]]
-            models = fold_models(feats, units, tr, talk, seed, k)
+            models = fold_models(feats, units, tr, talk, seed, k, args.cands)
             for j in te:
                 c, sid, ts, qs = units[j]
                 budgets = [S_MAIN[c]] + (list(S_SWEEP[c]) if args.sweep and seed == 0 else [])
@@ -214,7 +273,7 @@ def run(args, units, feats, talk):
                         sc = LearnedScorer(model=m, use_embedding=True, embedder=embed)
                         runs[name] = (lambda sc=sc: MemGateSelectPolicy(
                             budget=CONTEXT, store_budget=S, scorer=sc))
-                        if c in APP and S == S_MAIN[c] and name in ("pr12", "10x", "10x-eq") \
+                        if c in APP and S == S_MAIN[c] and name != "beam" \
                                 or c in args.app_extra and S == S_MAIN[c] and name in ("pr12", "10x-eq"):
                             runs[f"app:{name}"] = (lambda sc=sc: AppPath(MemGateSelectPolicy(
                                 budget=CONTEXT, store_budget=S, scorer=GuardedScorer(sc))))
@@ -233,8 +292,11 @@ def run(args, units, feats, talk):
             log(f"  seed {seed} fold {k + 1}/{FOLDS} done ({(time.time() - t0) / 60:.0f} min)")
 
 
-SETUPS = ("rag", "heuristic", "pr12", "beam", "10x", "10x-eq",
-          "app:pr12", "app:10x", "app:10x-eq")
+SETUPS = ("rag", "heuristic", "pr12", "beam", "10x", "10x-eq", "10x-pos",
+          "hgb-eq", "ens", "r2-eq", "r2-pos", "r2-hgb", "r2-ens", "r2-ens-pos",
+          "app:pr12", "app:10x", "app:10x-eq", "app:10x-pos", "app:hgb-eq",
+          "app:ens", "app:r2-eq", "app:r2-pos", "app:r2-hgb", "app:r2-ens",
+          "app:r2-ens-pos")
 
 
 def report():
@@ -268,7 +330,7 @@ def report():
                         got = arr(seed, c, S, setup, metric)
                         if got is not None:
                             res[setup] = got
-                    if "10x" not in res:
+                    if len(res) < 3:
                         continue
                     for setup, (a, conv, units) in res.items():
                         row = {"metric": metric, "seed": seed, "corpus": c, "S": S,
@@ -299,6 +361,8 @@ def main():
     ap.add_argument("--embed-only", action="store_true")
     ap.add_argument("--sweep", action="store_true")
     ap.add_argument("--seeds", default="0")
+    ap.add_argument("--cands", default=",".join(FIRST),
+                    help=f"candidates to replay, from {', '.join(list(CANDS) + list(ENS))}")
     ap.add_argument("--app-extra", default="",
                     help="also run the app path on these corpora (e.g. beam1m); "
                          "its chunks are embedded as they come, so this is slow")
@@ -306,6 +370,9 @@ def main():
     ap.add_argument("--export", action="store_true")
     args = ap.parse_args()
     args.app_extra = tuple(c for c in args.app_extra.split(",") if c)
+    args.cands = tuple(c for c in args.cands.split(",") if c)
+    if "pr12" not in args.cands:
+        args.cands = ("pr12",) + args.cands
     if args.report:
         report()
         return
@@ -314,8 +381,10 @@ def main():
     units = load_all(list(LOADERS))
     n = {c: sum(len(u[2]) for u in units if u[0] == c) for c in LOADERS}
     log("turns per corpus: " + ", ".join(f"{c} {v:,}" for c, v in n.items()))
-    log(f"  PR #12 set: {sum(n[c] for c in PR12):,} turns; "
-        f"10x set: {sum(n.values()):,} ({sum(n.values()) / sum(n[c] for c in PR12):.1f}x)")
+    base = sum(n[c] for c in PR12)
+    log(f"  PR #12 set: {base:,} turns; 10x set: {sum(n[c] for c in TENX):,} "
+        f"({sum(n[c] for c in TENX) / base:.1f}x); + everyday chat: "
+        f"{sum(n[c] for c in R2):,} ({sum(n[c] for c in R2) / base:.1f}x)")
     talk_text = R.small_talk()
     t0 = time.time()
     k = scale_cache.warm(all_texts(units, talk_text, APP + args.app_extra), log=log)

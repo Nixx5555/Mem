@@ -491,6 +491,27 @@ check("MemBench FirstAgent: evidence is the user's message of the cited step",
 check("MemBench ThirdAgent: evidence is the cited message",
       _mb[1][2][0].evidence_ids == [f"{_mb[1][0]}/0"] and _mb[1][2][0].answer == "Boston, MA")
 
+print("\n-- PersonaChat --")
+from memgate.data import load_personachat, _states
+check("PersonaChat: a turn states a persona line when it says most of its words",
+      _states("i like to go hunting .", "hunting is one of my favorite hobbies .")
+      and not _states("i like to remodel homes .", "i like to go out a lot ."))
+with _tf.TemporaryDirectory() as _d:
+    _fn = __import__("os").path.join(_d, "pc.json")
+    with open(_fn, "w") as _f:
+        _json.dump({"train": [{"personality": ["i have two dogs .", "i love iced tea ."],
+                               "utterances": [{"history": ["hi , what do you do ?",
+                                                           "i walk my two dogs a lot .",
+                                                           "nice ! i read ."],
+                                               "candidates": ["x", "cool , i read too ."]}]}]},
+                   _f)
+    _pc = load_personachat(_fn, per_unit=20)
+_s, _t, _q = _pc[0]
+check("PersonaChat: the persona speaker is the user, the partner the assistant",
+      [t.speaker for t in _t] == ["assistant", "user", "assistant", "user"])
+check("PersonaChat: only stated lines become questions, with the turn as evidence",
+      len(_q) == 1 and _q[0].evidence_ids == [f"{_s}/0:1"] and _q[0].answer == "dogs two")
+
 print("\n-- offline reproducibility --")
 # A run that can silently fetch a model is a run whose inputs are not pinned,
 # and this project has already lost a results table to a half-downloaded

@@ -826,3 +826,87 @@ def load_membench(path: str = DEFAULT_MEMBENCH_DIR, agents=("FirstAgent", "Third
           f"{sum(len(t) for _, t, _ in out)} turns, "
           f"{sum(len(q) for _, _, q in out)} questions")
     return out
+
+
+# --------------------------------------------------------------- PersonaChat
+DEFAULT_PERSONACHAT_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "data", "personachat", "personachat_self_original.json")
+
+# Words too common in persona lines to show that a turn states one.
+_PERSONA_GENERIC = {"like", "love", "enjoy", "favorite", "really", "also", "just",
+                    "am", "have", "has", "got", "get", "go", "going", "one", "lot",
+                    "i", "my", "me", "to", "do"}
+
+
+def _persona_words(text):
+    return {w for w in answer_tokens(text) if w not in _PERSONA_GENERIC}
+
+
+def _states(line, turn_text):
+    """Does a turn state this persona line? At least half of the line's
+    content words (and at least two, or all if it has fewer) appear in it."""
+    c = _persona_words(line)
+    hit = c & set(answer_tokens(turn_text))
+    return bool(c) and len(hit) >= min(2, len(c)) and len(hit) / len(c) >= 0.5
+
+
+def load_personachat(path: str = DEFAULT_PERSONACHAT_PATH, split="train",
+                     per_unit: int = 20, limit: int = 0):
+    """Everyday chit-chat: PersonaChat (Zhang et al., 2018), as long chats.
+
+    Source: personachat_self_original.json, the copy the transfer-learning-
+    conv-ai code downloads from s3.amazonaws.com/datasets.huggingface.co.
+    Two crowdworkers chat casually, one of them told to play five persona
+    lines ("i like to go hunting ."). No questions are asked, so labels are
+    weak: a turn of the persona speaker is evidence when it states one of
+    their lines (_states: half the line's content words, at least two). Of
+    the persona speaker's turns, about 22% are. The partner's own facts are
+    not labelled (their persona is not in this file), so their turns all
+    count as negatives, which understates what is worth keeping.
+
+    per_unit dialogues are joined as the sessions of one long chat, so a
+    chat has ~280 turns. The persona speaker is "user" (the one whose facts
+    count, as in the app) and the partner is "assistant".
+
+    Questions, for held-out testing only: each persona line some turn
+    stated is asked as the query, with the line's words that turn said as
+    the answer and the turns that stated it as evidence. That is a proxy, a query that shares
+    wording with its evidence, and it treats every memory the same.
+    """
+    with open(path) as f:
+        data = json.load(f)[split]
+    if limit:
+        data = data[:limit]
+    out = []
+    for u0 in range(0, len(data), per_unit):
+        sid = f"persona-{split}-{u0 // per_unit}"
+        turns: List[Turn] = []
+        questions: List[Question] = []
+        for s, x in enumerate(data[u0:u0 + per_unit]):
+            last = x["utterances"][-1]
+            dia = last["history"] + [last["candidates"][-1]]
+            ids = []
+            for i, t in enumerate(dia):
+                uid = f"{sid}/{s}:{i}"
+                ids.append(uid)
+                turns.append(Turn(session=s, index=i,
+                                  speaker="user" if i % 2 else "assistant",
+                                  text=t, fact_id=uid))
+            for line in x["personality"]:
+                said = [i for i, t in enumerate(dia) if i % 2 and _states(line, t)]
+                if said:
+                    # the answer is the line's words the person actually said
+                    words = _persona_words(line) & set(answer_tokens(dia[said[0]]))
+                    questions.append(Question(
+                        text=line, gold_fact_id=ids[said[0]],
+                        gold_evidence=[ids[i] for i in said],
+                        asked_after_session=s, kind="persona", category="persona",
+                        answer=" ".join(sorted(words)), answer_recoverable=True))
+        for q in questions:            # asked after the whole chat
+            q.asked_after_session = turns[-1].session
+        _assert_locomo_wellformed(sid, turns, questions)
+        out.append((sid, turns, questions))
+    print(f"  PersonaChat {split}: {len(out)} chats, {sum(len(t) for _, t, _ in out)} turns, "
+          f"{sum(len(q) for _, _, q in out)} persona facts stated")
+    return out
