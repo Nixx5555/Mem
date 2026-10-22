@@ -288,6 +288,32 @@ gemini_says(R.Busy(503, "x"), R.Busy(503, "x"), R.GeminiError(404, "not found"),
 sent.clear()
 check("a retired backup model is skipped", m.reply("", "z") == "2.5"
       and sent[-1][0] == R.GEMINI_BACKUPS[1])
+clock = [0.0]
+real_mono = R.time.monotonic
+R.time.monotonic = lambda: clock[0]
+
+
+def slow_post(model, key, payload, timeout=60.0):
+    sent.append((model, timeout))
+    clock[0] += timeout                     # each call hangs until its timeout
+    raise OSError("timed out")
+
+
+R._gemini_post = slow_post
+sent.clear()
+out = m.reply("notes", "hello")
+check("a hanging Gemini is given up on within the deadline, then Qwen answers",
+      out == "local answer" and clock[0] <= R.GEMINI_DEADLINE
+      and all(t <= R.GEMINI_CALL_WAIT for _, t in sent) and len(sent) >= 2, f"{clock[0]} {sent}")
+R.time.monotonic = real_mono
+gemini_says(R.GeminiError(400, "Thinking level is not supported for this model."),
+            ok("no thinking"))
+sent.clear()
+check("a model that refuses thinkingConfig is asked again without it",
+      m.reply("", "z") == "no thinking"
+      and "thinkingConfig" not in sent[-1][2]["generationConfig"]
+      and m.reply("", "z") == "no thinking"
+      and "thinkingConfig" not in sent[-1][2]["generationConfig"])
 R.ChatModel._reply = real_hf_reply
 world(gemini=True)
 m = R.ChatModel("gemini")
