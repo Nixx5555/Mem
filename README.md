@@ -17,10 +17,10 @@ cd MemGate
 ```
 
 The browser opens at `http://localhost:8765`. You need no API keys; the chat
-model runs on your laptop. Setup offers to save an optional Anthropic key in a
-private `.env` file, and then Claude writes the replies. [docs/RUNNING.md](docs/RUNNING.md) has the full
-guide: options, the one optional key (`ANTHROPIC_API_KEY`, for Claude
-replies), and troubleshooting.
+model runs on your laptop. Setup offers to save an optional Anthropic or free
+Gemini key in a private `.env` file, and then Claude or Gemini writes the replies. [docs/RUNNING.md](docs/RUNNING.md) has the full
+guide: options, the optional keys (`ANTHROPIC_API_KEY` for Claude or
+`GEMINI_API_KEY` for Gemini replies), and troubleshooting.
 
 ## The results
 

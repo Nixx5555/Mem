@@ -1,8 +1,9 @@
 # Putting MemGate online
 
 The app runs as a free Hugging Face Space, so the jury can open a link on any
-laptop or phone. Replies come from Claude through an Anthropic API key: a free
-Space has no GPU, and the local Qwen would take minutes per reply on its CPU.
+laptop or phone. Replies come from Claude (an Anthropic API key) or Gemini (a
+free Google key): a free Space has no GPU, and the local Qwen would take
+minutes per reply on its CPU.
 
 What the Space does, from `deploy/huggingface/`:
 
@@ -16,8 +17,10 @@ What the Space does, from `deploy/huggingface/`:
 
 ## Steps (about 10 minutes, once)
 
-1. **Anthropic key.** At https://console.anthropic.com, add a little credit
-   under Billing, then create a key under API keys. It starts with `sk-ant-`.
+1. **A key.** Either Gemini, free: https://aistudio.google.com/apikey →
+   Create API key (it starts with `AIza`). Or Anthropic: at
+   https://console.anthropic.com, add a little credit under Billing, then
+   create a key under API keys (it starts with `sk-ant-`).
 2. **Hugging Face account.** Sign up at https://huggingface.co/join (free).
 3. **New Space.** https://huggingface.co/new-space: name it `memgate`, pick
    **Docker** → **Blank**, hardware **CPU basic (free)**, visibility **Public**.
@@ -26,7 +29,8 @@ What the Space does, from `deploy/huggingface/`:
    `deploy/huggingface/`. Commit. (The README replaces the Space's default one;
    its header tells Hugging Face this is a Docker app on port 7860.)
 5. **Secrets.** Space Settings → Variables and secrets → New secret:
-   - `ANTHROPIC_API_KEY` = your key (required for replies)
+   - `GEMINI_API_KEY` = your Gemini key, or `ANTHROPIC_API_KEY` = your
+     Anthropic key (one is required for replies)
    - `MEMGATE_PASSCODE` = a word you give the jury (recommended, so strangers
      who find the link can't spend your credit)
 6. **Wait for the build** (about 3 minutes; the Space shows "Building", then
@@ -45,7 +49,9 @@ What the Space does, from `deploy/huggingface/`:
   "Load sample chat" to get a ready conversation in one click.
 - **New code:** after a change is merged into `endtask-full-run`, Space
   Settings → Factory rebuild picks it up.
-- **Cost:** each reply is one Claude call with at most about 2,000 tokens of
+- **Gemini free tier:** a few replies a minute. If several jury members type
+  at once, a reply may ask them to wait a minute; memory is still saved.
+- **Cost (Claude):** each reply is one Claude call with at most about 2,000 tokens of
   memory in and 1,024 out. To spend less, add the variable
   `MEMGATE_CLAUDE_MODEL` = `claude-sonnet-5-5` (or `claude-haiku-5-5`).
 - **No key, or the key fails:** the app still runs. Memory, tiers, context and
@@ -54,6 +60,6 @@ What the Space does, from `deploy/huggingface/`:
 ## Run the same image on your own machine
 
     docker build -t memgate deploy/huggingface
-    docker run -p 7860:7860 -e ANTHROPIC_API_KEY=sk-ant-... -e MEMGATE_PASSCODE=jury memgate
+    docker run -p 7860:7860 -e GEMINI_API_KEY=AIza... -e MEMGATE_PASSCODE=jury memgate
 
 then open http://localhost:7860.

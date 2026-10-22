@@ -2,9 +2,10 @@
 # fetch.py and README.md; the code is downloaded from GitHub at build time, so a
 # rebuild picks up whatever is on the branch.
 #
-# The chat model is Claude (the Space secret ANTHROPIC_API_KEY): a free Space
-# has no GPU, and the local Qwen would take minutes per reply on its CPU.
-# Without the key the app still runs and shows memory and context only.
+# The chat model is Claude (the Space secret ANTHROPIC_API_KEY) or Gemini (the
+# secret GEMINI_API_KEY, free key works): a free Space has no GPU, and the local
+# Qwen would take minutes per reply on its CPU. Without a key the app still
+# runs and shows memory and context only.
 FROM python:3.11-slim
 
 # Spaces run the container as user 1000.
@@ -38,6 +39,6 @@ b = backend_info()['embedder']; print(b); assert b.startswith('all-MiniLM'), b"
 
 # Public link: every visitor gets their own chats. Add the Space secret
 # MEMGATE_PASSCODE to ask for a passcode first.
-ENV HOST=0.0.0.0 PORT=7860 MEMGATE_PUBLIC=1 MEMGATE_LLM=claude
+ENV HOST=0.0.0.0 PORT=7860 MEMGATE_PUBLIC=1 MEMGATE_LLM=auto
 EXPOSE 7860
 CMD ["python", "app.py", "--no-browser"]
