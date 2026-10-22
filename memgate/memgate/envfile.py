@@ -1,10 +1,10 @@
 """The project's private settings file, `.env` at the top of the repo.
 
-Setup writes the Anthropic key there once, and the app reads it on every
+Setup writes the API key (Anthropic or Gemini) there once, and the app reads it on every
 start, so nobody has to export it in each terminal. `.env` is gitignored: the
 key stays on the laptop that typed it and never reaches GitHub.
 
-    ANTHROPIC_API_KEY=sk-ant-...
+    ANTHROPIC_API_KEY=sk-ant-...      or      GEMINI_API_KEY=AIza...
     MEMGATE_LLM=auto
 
 Values already set in the environment win over the file.
@@ -15,6 +15,7 @@ import re
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ENV_PATH = os.path.join(ROOT, ".env")
 KEY = "ANTHROPIC_API_KEY"
+GEMINI_KEY = "GEMINI_API_KEY"
 _LINE = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$")
 
 
@@ -52,6 +53,20 @@ def load_env(path=ENV_PATH):
 
 def looks_like_key(key):
     return bool(re.fullmatch(r"sk-ant-[A-Za-z0-9_\-]{20,}", key or ""))
+
+
+def looks_like_gemini_key(key):
+    """Google AI Studio keys start with AIza."""
+    return bool(re.fullmatch(r"AIza[A-Za-z0-9_\-]{30,}", key or ""))
+
+
+def key_name(key):
+    """The setting a pasted key belongs in, or None if it fits neither."""
+    if looks_like_key(key):
+        return KEY
+    if looks_like_gemini_key(key):
+        return GEMINI_KEY
+    return None
 
 
 def write_setting(name, value, path=ENV_PATH):

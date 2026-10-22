@@ -3,6 +3,7 @@
 
     python3 app.py                 # then open http://localhost:8765
     python3 app.py --llm claude    # answer with Claude (ANTHROPIC_API_KEY)
+    python3 app.py --llm gemini    # answer with Gemini (GEMINI_API_KEY)
     python3 app.py --llm hf        # transformers, any OS
     python3 app.py --no-llm        # no model: replies show the context only
     python3 app.py --scorer heuristic   # the P1 rule scorer instead of the learned one
@@ -926,7 +927,7 @@ class Server(ThreadingHTTPServer):
 
 
 def main():
-    # The private settings setup saved (the Anthropic key), before anything
+    # The private settings setup saved (the Anthropic or Gemini key), before anything
     # reads the environment. A key exported in the terminal still wins.
     from memgate.envfile import ENV_PATH, load_env
     loaded = load_env()

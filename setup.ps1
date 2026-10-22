@@ -1,7 +1,7 @@
 # One-time setup on Windows: a virtualenv, the packages, the models.
 #   powershell -ExecutionPolicy Bypass -File setup.ps1
 #   powershell -ExecutionPolicy Bypass -File setup.ps1 --no-chat
-# At the end it offers to save an Anthropic key in .env (optional, private).
+# At the end it offers to save an Anthropic or Gemini key in .env (optional, private).
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "memgate")
 $py = if (Get-Command py -ErrorAction SilentlyContinue) { "py" } else { "python" }

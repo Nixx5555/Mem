@@ -23,13 +23,15 @@ def check(name, cond, detail=""):
         print(f"  FAIL  {name}  {detail}")
 
 
-KEYS = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+KEYS = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "GEMINI_API_KEY",
+        "GOOGLE_API_KEY", "MEMGATE_GEMINI_MODEL")
 saved_env = {k: os.environ.pop(k, None) for k in KEYS}
-real = (R._importable, R._apple_silicon, R._hf_ready, R._mlx_ready)
+real = (R._importable, R._apple_silicon, R._hf_ready, R._mlx_ready,
+        R._gemini_post, R.time.sleep)
 
 
 def world(mac=False, mlx=False, torch=False, anthropic=True, hf_ready=False,
-          mlx_ready=False, key=False):
+          mlx_ready=False, key=False, gemini=False):
     """Fake the laptop: what is installed, what is downloaded, is a key set."""
     have = {"mlx_lm": mlx, "transformers": torch, "torch": torch,
             "anthropic": anthropic}
@@ -41,6 +43,10 @@ def world(mac=False, mlx=False, torch=False, anthropic=True, hf_ready=False,
         os.environ["ANTHROPIC_API_KEY"] = "sk-ant-test-" + "x" * 30
     else:
         os.environ.pop("ANTHROPIC_API_KEY", None)
+    if gemini:
+        os.environ["GEMINI_API_KEY"] = "AIza" + "y" * 35
+    else:
+        os.environ.pop("GEMINI_API_KEY", None)
 
 
 print("\n-- which model answers (auto) --")
@@ -168,6 +174,127 @@ try:
 except RuntimeError as exc:
     check("a rejected key says how to replace it", "set_key.py" in str(exc))
 
+print("\n-- the Gemini backend (faked) --")
+world(gemini=True, mac=True, mlx=True, mlx_ready=True)
+check("a Gemini key picks Gemini over the local model", R.resolve("auto") == "gemini")
+world(key=True, gemini=True)
+check("with both keys, Claude still comes first", R.resolve("auto") == "claude")
+world(gemini=True, anthropic=False)
+check("Gemini needs no extra package", R.resolve("auto") == "gemini")
+world()
+os.environ["GOOGLE_API_KEY"] = "AIza" + "z" * 35
+check("GOOGLE_API_KEY counts as a Gemini key", R.resolve("auto") == "gemini")
+del os.environ["GOOGLE_API_KEY"]
+world(gemini=True)
+m = R.ChatModel("gemini")
+check("Gemini defaults to the free-tier Flash model",
+      m.path == R.GEMINI_MODEL and "flash" in m.path)
+os.environ["MEMGATE_GEMINI_MODEL"] = "gemini-2.5-flash-lite"
+check("MEMGATE_GEMINI_MODEL overrides the model",
+      R.ChatModel("gemini").path == "gemini-2.5-flash-lite")
+del os.environ["MEMGATE_GEMINI_MODEL"]
+sent = []
+
+
+def gemini_says(*replies):
+    """Fake _gemini_post: each call takes the next reply (a dict or an error)."""
+    queue = list(replies)
+
+    def post(model, key, payload, timeout=60.0):
+        sent.append((model, key, payload))
+        r = queue.pop(0) if len(queue) > 1 else queue[0]
+        if isinstance(r, Exception):
+            raise r
+        return r
+    R._gemini_post = post
+
+
+def ok(text):
+    return {"candidates": [{"content": {"parts": [
+        {"text": "plan", "thought": True}, {"text": text}]},
+        "finishReason": "STOP"}]}
+
+
+def limited(wait=1.0):
+    e = R.RateLimited(429, "Resource has been exhausted")
+    e.wait = wait
+    return e
+
+
+slept = []
+R.time.sleep = slept.append
+gemini_says(ok("  The exam is on 8 November.\n"))
+m = R.ChatModel("gemini")
+out = m.reply("[user] My exam is on 8 November.", "When is my exam?")
+model, key, payload = sent[-1]
+check("Gemini's reply comes back trimmed, thoughts left out",
+      out == "The exam is on 8 November.", repr(out))
+check("the key and model are sent", key.startswith("AIza") and model == R.GEMINI_MODEL)
+check("the system prompt goes in systemInstruction",
+      payload["systemInstruction"]["parts"][0]["text"] == R.SYSTEM
+      and [c["role"] for c in payload["contents"]] == ["user"]
+      and "8 November" in payload["contents"][0]["parts"][0]["text"])
+gemini_says({"promptFeedback": {"blockReason": "SAFETY"}})
+check("a blocked prompt is shown as declined", "declined" in m.reply("", "x"))
+gemini_says(limited(3), ok("after the wait"))
+slept.clear()
+check("a 429 is retried after Google's suggested wait",
+      m.reply("", "x") == "after the wait" and slept == [3])
+gemini_says(limited(8))
+slept.clear()
+out = m.reply("", "x")
+check("a lasting 429 with no local model says to wait a minute",
+      "free-tier limit" in out and m.backend == "gemini", out)
+check("the total wait is capped", sum(slept) <= R.GEMINI_WAIT, str(slept))
+world(gemini=True, torch=True, hf_ready=True)
+m = R.ChatModel("gemini")
+check("with a downloaded Qwen, Gemini has a local fallback", m.fallback == "hf")
+gemini_says(limited(30))
+local = []
+real_hf_reply = R.ChatModel._reply
+
+
+def fake_local(self, notes, message):
+    if self.backend == "hf":
+        local.append(message)
+        return "local answer"
+    return real_hf_reply(self, notes, message)
+
+
+R.ChatModel._reply = fake_local
+out = m.reply("notes", "hello")
+check("a lasting 429 answers this message with Qwen but keeps Gemini",
+      out == "local answer" and m.backend == "gemini" and local == ["hello"]
+      and "free-tier" in (m.note or ""))
+gemini_says(ok("gemini again"))
+check("the next message goes back to Gemini and clears the note",
+      m.reply("", "y") == "gemini again" and m.note is None)
+gemini_says(OSError("no internet"))
+out = m.reply("notes", "offline?")
+check("no internet switches to Qwen for good",
+      out == "local answer" and m.backend == "hf" and "Gemini failed" in m.note)
+R.ChatModel._reply = real_hf_reply
+world(gemini=True)
+m = R.ChatModel("gemini")
+gemini_says(R.GeminiError(400, "API key not valid. Please pass a valid API key."))
+try:
+    m.reply("notes", "hello")
+    check("a rejected Gemini key says how to replace it", False)
+except RuntimeError as exc:
+    check("a rejected Gemini key says how to replace it",
+          "Gemini" in str(exc) and "set_key.py" in str(exc))
+world()
+try:
+    R.ChatModel("gemini").load()
+    check("Gemini without a key refuses to load", False)
+except RuntimeError as exc:
+    check("Gemini without a key refuses to load", "GEMINI_API_KEY" in str(exc))
+check("Google's retryDelay is read from a 429 body",
+      R._retry_delay('{"error":{"details":[{"retryDelay":"17s"}]}}', {}) == 17.0
+      and R._retry_delay("not json", {"Retry-After": "4"}) == 4.0
+      and R._retry_delay("", {}) == 5.0)
+R._gemini_post, R.time.sleep = real[4], real[5]
+
 print("\n-- the saved key (.env) --")
 d = tempfile.mkdtemp()
 env = os.path.join(d, ".env")
@@ -199,6 +326,10 @@ check("load_env sets the key but never overrides the terminal",
 check("keys are recognised by shape",
       E.looks_like_key(key) and not E.looks_like_key("hello")
       and not E.looks_like_key("sk-ant-short"))
+gk = "AIza" + "Sy-_9" * 7
+check("Gemini keys are recognised and routed to GEMINI_API_KEY",
+      E.key_name(gk) == "GEMINI_API_KEY" and E.key_name(key) == "ANTHROPIC_API_KEY"
+      and E.key_name("AIza-short") is None and E.key_name("hello") is None)
 check(".env sits at the top of the repo", E.ENV_PATH == os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 import subprocess
@@ -206,7 +337,7 @@ ign = subprocess.run(["git", "check-ignore", "-q", E.ENV_PATH],
                      cwd=os.path.dirname(E.ENV_PATH))
 check(".env is gitignored, so the key can't be committed", ign.returncode == 0)
 
-R._importable, R._apple_silicon, R._hf_ready, R._mlx_ready = real
+R._importable, R._apple_silicon, R._hf_ready, R._mlx_ready = real[:4]
 for k, v in saved_env.items():
     os.environ.pop(k, None)
     if v is not None:

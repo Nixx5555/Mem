@@ -102,11 +102,13 @@ You need **no keys** to run MemGate.
 | Key | Needed? | What for |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Optional | Lets Claude write the replies instead of the local Qwen model. Replies are better, but it needs internet and is billed to your Anthropic account. |
+| `GEMINI_API_KEY` | Optional | Lets Google Gemini write the replies. The free key from https://aistudio.google.com/apikey works (starts with `AIza`); it needs internet. Used when no Anthropic key is saved. |
 
 The models and the benchmark are public, so you don't need a Hugging Face
 token or a GitHub login.
 
-**Adding the key.** At the end of setup you're asked for it once. Paste it
+**Adding the key.** At the end of setup you're asked for it once. Paste an
+Anthropic or a Gemini key (the kind is told from the key itself)
 (the typing is hidden) or press Enter to skip. It's saved in `.env` at the top
 of the project, and `start.sh` / `start.bat` read it on every start. `.env` is
 in `.gitignore`, so the key stays on your laptop and never goes to GitHub.
@@ -122,7 +124,13 @@ python set_key.py --remove   # forget it
 
 You can also edit `.env` by hand; `.env.example` shows the format.
 
-**With a key saved, the app answers with Claude.** If Claude can't be reached
+**Gemini's free tier** allows only a few replies a minute. When it says
+"limit reached", the app waits a few seconds and tries again; if the limit
+lasts, the downloaded Qwen answers that one message and the next one goes back
+to Gemini. Without Qwen, the reply asks you to wait a minute. Memory is saved
+either way.
+
+**With a key saved, the app answers with Claude (or Gemini).** If Claude or Gemini can't be reached
 (no Wi-Fi at the venue, a revoked key), it switches to the local model on its
 own and carries on; the info line in the sidebar then says *(fallback)*. To
 force the local model even with a key saved, start with `--llm mlx` (Mac) or
@@ -134,13 +142,14 @@ Pass these to `start.sh` / `start.bat` (or `python app.py` inside `memgate/`):
 
 | Option | |
 |---|---|
-| `--llm auto\|mlx\|hf\|claude\|none` | Which model answers. `auto` picks Claude when a key is saved, else mlx on an Apple-silicon Mac, else the downloaded Qwen. Also settable as `MEMGATE_LLM`. |
+| `--llm auto\|mlx\|hf\|claude\|gemini\|none` | Which model answers. `auto` picks Claude when an Anthropic key is saved, else Gemini when a Gemini key is saved, else mlx on an Apple-silicon Mac, else the downloaded Qwen. Also settable as `MEMGATE_LLM`. |
 | `--no-llm` | No model. Memory still works, and replies show what the model would see. |
 | `--scorer learned\|heuristic` | What scores each message. `learned` (the default) is the scorer trained on LoCoMo, REALTALK, BEAM (100K to 10M), MemBench and everyday chat from PersonaChat, 856,876 turns (docs/SCALE_TEST.md §4b). `heuristic` is the hand-written P1 rules. Also settable as `MEMGATE_SCORER`. |
 | `--port 9000` | Use another port if 8765 is taken. |
 | `--host 0.0.0.0` | Let other devices on the same network open it, e.g. a projector PC. |
 | `--no-browser` | Don't open the browser on start. |
 | `MEMGATE_CLAUDE_MODEL` | The Claude model id (default `claude-opus-5-5`). |
+| `MEMGATE_GEMINI_MODEL` | The Gemini model id (default `gemini-flash-latest`, on the free tier; `gemini-2.5-flash-lite` has higher free limits). |
 | `MEMGATE_HF_MODEL` | Another Hugging Face model for `--llm hf`. |
 
 ## If something goes wrong
