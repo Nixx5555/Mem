@@ -71,6 +71,13 @@
   .m.user .body { background: var(--bubble); border-radius: 18px; padding: 9px 15px; max-width: 78%; }
   .m.bot .body { max-width: calc(100% - 42px); padding-top: 3px; }
   .m .body, .m .txt { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .m.user { flex-direction: column; align-items: flex-end; gap: 3px; }
+  .fate { font-size: 11.5px; font-weight: 600; border-radius: 999px; padding: 1px 9px;
+          border: 1px solid currentColor; background: var(--bg); cursor: pointer; white-space: nowrap; }
+  .fate.t1 { color: var(--t1); } .fate.t2 { color: var(--t2); } .fate.t3 { color: var(--t3); }
+  .fate.gone { color: var(--drop); text-decoration: line-through; }
+  .fate.moved { animation: pulse 1.2s ease-out 1; }
+  @keyframes pulse { from { box-shadow: 0 0 0 4px currentColor; } to { box-shadow: 0 0 0 0 transparent; } }
   .m .meta { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; }
   .chip { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px;
           padding: 2px 9px; background: var(--bg); }
@@ -357,7 +364,10 @@ function typeInto(el, text) {          // reveal the reply word by word
 }
 function showTranscript(s) {
   $('msgs').innerHTML = '';
-  for (const m of s.transcript) m.file ? addFile(m.file, m.text) : addMsg(m.speaker, m.text);
+  s.transcript.forEach((m, i) => {
+    const d = m.file ? addFile(m.file, m.text) : addMsg(m.speaker, m.text);
+    if (m.speaker === 'user') d.dataset.ti = i;
+  });
   $('welcome').hidden = s.transcript.length > 0;
   lastCtx = null; lastCmp = null; rivalAns = {}; whyOpen = null;
 }
@@ -484,8 +494,44 @@ $('pane').addEventListener('submit', async e => {
   renderPane();
 });
 
+// A tag under each of the user's messages: where MemGate holds it right now.
+// It updates after every message, so the jury can watch one move from
+// Tier 1 to a kept fact, a gist, or forgotten as the chat goes on.
+const FATE = {
+  t1: ['Tier 1 · recent', 'In the short-term buffer of the latest messages; it is scored when it leaves.'],
+  t2: ['Tier 2 · gist', 'Compressed to a short gist in working memory.'],
+  t3: ['Tier 3 · kept', 'Kept in long-term memory. Lowest scores are forgotten first when memory is full.'],
+  gone: ['forgotten', 'No longer in memory: it scored too low to keep within the store budget S.'],
+};
+function tagFates(s) {
+  const fates = s.fates || [];
+  for (const d of $('msgs').querySelectorAll('.m.user[data-ti]')) {
+    const f = fates[+d.dataset.ti];
+    if (!f) continue;
+    let t = d.querySelector('.fate');
+    if (!t) {
+      t = document.createElement('button'); t.className = 'fate';
+      t.onclick = () => openMem('tiers'); d.appendChild(t);
+    }
+    const [label, help] = FATE[f.tier];
+    const txt = label + (f.u !== null ? ` · u ${f.u.toFixed(2)}` : '') +
+      (f.pieces > 1 ? ` · ${f.held} of ${f.pieces} pieces` : '');
+    if (t.dataset.tier && t.dataset.tier !== f.tier) {
+      t.classList.remove('moved'); void t.offsetWidth; t.classList.add('moved');
+    }
+    t.dataset.tier = f.tier;
+    t.classList.remove('t1', 't2', 't3', 'gone'); t.classList.add(f.tier);
+    t.textContent = txt; t.title = help + ' Click to see all tiers.';
+  }
+}
+function lastUser(s) {
+  for (let i = s.transcript.length - 1; i >= 0; i--)
+    if (s.transcript[i].speaker === 'user') return i;
+  return -1;
+}
 function render(s) {
   state = s;
+  tagFates(s);
   $('mode').value = s.mode; $('scale').value = s.scale;
   if (s.store_budget) $('S').value = s.store_budget;
   $('sRow').style.display = s.mode === 'p1' ? 'none' : '';
@@ -521,12 +567,13 @@ async function send(text) {
     return;
   }
   busy = true; $('send').disabled = true; $('text').value = ''; grow();
-  addMsg('user', text);
+  const mine = addMsg('user', text);
   const bot = addMsg('bot', '');
   const txt = bot.querySelector('.txt');
   txt.innerHTML = '<span class="dots"><span></span><span></span><span></span></span>';
   try {
     const s = await api('/api/chat', {text});
+    mine.dataset.ti = lastUser(s);
     lastCtx = {items: s.context, tokens: s.context_tokens};
     lastCmp = s.compare; rivalAns = {};
     await typeInto(txt, s.reply);
@@ -568,7 +615,7 @@ async function upload(files) {
       const s = await api('/api/upload', {name: file.name, data: await readB64(file)});
       note.remove();
       const u = s.upload, last = s.transcript[s.transcript.length - 1];
-      addFile(u, last && last.text);
+      addFile(u, last && last.text).dataset.ti = s.transcript.length - 1;
       const why = [];
       if (u.duplicates) why.push(`${u.duplicates} repeated text already stored, so the stored copy was reinforced instead`);
       if (u.forgotten) why.push(`${u.forgotten} ${s.mode === 'p1' ? 'scored too low to keep' :

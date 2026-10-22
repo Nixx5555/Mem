@@ -107,10 +107,15 @@ def _retry_delay(body, headers):
 
 
 def _gemini_post(model, key, payload, timeout=60.0):
-    """POST to generateContent. Returns the JSON reply; raises RateLimited on
-    429 (with .wait) and GeminiError on any other HTTP error."""
+    """POST to generateContent (or, with payload None, GET the model's info,
+    which checks the key without using any of the free quota). Returns the
+    JSON reply; raises RateLimited on 429 (with .wait) and GeminiError on any
+    other HTTP error."""
+    url = GEMINI_URL.format(model=model)
+    if payload is None:
+        url = url.rsplit(":", 1)[0]
     req = urllib.request.Request(
-        GEMINI_URL.format(model=model), data=json.dumps(payload).encode(),
+        url, data=None if payload is None else json.dumps(payload).encode(),
         headers={"Content-Type": "application/json", "x-goog-api-key": key})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -243,6 +248,19 @@ class ChatModel:
             key = _gemini_key()
             if not key:
                 raise RuntimeError("GEMINI_API_KEY is not set")
+            # Check the key and the internet now, at start, so a bad key or
+            # no Wi-Fi switches to the local model before the first message
+            try:
+                _gemini_post(self.path, key, None, timeout=15.0)
+            except RateLimited:
+                pass                      # the key works; the limit passes
+            except GeminiError as exc:
+                if _key_rejected(exc):
+                    raise RuntimeError(
+                        f"Gemini rejected the key ({exc}). Check it at "
+                        "https://aistudio.google.com/apikey and save it with  "
+                        "python set_key.py") from None
+                raise
             self._client = key
 
     def reply(self, notes, message):
@@ -293,11 +311,16 @@ class ChatModel:
                            max_tokens=512, verbose=False)
         elif self.backend == "hf":
             import torch
-            ids = self._tok.apply_chat_template(
-                msgs, add_generation_prompt=True, return_tensors="pt")
+            # transformers 5 returns a dict-like BatchEncoding here, 4.x a
+            # bare tensor; return_dict=True gives the dict on both
+            enc = self._tok.apply_chat_template(
+                msgs, add_generation_prompt=True, return_tensors="pt",
+                return_dict=True)
+            ids = enc["input_ids"]
             with torch.no_grad():
-                gen = self._model.generate(ids, max_new_tokens=512,
-                                           do_sample=False)
+                gen = self._model.generate(
+                    ids, attention_mask=enc.get("attention_mask"),
+                    max_new_tokens=512, do_sample=False)
             out = self._tok.decode(gen[0, ids.shape[-1]:],
                                    skip_special_tokens=True)
         elif self.backend == "gemini":
