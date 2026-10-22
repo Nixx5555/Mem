@@ -3,14 +3,24 @@
 ```
 paper/
   main.tex          the paper (hand-written prose)
-  refs.bib          19 references
+  refs.bib          24 references
   tables/*.tex      GENERATED — do not edit by hand
   figures/*.pdf     vector figures, copied from memgate/results/figures/
-  make_tables.py    regenerates tables/ from memgate/results/*.csv
+  diagrams/*.tex    TikZ diagrams and flowcharts (architecture, scoring,
+                    routing + budget, scorer training), drawn by hand from the code
+  make_tables.py    regenerates tables/ from memgate/results/*.csv and
+                    memgate/results/{scale,stress}/*.json
   check.py          structural checks (no TeX installed on the dev machine)
 ```
 
 ## Compiling
+
+On Debian/Ubuntu (this is how the cloud builds it):
+
+```sh
+apt-get install texlive-latex-extra texlive-pictures texlive-publishers texlive-science
+cd paper && pdflatex main && bibtex main && pdflatex main && pdflatex main
+```
 
 **Tectonic is installed locally** (`brew install tectonic`, v0.17.0), so the
 paper compiles here:

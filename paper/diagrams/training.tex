@@ -1,0 +1,17 @@
+% Fig.: how the shipped scorer is built (retrain_10x.py --export r2-ens-pos).
+\begin{tikzpicture}[x=1mm, y=1mm]
+\node[proc, text width=27mm] (a) at (0,0) {LoCoMo, REALTALK,\\BEAM 100K/500K:\\58{,}616 turns};
+\node[proc, text width=15mm, font=\scriptsize] (t) at (25,0) {small-talk negatives, 5\% weight};
+\node[proc, text width=27mm] (b) at (50,0) {+ BEAM 1M/10M, MemBench, PersonaChat: 856{,}876 turns};
+\node[proc, text width=27mm] (fa) at (0,-17) {LR on $x(m)\in\mathbb{R}^{399}$,\\families equal (Eq.~\ref{eq:loss})};
+\node[proc, text width=27mm] (fb) at (50,-17) {LR on $x(m)$, family weight split by evidence turns};
+\node[model, text width=52mm] (m) at (25,-33) {logit mean $\bar z=\tfrac12(z_A+z_B)$, folded into one $(\mathbf{w},b)$, Eq.~(\ref{eq:ens})};
+\node[model, text width=52mm] (c) at (25,-44) {affine calibration of $\bar z$, Eq.~(\ref{eq:cal})};
+\node[res, text width=52mm] (j) at (25,-54) {\texttt{scorer\_pooled\_lr.json}: 399 weights, 1 bias};
+\draw[flow] (a) -- (fa); \draw[flow] (b) -- (fb);
+\draw[aux] (t.south) -- ++(0,-4) -| ([xshift=6mm]fa.north);
+\draw[aux] (t.south) -- ++(0,-4) -| ([xshift=-6mm]fb.north);
+\draw[flow] (fa) |- node[lab, above, pos=0.75]{$z_A$} (m.west);
+\draw[flow] (fb) |- node[lab, above, pos=0.75]{$z_B$} (m.east);
+\draw[flow] (m) -- (c); \draw[flow] (c) -- (j);
+\end{tikzpicture}
