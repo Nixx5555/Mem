@@ -158,8 +158,18 @@ def store_budget_from(value, default):
     return n
 
 
+# The app's entry gate: a message the scorer calls filler ("hi", "lol nice",
+# "ok cool") is forgotten the moment it is said instead of sitting in the
+# Tier 1 buffer, so the chat shows MemGate judging every message. It is an
+# app setting (--no-gate / MEMGATE_GATE=0 turns it off), not part of the
+# policies the paper measures: the Benchmark check and the experiments run
+# the policies directly and are unchanged by it.
+GATE = True
+GATE_REPLY = 0.1   # a reply scoring below this is forgotten on arrival too
+
+
 class Session:
-    def __init__(self, mode="p1s", store_budget=None, scale="full"):
+    def __init__(self, mode="p1s", store_budget=None, scale="full", gate=None):
         self.mode = mode if mode in MODES else "p1s"
         scale = SCALE_ALIASES.get(scale, scale)
         self.scale = scale if scale in SCALES else "full"
@@ -186,6 +196,9 @@ class Session:
         self.said_tokens = 0   # everything said so far, as memory sees it
         self.raw = {}          # message number -> (scored text, speaker), for "why"
         self.turn_of = {}      # item id -> the message numbers it was made from
+        self.score_of = {}     # message number -> the scorer's score for it
+        self.gate = GATE if gate is None else bool(gate)
+        self.gated = set()     # message numbers the entry gate forgot at once
         self.last_compare = None
         self.n = 0             # memory turns observed (pieces of messages)
         self.log = []          # every routing event, newest last
@@ -213,8 +226,11 @@ class Session:
             "t2": [_item(i) for i in st.working],
             "t3": [_item(i) for i in st.long],
             "stored_tokens": s["stored_tokens"],
-            "counts": dict({k: s[k] for k in ("dropped", "evicted", "demoted",
+            "counts": dict({k: s[k] for k in ("evicted", "demoted",
                                                "merges", "consolidations")},
+                           # forgotten for space, plus small talk forgotten
+                           # on arrival by the entry gate
+                           dropped=s["dropped"] + len(self.gated),
                            compressed=self.policy.routed["working"] + s["demoted"]),
             "messages": len(self.transcript),
             "pieces": self.n,
@@ -240,13 +256,21 @@ class Session:
                     if t not in best or rank[tier] > rank[best[t][0]]:
                         best[t] = (tier, u)
         out = []
-        for a, b in self.spans:
+        for n, (a, b) in enumerate(self.spans):
+            score = max((self.score_of[t] for t in range(a, b)
+                         if t in self.score_of), default=None)
             held = [best[t] for t in range(a, b) if t in best]
             if not held:
-                out.append({"tier": "gone", "u": None, "held": 0, "pieces": b - a})
+                small = all(t in self.gated for t in range(a, b))
+                out.append({"tier": "gone", "u": None, "score": score,
+                            "why": ("forgotten for space" if not small else
+                                    "low score" if self.transcript[n]["speaker"]
+                                    == "assistant" else "small talk"),
+                            "held": 0, "pieces": b - a})
                 continue
             tier, u = max(held, key=lambda x: (rank[x[0]], x[1] or 0))
-            out.append({"tier": tier, "u": u, "held": len(held), "pieces": b - a})
+            out.append({"tier": tier, "u": u, "score": score,
+                        "held": len(held), "pieces": b - a})
         return out
 
     # -- the write path, with every decision it made written to the log
@@ -282,20 +306,55 @@ class Session:
     def _observe(self, speaker, text):
         p, st = self.policy, self.policy.store
         s0, w0, l0 = self._held()
+        seen0 = {k: i.access_count for k, i in l0.items()}
         live0 = {i.id for i in st.long if i.is_active}
         c0 = dict(p.routed, dropped=st.dropped, demoted=st.demoted,
                   merges=st.merges, reclaimed=st.reclaimed)
 
         turn = Turn(session=1, index=self.n, speaker=speaker, text=text)
         self.n += 1
-        p.observe(turn)                      # exactly the experiments' code path
-        for r in self.rivals.values():
+        for r in self.rivals.values():       # the baselines see everything
             r.observe(turn)
+        if self.gate and speaker in ("user", "assistant"):
+            shown = f"[{speaker}] {text}"
+            u, label = p.scorer.score(shown, speaker)
+            # the model's own pleasantries ("Hi! How can I help?") too
+            if label == "filler" or (speaker == "assistant" and u < GATE_REPLY):
+                self.raw[turn.index] = (shown, speaker)
+                self.score_of[turn.index] = round(float(u), 2)
+                self.gated.add(turn.index)
+                self.said_tokens += count_tokens(shown)
+                ev = [{"type": "gate", "tier": None, "text": shown,
+                       "msg": f"forgotten on arrival: small talk or a "
+                              f"low-value reply, score u = "
+                              f"{u:.2f}. It takes no space in memory.",
+                       "n": turn.index, "speaker": speaker}]
+                self.log.extend(ev)
+                return ev
+        p.observe(turn)                      # exactly the experiments' code path
 
         s1, w1, l1 = self._held()
         new = next(i for i in st.short if i.id not in s0)
         self.raw[turn.index] = (new.text, speaker)
+        # the scorer's score for this message, shown on its tag from the
+        # moment it is said (Tier 1 holds it unscored until it leaves)
+        u, label = p.scorer.score(new.text, speaker)
+        self.score_of[turn.index] = round(float(u), 2)
         self.turn_of[new.id] = {turn.index}
+        if (self.gate and speaker in ("user", "assistant")
+                and u >= p.tau_fact and self.mode != "p1"):
+            # A fact (a date, a name, a plan) goes to Tier 3 the moment it is
+            # said, with its score; it also stays in Tier 1 for the next few
+            # replies, and when it leaves Tier 1 the store's dedupe folds it
+            # into this copy instead of storing it twice.
+            new.utility, new.type_label = u, label
+            fact = st.add_long(new.text, new, kind="turn")
+            self.turn_of.setdefault(fact.id, set()).add(turn.index)
+            ev_fact = {"type": "t3", "tier": "t3", "text": new.text,
+                       "msg": f"stored in Tier 3 on arrival as a fact: score u = "
+                              f"{u:.2f} ({label}) ≥ τ_fact = {p.tau_fact}"}
+        else:
+            ev_fact = None
         # a gist or fact made just now inherits its sources' message numbers,
         # so a gist of three merged gists still names all the messages in it
         for it in list(w1.values()) + list(l1.values()):
@@ -306,6 +365,8 @@ class Session:
         ev = [{"type": "enter", "tier": "t1", "text": new.text,
                "msg": f"entered Tier 1 (short-term buffer, holds the last "
                       f"{self.short_capacity} messages)"}]
+        if ev_fact:
+            ev.append(ev_fact)
 
         out = [s0[k] for k in s0 if k not in s1]
         if out:
@@ -333,11 +394,22 @@ class Session:
                            "msg": f"evicted from Tier 1 → compressed into Tier 2. "
                                   f"{score}, between τ_low = {p.tau_low} and "
                                   f"τ_fact = {p.tau_fact}"})
-            elif p.routed["long"] > c0["long"] or p.routed["filled"] > c0["filled"]:
+            elif any(l1[k].access_count > n for k, n in seen0.items() if k in l1):
+                # store dedupe: the fact it repeats now stands for it too
+                for k, n in seen0.items():
+                    if k in l1 and l1[k].access_count > n:
+                        self.turn_of.setdefault(k, set()).update(
+                            self.turn_of.get(e.id, {e.turn_index}))
                 ev.append({"type": "dup", "tier": "t3", "text": e.text,
                            "msg": f"evicted from Tier 1; near-duplicate of a fact "
                                   f"already in Tier 3, which is reinforced instead. "
                                   f"{score}"})
+            elif p.routed["long"] > c0["long"] or p.routed["filled"] > c0["filled"]:
+                ev.append({"type": "drop", "tier": None, "text": e.text,
+                           "msg": f"evicted from Tier 1 → forgotten at once: the "
+                                  f"store was already over S = {self.store_budget} "
+                                  f"tokens, most of it the recent messages Tier 1 "
+                                  f"holds. {score}. A larger Store S keeps it."})
             else:
                 ev.append({"type": "drop", "tier": None, "text": e.text,
                            "msg": f"evicted from Tier 1 → forgotten. {score}, "
@@ -445,6 +517,24 @@ class Session:
         if out is None:
             raise NotFound(f"{self.policy.scorer.name} cannot be broken down")
         out.update(tier=TIER_KEY[it.tier], made_from=made_from)
+        return out
+
+    def why_message(self, i):
+        """Explain the score of the i-th transcript entry (its highest-scored
+        piece), whether or not it is still in memory: the tag beside it in the
+        chat opens this."""
+        try:
+            a, b = self.spans[int(i)]
+        except (TypeError, ValueError, IndexError):
+            raise NotFound("no such message") from None
+        t = max((t for t in range(a, b) if t in self.raw),
+                key=lambda t: self.score_of.get(t, 0), default=None)
+        if t is None:
+            raise NotFound("that message is not on record")
+        out = explain(self.policy.scorer, *self.raw[t])
+        if out is None:
+            raise NotFound(f"{self.policy.scorer.name} cannot be broken down")
+        out.update(made_from=[t])
         return out
 
 
@@ -754,7 +844,8 @@ def make_handler(app, passcode=None):
                     return self._send(200, app.delete(str(b.get("id", ""))))
                 if self.path == "/api/why":
                     return self._send(200, app.why(b.get("id"), b.get("text"),
-                                                   b.get("speaker", "user")))
+                                                   b.get("speaker", "user"),
+                                                   b.get("msg")))
                 if self.path == "/api/rival":
                     return self._send(200, app.ask_rival(str(b.get("rival", ""))))
                 if self.path == "/api/bench":
@@ -928,9 +1019,11 @@ class App:
         return {"rival": rival, "query": cmp["query"],
                 "reply": reply or "(the model returned an empty reply)"}
 
-    def why(self, item_id=None, text=None, speaker="user"):
+    def why(self, item_id=None, text=None, speaker="user", msg=None):
         sess = self.session
         with sess.lock:
+            if msg is not None:
+                return sess.why_message(msg)
             if item_id:
                 return sess.why(item_id)
             t = " ".join((text or "").split())
@@ -992,7 +1085,13 @@ def main():
                     default=os.environ.get("MEMGATE_SCORER", "learned"),
                     help="what scores each message: the learned scorer trained on "
                          "LoCoMo, REALTALK and BEAM (default), or the P1 rule scorer")
+    ap.add_argument("--no-gate", action="store_true",
+                    default=not _on(os.environ.get("MEMGATE_GATE", "1")),
+                    help="keep small talk in Tier 1 like the experiments do, "
+                         "instead of forgetting it on arrival")
     args = ap.parse_args()
+    global GATE
+    GATE = not args.no_gate
     # Read by MemGatePolicy when each chat's policy is built. The benchmark
     # check pins its own scorer, so this does not move the committed numbers.
     os.environ["MEMGATE_SCORER"] = args.scorer

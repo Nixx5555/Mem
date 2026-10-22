@@ -72,10 +72,21 @@
   .m.bot .body { max-width: calc(100% - 42px); padding-top: 3px; }
   .m .body, .m .txt { white-space: pre-wrap; overflow-wrap: anywhere; }
   .m.user { flex-direction: column; align-items: flex-end; gap: 3px; }
-  .fate { font-size: 11.5px; font-weight: 600; border-radius: 999px; padding: 1px 9px;
-          border: 1px solid currentColor; background: var(--bg); cursor: pointer; white-space: nowrap; }
-  .fate.t1 { color: var(--t1); } .fate.t2 { color: var(--t2); } .fate.t3 { color: var(--t3); }
-  .fate.gone { color: var(--drop); text-decoration: line-through; }
+  .fate { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 2px 10px;
+          border: 1.5px solid currentColor; cursor: pointer; white-space: nowrap; }
+  .fate.t1 { color: var(--t1); background: var(--t1-soft); }
+  .fate.t2 { color: var(--t2); background: var(--t2-soft); }
+  .fate.t3 { color: var(--t3); background: var(--t3-soft); }
+  .fate.gone { color: var(--drop); background: #fbeaea; }
+  .fate.wait { color: var(--muted); background: var(--bg); border-style: dashed; }
+  .m.bot .fate { margin-top: 6px; display: inline-block; font-size: 11px; }
+  .fatewhy { max-width: min(460px, 100%); align-self: flex-end; background: var(--bg);
+             border: 1px solid var(--line); border-radius: 10px; padding: 4px 10px 8px; }
+  .m.bot .fatewhy { align-self: auto; margin-top: 6px; }
+  .md p { margin: 0 0 8px; } .md p:last-child { margin-bottom: 0; }
+  .md ul, .md ol { margin: 4px 0 8px; padding-left: 22px; } .md li { margin: 2px 0; }
+  .md code { background: var(--bubble); border-radius: 4px; padding: 0 4px; font-size: 0.92em; }
+  .md .h { font-weight: 700; margin: 6px 0 4px; }
   .fate.moved { animation: pulse 1.2s ease-out 1; }
   @keyframes pulse { from { box-shadow: 0 0 0 4px currentColor; } to { box-shadow: 0 0 0 0 transparent; } }
   .m .meta { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; }
@@ -239,8 +250,10 @@
   <div id="scroll">
     <div id="welcome" hidden>
       <h2>What should I remember?</h2>
-      <p>Chat normally. MemGate decides what to keep, compress or forget, and the model
-         only ever sees what MemGate sends it. Open <b>Memory</b> to watch it happen.</p>
+      <p>Chat normally. MemGate scores every message, yours and the model's replies,
+         and decides what to keep, compress or forget; the tag under each message shows
+         where it went and its score (click it for why). The model only ever sees what
+         MemGate sends it. Open <b>Memory</b> to watch it happen.</p>
       <div class="sugg">
         <button data-t="My name is Simar and my capstone final review is on 6 November.">Tell it a fact<small>“My final review is on 6 November.”</small></button>
         <button data-t="Actually the review moved to 8 November.">Correct yourself<small>“Actually it moved to 8 November.”</small></button>
@@ -366,7 +379,11 @@ function showTranscript(s) {
   $('msgs').innerHTML = '';
   s.transcript.forEach((m, i) => {
     const d = m.file ? addFile(m.file, m.text) : addMsg(m.speaker, m.text);
-    if (m.speaker === 'user') d.dataset.ti = i;
+    if (m.speaker === 'assistant') {
+      const txt = d.querySelector('.txt');
+      txt.classList.add('md'); txt.innerHTML = md(m.text);
+    }
+    d.dataset.ti = i;
   });
   $('welcome').hidden = s.transcript.length > 0;
   lastCtx = null; lastCmp = null; rivalAns = {}; whyOpen = null;
@@ -498,31 +515,100 @@ $('pane').addEventListener('submit', async e => {
 // It updates after every message, so the jury can watch one move from
 // Tier 1 to a kept fact, a gist, or forgotten as the chat goes on.
 const FATE = {
-  t1: ['Tier 1 · recent', 'In the short-term buffer of the latest messages; it is scored when it leaves.'],
+  t1: ['Tier 1 · recent', 'In the short-term buffer of the latest messages. Facts are also copied to Tier 3 at once; the rest is judged when it leaves Tier 1.'],
   t2: ['Tier 2 · gist', 'Compressed to a short gist in working memory.'],
-  t3: ['Tier 3 · kept', 'Kept in long-term memory. Lowest scores are forgotten first when memory is full.'],
-  gone: ['forgotten', 'No longer in memory: it scored too low to keep within the store budget S.'],
+  t3: ['Tier 3 · fact', 'Kept word for word in long-term memory. When memory is full, the lowest scores are forgotten first.'],
+  gone: ['forgotten', 'Not in memory.'],
 };
+const GONE = {'small talk': 'Scored as small talk, so it was forgotten the moment it was said and takes no space.',
+              'low score': 'A reply with little to remember (a greeting, a pleasantry), so it was forgotten as soon as it was written.',
+              'forgotten for space': 'Memory was full (Store S), so the lowest scores were forgotten first.'};
+function fateTag(d) {
+  let t = d.querySelector(':scope > .fate, :scope > .body > .fate');
+  if (!t) {
+    t = document.createElement('button'); t.className = 'fate';
+    t.onclick = () => toggleFateWhy(d);
+    (d.classList.contains('user') ? d : d.querySelector('.body')).appendChild(t);
+  }
+  return t;
+}
+function setTag(t, tier, txt, help) {
+  if (t.dataset.tier && t.dataset.tier !== tier) {
+    t.classList.remove('moved'); void t.offsetWidth; t.classList.add('moved');
+  }
+  t.dataset.tier = tier;
+  t.classList.remove('t1', 't2', 't3', 'gone', 'wait'); t.classList.add(tier);
+  t.textContent = txt; t.title = help + ' Click to see why it got this score.';
+}
 function tagFates(s) {
   const fates = s.fates || [];
-  for (const d of $('msgs').querySelectorAll('.m.user[data-ti]')) {
+  for (const d of $('msgs').querySelectorAll('.m[data-ti]')) {
     const f = fates[+d.dataset.ti];
     if (!f) continue;
-    let t = d.querySelector('.fate');
-    if (!t) {
-      t = document.createElement('button'); t.className = 'fate';
-      t.onclick = () => openMem('tiers'); d.appendChild(t);
-    }
-    const [label, help] = FATE[f.tier];
-    const txt = label + (f.u !== null ? ` · u ${f.u.toFixed(2)}` : '') +
+    let [label, help] = FATE[f.tier];
+    if (f.tier === 't3' && !(f.score >= s.tau_fact)) label = 'Tier 3 · kept';
+    const sc = f.score !== null && f.score !== undefined ? ` · score ${f.score.toFixed(2)}` : '';
+    const txt = (d.classList.contains('bot') ? 'reply: ' : '') + label + sc +
+      (f.tier === 'gone' && f.why ? ` · ${f.why}` : '') +
       (f.pieces > 1 ? ` · ${f.held} of ${f.pieces} pieces` : '');
-    if (t.dataset.tier && t.dataset.tier !== f.tier) {
-      t.classList.remove('moved'); void t.offsetWidth; t.classList.add('moved');
-    }
-    t.dataset.tier = f.tier;
-    t.classList.remove('t1', 't2', 't3', 'gone'); t.classList.add(f.tier);
-    t.textContent = txt; t.title = help + ' Click to see all tiers.';
+    setTag(fateTag(d), f.tier, txt, f.tier === 'gone' ? (GONE[f.why] || help) : help);
   }
+}
+async function toggleFateWhy(d) {
+  const open = d.querySelector('.fatewhy');
+  if (open) { open.remove(); return; }
+  const box = document.createElement('div'); box.className = 'fatewhy';
+  box.innerHTML = whyHTML(null);
+  fateTag(d).after(box);
+  try {
+    box.innerHTML = whyHTML(await api('/api/why', d.dataset.ti !== undefined
+      ? {msg: +d.dataset.ti} : {text: d.dataset.text || ''}));
+  } catch (e) { box.innerHTML = whyHTML({error: e.message}); }
+}
+// Before the reply arrives: score the message at once, so its tag shows
+// straight away where it is going (the full state replaces it after).
+async function previewTag(d, text) {
+  const t = fateTag(d);
+  t.className = 'fate wait'; t.textContent = 'scoring…';
+  try {
+    const w = await api('/api/why', {text});
+    if (t.dataset.tier) return;            // the real state already arrived
+    const tier = w.label === 'filler' ? 'gone' : (state && w.utility >= state.tau_fact && state.mode !== 'p1' ? 't3' : 't1');
+    const label = tier === 'gone' ? 'forgotten · score ' + w.utility.toFixed(2) + ' · small talk'
+                                  : FATE[tier][0] + ' · score ' + w.utility.toFixed(2);
+    t.classList.remove('wait'); t.classList.add(tier); t.textContent = label;
+  } catch (e) { /* the tag fills in with the reply */ }
+}
+// The model's reply as simple Markdown (bold, italics, code, lists,
+// headings), escaped first so nothing in it can run as HTML.
+function md(text) {
+  const inline = s => esc(s)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/__([^_]+)__/g, '<b>$1</b>')
+    .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<i>$2</i>');
+  let html = '', list = null, para = [];
+  const flush = () => { if (para.length) html += `<p>${para.map(inline).join('<br>')}</p>`; para = []; };
+  const close = () => { if (list) { html += `</${list}>`; list = null; } };
+  for (const line of String(text).split('\n')) {
+    const ul = line.match(/^\s*[-*•]\s+(.*)/), ol = line.match(/^\s*\d+[.)]\s+(.*)/),
+          h = line.match(/^\s*#{1,6}\s+(.*)/);
+    if (ul || ol) {
+      flush();
+      const want = ul ? 'ul' : 'ol';
+      if (list !== want) { close(); html += `<${want}>`; list = want; }
+      html += `<li>${inline((ul || ol)[1])}</li>`;
+    } else if (h) { flush(); close(); html += `<div class="h">${inline(h[1])}</div>`; }
+    else if (!line.trim()) { flush(); close(); }
+    else { close(); para.push(line); }
+  }
+  flush(); close();
+  return html;
+}
+function lastBot(s) {
+  for (let i = s.transcript.length - 1; i >= 0; i--)
+    if (s.transcript[i].speaker === 'assistant') return i;
+  return -1;
 }
 function lastUser(s) {
   for (let i = s.transcript.length - 1; i >= 0; i--)
@@ -568,6 +654,7 @@ async function send(text) {
   }
   busy = true; $('send').disabled = true; $('text').value = ''; grow();
   const mine = addMsg('user', text);
+  previewTag(mine, text);
   const bot = addMsg('bot', '');
   const txt = bot.querySelector('.txt');
   txt.innerHTML = '<span class="dots"><span></span><span></span><span></span></span>';
@@ -577,6 +664,8 @@ async function send(text) {
     lastCtx = {items: s.context, tokens: s.context_tokens};
     lastCmp = s.compare; rivalAns = {};
     await typeInto(txt, s.reply);
+    txt.classList.add('md'); txt.innerHTML = md(s.reply);
+    if (lastBot(s) > lastUser(s)) bot.dataset.ti = lastBot(s);
     const used = s.context.filter(i => i.tier !== 't1').length;
     const meta = document.createElement('div'); meta.className = 'meta';
     const only = s.compare ? s.compare.rows.memgate.notes.filter(n => n.only).length : 0;

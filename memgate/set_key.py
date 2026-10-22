@@ -37,8 +37,8 @@ def check_gemini(key=None):
     shown = f"{key[:6]}...{key[-4:]} ({len(key)} characters)"
     try:
         R._gemini_post(model, key, None, timeout=15.0)
-    except R.RateLimited:
-        pass
+    except R.Temporary:
+        pass                    # busy or rate limited: the key itself works
     except R.GeminiError as exc:
         print(f"  Gemini key {shown}: REJECTED by Google: {exc}")
         print("  Make a new key at https://aistudio.google.com/apikey "
