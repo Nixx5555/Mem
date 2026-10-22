@@ -26,6 +26,7 @@ so a restarted run skips finished chats.
 
     python3 scale_app.py --part beam --scales 500K,1M,10M
     python3 scale_app.py --part load
+    python3 scale_app.py --part summary      # part 1's table, with CIs
 """
 import argparse
 import json
@@ -266,6 +267,43 @@ def part_load():
         json.dump(out, f, indent=1)
 
 
+def summary():
+    """Part 1's table: recall per memory, and MemGate against each baseline
+    with a 95% CI over chats and an exact McNemar test."""
+    from math import comb
+    import numpy as np
+    rs = [json.loads(l) for l in open(os.path.join(OUT, "app_beam.jsonl")) if l.strip()]
+    rng = np.random.default_rng(1)
+    out = []
+    for scale in ("500K", "1M", "10M"):
+        r = [x for x in rs if f"-{scale}-" in x["chat"] and x["questions"]]
+        if not r:
+            continue
+        q = [y for x in r for y in x["questions"]]
+        row = {"scale": scale, "chats": len(r), "questions": len(q),
+               "said_tokens_mean": round(float(np.mean([x["said_tokens"] for x in r]))),
+               "ms_per_message_mean": round(float(np.mean([x["ms_per_message"] for x in r]))),
+               "max_stored_tokens": max(x["stored_tokens"] for x in r),
+               **{k: round(100 * sum(y[k] for y in q) / len(q), 1)
+                  for k in ("memgate", "window", "rag")}}
+        for base in ("rag", "window"):
+            groups = [np.array([y["memgate"] - y[base] for y in x["questions"]], float)
+                      for x in r]
+            means = [np.concatenate([groups[i] for i in rng.integers(0, len(groups), len(groups))]).mean()
+                     for _ in range(10000)]
+            lo, hi = np.percentile(means, [2.5, 97.5])
+            b = sum(1 for y in q if y["memgate"] and not y[base])
+            c = sum(1 for y in q if y[base] and not y["memgate"])
+            p = min(1.0, 2 * sum(comb(b + c, k) for k in range(min(b, c) + 1)) / 2 ** (b + c))
+            row[f"vs_{base}"] = {"diff": round(100 * float(np.concatenate(groups).mean()), 1),
+                                 "ci": [round(100 * lo, 1), round(100 * hi, 1)],
+                                 "memgate_only": b, f"{base}_only": c, "mcnemar_p": p}
+        out.append(row)
+        print(json.dumps(row))
+    with open(os.path.join(OUT, "app_beam_summary.json"), "w") as f:
+        json.dump(out, f, indent=1)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--part", default="beam")
@@ -274,6 +312,8 @@ def main():
     args = ap.parse_args()
     if args.part == "beam":
         part_beam(args.scales.split(","), [int(b) for b in args.budgets.split(",")])
+    elif args.part == "summary":
+        summary()
     else:
         part_load()
 

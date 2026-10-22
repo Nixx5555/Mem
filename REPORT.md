@@ -524,6 +524,19 @@ heuristic's 35.3% at 20% retention, significant but on only 34 questions).
 That model is not shipped: it scores "Hi!" above a flight date, which fails
 the app's own sanity test. The shipped scorer stays the LoCoMo + REALTALK one.
 
+### 3.13 At scale: chats of up to 10M tokens, and ten times the training data
+
+`docs/SCALE_TEST.md`. Held-out (5-fold by conversation), the learned scorer
+beats RAG significantly on all seven corpora tested, including BEAM 1M
+(answer recall 50.0% vs 13.5%) and BEAM 10M (53.8% vs 7.7%, 13 questions),
+which are not in its training set at all. Typed into the real app one message
+at a time, 33 BEAM 1M chats (~1.07M tokens each, S = 26,000) keep the answer
+for 51.9% of questions, against RAG's 19.2% (+32.7 [+19.2, +46.3]).
+Retraining on 594,000 turns (10.1x, adding BEAM 1M/10M and MemBench) gains on
+MemBench but loses BEAM 1M evidence recall in all three fold shuffles, so it
+is not shipped. The load test found the server's 5-deep accept queue
+dropping requests under bursts; fixed.
+
 ---
 
 ## 4. Methodological findings

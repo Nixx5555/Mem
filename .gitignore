@@ -21,7 +21,7 @@ memgate/data/realtalk/
 # mohammadtavakoli78/BEAM chats/<scale>/<n>/.
 memgate/data/beam/
 # MemBench (MemData/, 775 MB with the repo), from import-myself/Membench.
-memgate/data/membench/
+memgate/data/membench
 # retrain_scorer.py's saved MiniLM embeddings, rebuildable
 memgate/data/cache/
 

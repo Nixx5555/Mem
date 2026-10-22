@@ -102,13 +102,13 @@ def load_all(names):
     return [(c, sid, ts, qs) for c in names for sid, ts, qs in LOADERS[c]()]
 
 
-def all_texts(units, talk_text):
+def all_texts(units, talk_text, app=APP):
     texts = [f"[{t.speaker}] {t.text}" for _c, _s, ts, _q in units for t in ts]
     texts += [f"[{spk}] {x}" for x in talk_text for spk in ("user", "assistant")]
     texts += talk_text
     texts += [q.text for *_x, qs in units for q in qs]
     for c, _s, ts, qs in units:
-        if c in APP:
+        if c in app:
             texts += [f"[{t.speaker}] {p}" for t in ts for p in chunk(t.text)]
             texts += [x for q in qs for x in queries(q.text)]
     return texts
@@ -318,7 +318,7 @@ def main():
         f"10x set: {sum(n.values()):,} ({sum(n.values()) / sum(n[c] for c in PR12):.1f}x)")
     talk_text = R.small_talk()
     t0 = time.time()
-    k = scale_cache.warm(all_texts(units, talk_text), log=log)
+    k = scale_cache.warm(all_texts(units, talk_text, APP + args.app_extra), log=log)
     log(f"embedded {k:,} new strings in {(time.time() - t0) / 60:.0f} min")
     if args.embed_only:
         return
