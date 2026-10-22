@@ -54,6 +54,13 @@ GEMINI_WAIT = 20
 GEMINI_BACKUPS = ("gemini-flash-lite-latest", "gemini-2.5-flash",
                   "gemini-2.5-flash-lite")
 REMOTE = ("claude", "gemini")
+# The longest a reply may take across every Gemini attempt, retries and
+# backup models included, before the local model answers instead (or, with
+# none, the page says to send it again). Each request gets what is left.
+GEMINI_DEADLINE = 20
+GEMINI_DEADLINE_ALONE = 35     # when there is no local model to hand over to
+GEMINI_CALL_WAIT = 9.0          # one call; a hung model gives way to the next
+_thinking = {"thinkingConfig": {"thinkingLevel": "low"}}
 
 
 def _importable(name):
@@ -371,7 +378,7 @@ class ChatModel:
             with torch.no_grad():
                 gen = self._model.generate(
                     ids, attention_mask=enc.get("attention_mask"),
-                    max_new_tokens=512,
+                    max_new_tokens=384,
                     # Qwen's own recommended sampling. Greedy decoding made
                     # the 1.5B model copy a line from the notes (its own
                     # earlier "Hello! How can I assist you today?") as the
@@ -423,8 +430,13 @@ class ChatModel:
             "systemInstruction": {"parts": [{"text": SYSTEM}]},
             "contents": [{"role": "user",
                           "parts": [{"text": msgs[1]["content"]}]}],
-            "generationConfig": {"maxOutputTokens": 4096},
+            "generationConfig": {"maxOutputTokens": 2048},
         }
+        # Flash models think before answering; a chat reply needs little of
+        # it, and less thinking is the biggest cut in how long a reply takes.
+        # A model that refuses the setting is asked again without it.
+        if not getattr(self, "_no_thinking", False):
+            payload["generationConfig"].update(_thinking)
         r = self._gemini_any(payload)
         if (r.get("promptFeedback") or {}).get("blockReason"):
             return "(the model declined to answer this message)"
@@ -444,26 +456,51 @@ class ChatModel:
         # With Qwen downloaded, hand over sooner rather than keep the page
         # waiting; without it, wait a little longer.
         budget = 6 if self.fallback else GEMINI_WAIT
+        start = time.monotonic()
+        deadline = start + (GEMINI_DEADLINE if self.fallback
+                            else GEMINI_DEADLINE_ALONE)
         waited, last = 0.0, None
         models = [self.path] + [m for m in GEMINI_BACKUPS if m != self.path]
         for i, model in enumerate(models):
-            for attempt in range(2 if i == 0 else 1):
+            for attempt in range(3 if i == 0 else 1):
+                left = deadline - time.monotonic()
+                if left < 2:
+                    raise last or Busy(504, "no reply within "
+                                            f"{deadline - start:.0f}s")
                 try:
-                    r = _gemini_post(model, self._client, payload)
-                    if model != self.path:
-                        print(f"  [MemGate] {model} answered while "
-                              f"{self.path} was busy", flush=True)
+                    # A healthy reply takes a few seconds; one that hangs
+                    # gives way to the next model instead of using it all up.
+                    r = _gemini_post(model, self._client, payload,
+                                     timeout=min(GEMINI_CALL_WAIT, left))
+                    took = time.monotonic() - start
+                    print(f"  [MemGate] {model} answered in {took:.1f}s"
+                          + ("" if model == self.path else
+                             f" ({self.path} was busy)"), flush=True)
                     return r
                 except Temporary as exc:
                     last = exc
-                    wait = min(max(exc.wait, 1.0), budget - waited)
+                    wait = min(max(exc.wait, 1.0), budget - waited,
+                               deadline - time.monotonic() - 2)
                     if attempt or i or wait <= 0:
+                        print(f"  [MemGate] {model}: {exc.status} (busy or "
+                              f"limited); trying the next model", flush=True)
                         break             # on to the next model
                     print(f"  [MemGate] Gemini {exc.status} (busy or "
                           f"limited); retrying in {wait:.0f}s", flush=True)
                     time.sleep(wait)
                     waited += wait
+                except OSError as exc:    # a timeout or a dropped connection
+                    last = Busy(504, f"{model} did not answer in time "
+                                     f"({type(exc).__name__})")
+                    print(f"  [MemGate] {model}: no answer in time; trying "
+                          f"the next model", flush=True)
+                    break
                 except GeminiError as exc:
+                    if (exc.status == 400 and "thinking" in str(exc).lower()
+                            and "thinkingConfig" in payload["generationConfig"]):
+                        self._no_thinking = True
+                        del payload["generationConfig"]["thinkingConfig"]
+                        continue          # ask again without it
                     if exc.status == 404 and i:
                         break             # that backup model is retired
                     raise
