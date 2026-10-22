@@ -276,7 +276,8 @@ class ChatModel:
                         raise RuntimeError(
                             f"{self.backend.capitalize()} rejected the saved "
                             "API key. Replace it with  python set_key.py  "
-                            "(inside memgate/) and restart.") from exc
+                            "(inside memgate/) and restart. "
+                            f"({str(exc)[:200]})") from exc
                     raise
                 self._fall_back(exc)
                 return self._reply(notes, message)

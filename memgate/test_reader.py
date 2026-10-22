@@ -281,8 +281,9 @@ try:
     m.reply("notes", "hello")
     check("a rejected Gemini key says how to replace it", False)
 except RuntimeError as exc:
-    check("a rejected Gemini key says how to replace it",
-          "Gemini" in str(exc) and "set_key.py" in str(exc))
+    check("a rejected Gemini key says how to replace it, with Google's reason",
+          "Gemini" in str(exc) and "set_key.py" in str(exc)
+          and "API key not valid" in str(exc))
 world()
 try:
     R.ChatModel("gemini").load()
@@ -330,6 +331,9 @@ gk = "AIza" + "Sy-_9" * 7
 check("Gemini keys are recognised and routed to GEMINI_API_KEY",
       E.key_name(gk) == "GEMINI_API_KEY" and E.key_name(key) == "ANTHROPIC_API_KEY"
       and E.key_name("AIza-short") is None and E.key_name("hello") is None)
+aq = "AQ.Ab8RN6L" + "x_Y-z.9" * 8
+check("new AI Studio keys (AQ.) are Gemini keys too",
+      E.key_name(aq) == "GEMINI_API_KEY" and E.key_name("AQ.short") is None)
 check(".env sits at the top of the repo", E.ENV_PATH == os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 import subprocess

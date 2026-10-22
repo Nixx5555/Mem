@@ -102,7 +102,7 @@ You need **no keys** to run MemGate.
 | Key | Needed? | What for |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Optional | Lets Claude write the replies instead of the local Qwen model. Replies are better, but it needs internet and is billed to your Anthropic account. |
-| `GEMINI_API_KEY` | Optional | Lets Google Gemini write the replies. The free key from https://aistudio.google.com/apikey works (starts with `AIza`); it needs internet. Used when no Anthropic key is saved. |
+| `GEMINI_API_KEY` | Optional | Lets Google Gemini write the replies. The free key from https://aistudio.google.com/apikey works (starts with `AQ.`, or `AIza` for older keys); it needs internet. Used when no Anthropic key is saved. |
 
 The models and the benchmark are public, so you don't need a Hugging Face
 token or a GitHub login.

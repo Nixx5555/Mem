@@ -56,8 +56,10 @@ def looks_like_key(key):
 
 
 def looks_like_gemini_key(key):
-    """Google AI Studio keys start with AIza."""
-    return bool(re.fullmatch(r"AIza[A-Za-z0-9_\-]{30,}", key or ""))
+    """Google AI Studio keys: the older AIza... ones, and the authentication
+    keys (AQ....) it has made by default since May 2026."""
+    return bool(re.fullmatch(r"AIza[A-Za-z0-9_\-]{30,}", key or "")
+                or re.fullmatch(r"AQ\.[A-Za-z0-9_\-.]{20,}", key or ""))
 
 
 def key_name(key):
