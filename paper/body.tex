@@ -2,8 +2,9 @@
 \section{Introduction}
 %% ======================================================================
 
-\IEEEPARstart{A}{n} agent that runs for weeks accumulates a history far larger than any context
-window, so something must decide what enters the prompt each turn. A longer
+\IEEEPARstart{A}{n} agent that runs for weeks
+\cite{yao2023react,wang2024agentsurvey} accumulates a history far larger than
+any context window \cite{brown2020gpt3}, so something must decide what enters the prompt each turn. A longer
 window does not remove the problem: accuracy falls 30--50\% well before the
 documented limit across frontier models \cite{chroma2025contextrot}, and
 position inside a long context changes how much the model uses
@@ -17,7 +18,8 @@ scores about 92\% where the same model retrieving for itself scores about 58\%
 is placed in front of it, so this 34-point difference is a selection failure
 rather than a reasoning failure.
 
-Systems that address selection already exist. Tiered memory with summarisation
+Systems that address selection already exist, and agent architectures now
+treat memory as a first-class module \cite{sumers2024coala}. Tiered memory with summarisation
 and forgetting is used in MemGPT \cite{packer2023memgpt}, MemoryBank
 \cite{zhong2024memorybank} and the architectures reviewed in
 \cite{zhang2024memorysurvey}. What has not been established is whether the
@@ -25,8 +27,8 @@ individual mechanisms inside those systems earn their cost, since they are
 evaluated as complete systems rather than as separate decisions. A recent
 survey states the gap directly: current systems ``do not solve the fundamental
 challenge: deciding what to remember and what to forget''
-\cite{zhang2024memorysurvey}. A rate--distortion framing has been proposed for
-this family of decisions \cite{colaco2026rd}, but it provides an analytical
+\cite{zhang2024memorysurvey}. A rate--distortion framing \cite{shannon1959rd,cover2006elements} has been
+proposed for this family of decisions \cite{colaco2026rd}, but it provides an analytical
 framework rather than a measured system.
 
 This paper measures the decision. Our research question is: how much of the
@@ -75,7 +77,9 @@ MemGPT \cite{packer2023memgpt} pages a virtual context against external storage
 under the model's own control; MemoryBank \cite{zhong2024memorybank} adds an
 Ebbinghaus forgetting curve; Generative Agents \cite{park2023generative} score
 memories by recency, importance and relevance; A-MEM \cite{xu2025amem}
-organises them as interlinked notes. This work shows tiering and forgetting are
+organises them as interlinked notes, and Mem0 \cite{chhikara2025mem0}
+extracts and updates facts with an LLM. The design echoes the multi-store
+model of human memory \cite{atkinson1968memory}. This work shows tiering and forgetting are
 practical, but because these systems are evaluated end to end, the contribution
 of any single decision inside them cannot be separated from the pipeline. Our
 harness is built to make that separation possible.
@@ -83,18 +87,30 @@ harness is built to make that separation possible.
 A second line compresses the prompt or the attention cache rather than choosing
 between stored items: LLMLingua \cite{jiang2023llmlingua} prunes tokens by
 perplexity, Gist tokens \cite{mu2023gist} and AutoCompressors
-\cite{chevalier2023autocompressor} learn dense summaries, and StreamingLLM
+\cite{chevalier2023autocompressor} learn dense summaries, the in-context autoencoder \cite{ge2024icae} compresses a context into memory
+slots, and StreamingLLM
 \cite{xiao2024streaming} and H\textsubscript{2}O \cite{zhang2023h2o} evict from
-the KV cache by attention-derived scores. All operate within a single forward
-pass over a contiguous context. The decision studied here is upstream and
+the KV cache by attention-derived scores. Architectural memories --- Transformer
+memories that compress \cite{rae2020compressive} or index
+\cite{wu2022memorizing,wang2023longmem} past activations --- change the model
+itself. All operate within a single forward
+pass over a contiguous context, or require training the model. The decision studied here is upstream and
 persistent: it fixes which items survive across sessions, where an evicted item
 cannot be recovered from the cache at all.
+
+Retrieval augmentation \cite{lewis2020rag,karpukhin2020dpr,borgeaud2022retro}
+is the store-everything baseline these systems are measured against, and the
+RAG arm of our harness. Choosing what to evict from a bounded store is also
+the classical page-replacement problem
+\cite{belady1966replacement,denning1968workingset}, with the difference that
+the future accesses here are questions no policy can see.
 
 LoCoMo \cite{maharana2024locomo} supplies multi-session dialogues annotated
 with gold evidence turn identifiers, which is what lets a retrieval-level
 metric be computed without a generative model; LongMemEval
 \cite{wu2024longmemeval} isolates several memory abilities and is the source of
-the gap quoted above. REALTALK \cite{lee2025realtalk} applies LoCoMo's
+the gap quoted above, and LongBench \cite{bai2024longbench} measures
+long-context understanding without a memory layer. REALTALK \cite{lee2025realtalk} applies LoCoMo's
 annotation schema to 21 days of messaging between real people, which makes it
 the natural test of whether a scorer fitted on LoCoMo learned what matters or
 only what LLM-generated dialogue looks like. We propose neither a new architecture nor a new
@@ -108,7 +124,8 @@ including a case where correcting the protocol reverses the conclusion.
 
 MemGate is placed between an agent and a frozen LLM, and controls only what
 enters the prompt (Fig.~\ref{fig:arch}). The base model is never trained or
-fine-tuned and is treated as a black box, so any difference we report can be
+fine-tuned and is treated as a black box, as in retrieval augmentation
+\cite{lewis2020rag}, so any difference we report can be
 attributed to the memory policy.
 
 \begin{figure*}[t]
@@ -116,7 +133,9 @@ attributed to the memory policy.
 \resizebox{\textwidth}{!}{\input{diagrams/architecture}}
 \caption{System architecture. Write path (top): every message, the reader's
 replies included, enters Tier~1 verbatim; when it leaves Tier~1 it is scored
-once and routed, and the budget enforcer holds the store at $S$. Read path
+once and routed, and the budget enforcer holds the store at $S$. (The
+application adds an entry gate in front of Tier~1, Section~\ref{sec:system};
+the experiments do not use it.) Read path
 (bottom): each question in a message is its own retrieval query, and the
 reader receives only the assembled context of at most $B$ tokens, never the
 raw history. Dashed arrows carry state rather than the item being processed.}
@@ -138,6 +157,8 @@ u \geq \tau_{\text{low}}  & \rightarrow\ \text{Tier 2: compressed gist}\\
 \end{equation}
 with $\tau_{\text{fact}}=0.45$ and $\tau_{\text{low}}=0.15$; an item with
 $u\ge\tau_{\text{fact}}+0.2$ also leaves a gist in Tier~2.
+The tiers follow the working-set \cite{denning1968workingset} and multi-store
+\cite{atkinson1968memory} views of memory.
 Tier~1 holds recent verbatim turns and answers the question \emph{when};
 Tier~2 holds compressed gists and answers \emph{gist}; Tier~3 holds durable
 facts with embeddings, answers \emph{what}, and enters the context only when
@@ -157,8 +178,9 @@ which turns are selected, not how many tokens may be spent.
 \label{sec:equations}
 
 Every equation in this subsection is transcribed from the code that produced
-the results (\texttt{scoring.py}, \texttt{pretrained.py}, \texttt{ingest.py},
-\texttt{store.py}, \texttt{policies.py} and the two training scripts).
+the results: the modules \texttt{scoring}, \texttt{pretrained},
+\texttt{ingest}, \texttt{store} and \texttt{policies}, and the two training
+scripts.
 A message $m$ is always scored with its speaker tag removed, and the scorer
 sees its text and speaker only: no question, evidence label or future turn.
 
@@ -190,20 +212,22 @@ The weights were set by hand and never fitted.
 $\phi(m)$ (word and character counts, digit, month, money, proper noun,
 question, final period, $h(m)$, correction cue, filler, assistant speaker,
 share of words of at most three letters, capital letters, clock time) with
-the 384-dimensional unit-norm MiniLM embedding $e(m)$:
+the 384-dimensional unit-norm MiniLM embedding $e(m)$
+\cite{wang2020minilm,reimers2019sbert}:
 \begin{equation}
 \label{eq:lr}
 \begin{gathered}
 x(m)=\big[\phi(m);\,e(m)\big]\in\mathbb{R}^{399},\\
-z(m)=b+\sum_{j=1}^{399} w_j\,\frac{x_j(m)-\mu_j}{\sigma_j},\qquad
+z(m)=b+\sum_{j=1}^{399} w_j\,\frac{x_j(m)-\mu_j}{\sigma_j},\quad
 u_{\mathrm{P3}}(m)=\frac{1}{1+e^{-z(m)}},
 \end{gathered}
 \end{equation}
 with $\mu,\sigma$ the training mean and standard deviation of each input. The
-label is distant supervision: $y_i=1$ when any question cites turn $i$ as
+label is distant supervision \cite{mintz2009distant}: $y_i=1$ when any question cites turn $i$ as
 evidence. With $N$ training turns from corpora $c$ grouped into families
 $f\in F$ (LoCoMo, REALTALK, BEAM, MemBench, everyday chat), the fit is
-an $\ell_2$-regularised, class-balanced, sample-weighted logistic regression,
+an $\ell_2$-regularised, class-balanced, sample-weighted logistic regression
+fitted with scikit-learn \cite{pedregosa2011sklearn},
 \begin{equation}
 \label{eq:loss}
 \begin{gathered}
@@ -234,7 +258,8 @@ which is how it is stored (Fig.~\ref{fig:training}):
 \end{equation}
 P1-S only orders by $u$, but the thresholds of (\ref{eq:route}) and the
 guards below read $u$ as absolute. The logit is therefore mapped by an affine
-function that leaves every ranking unchanged,
+function that leaves every ranking unchanged, in the manner of Platt scaling
+\cite{platt1999probabilistic},
 \begin{equation}
 \label{eq:cal}
 \begin{gathered}
@@ -292,22 +317,37 @@ by evicting, while it is violated,
 v=\arg\min_{i\in T_3}\ (u_i,\,t_i)
 \end{equation}
 in lexicographic order, $t_i$ being the turn index, so the oldest item breaks
-a tie (Fig.~\ref{fig:routing}b). P1 and P1-A demote $v$ to a Tier~2 gist; P1-S
-drops it; when Tier~3 is empty the same rule is applied to Tier~2. Tier~1, the
+a tie (Fig.~\ref{fig:routing}b). Superseded records are reclaimed before any
+eviction. P1 and P1-A demote $v$ to a Tier~2 gist of at most eight words when
+that gist costs less than $v$, and drop it otherwise; P1-S always drops it;
+when Tier~3 is empty the same rule is applied to Tier~2. Tier~1, the
 six-item live buffer, is never evicted. RAG uses $\arg\min_i t_i$, first in
 first out, and has no scorer. With equal costs, repeated application of
 (\ref{eq:evict}) leaves P1-S holding exactly the highest-utility items seen so
-far, and RAG the newest ones; this is the only difference between them.
+far, and RAG the newest ones, the FIFO rule of page replacement
+\cite{belady1966replacement}; this is the only difference between them.
 
 \emph{Context assembly.} For a question $q$ and context budget $B$ (2048
 tokens in every experiment), the most recent Tier~1 items are packed into
-$\lfloor B/4\rfloor$ tokens, and the remainder is filled greedily from
+$\lfloor B/4\rfloor$ tokens. In P1-A and P1-S the remainder is filled
+greedily from one pool of Tier~2 and Tier~3 items,
 \begin{equation}
 \label{eq:retrieve}
 R_k(q)=\operatorname{top}_k\big\{\,i : \cos\!\big(e(q),e(i)\big)>0\,\big\},\qquad k=60,
 \end{equation}
-ranked by cosine similarity. When a message asks several questions, each is
-its own query and the rankings are interleaved, best of each first.
+ranked by cosine similarity. P1 instead gives Tier~2 a fixed quarter of $B$,
+packed by information density, and fills the last half from Tier~3 by
+(\ref{eq:retrieve}). When a message asks several questions, each is its own
+query and the rankings are interleaved, best of each first.
+
+\emph{Store maintenance.} Three rules keep the store consistent, and none
+reads an evaluation label. A write to Tier~3 whose embedding has
+$\cos\ge0.92$ with an active fact is folded into that fact instead of being
+stored twice. A write the P1 heuristic labels a correction (Section~\ref{sec:equations}:
+a correction cue with a digit or month) retires the single most similar active
+fact with $\cos\ge0.60$. When Tier~2 outgrows its share, its oldest half is
+consolidated: items with $u\ge0.5$ are promoted to Tier~3 verbatim and the
+rest are merged into one coarser gist.
 
 \begin{figure*}[t]
 \centering
@@ -363,7 +403,8 @@ P1-S. Any gap between the two is therefore attributable to the decision policy.
 We report two retrieval-level metrics. Evidence recall, also called strict
 recall, is the fraction of questions for which every gold evidence turn reached
 the assembled context. Answer recall is the fraction for which the answer text
-survived into the context, computed over the 715 of 1{,}527 questions whose
+survived into the context, a string-containment test in the spirit of extractive
+QA scoring \cite{rajpurkar2016squad}, computed over the 715 of 1{,}527 questions whose
 answer is literally recoverable from the evidence turns.
 
 The distinction is load-bearing. Evidence recall credits an identifier: a
@@ -377,7 +418,9 @@ primary and report evidence recall alongside it to keep the divergence visible.
 
 Both are forms of context recall, an upper bound on end-task accuracy rather
 than accuracy itself. Their advantage here is that they are deterministic and
-do not confound the memory policy with the reader's reasoning.
+do not confound the memory policy with the reader's reasoning, unlike
+LLM-judged accuracy \cite{zheng2023judge}; Section~\ref{sec:endtask} measures
+accuracy itself.
 
 %% ======================================================================
 \section{Experimental Setup}
@@ -399,8 +442,9 @@ in the eviction ranking.
 
 All intervals are paired bootstrap \cite{efron1993bootstrap} with $B=10{,}000$
 resamples drawn at the conversation level, with an exact McNemar test
-\cite{mcnemar1947}. The resampling unit is not a detail: 1{,}527 questions from
-10 conversations are not 1{,}527 independent trials, and one of our own claims
+\cite{mcnemar1947,dietterich1998tests}. The resampling unit is not a detail: 1{,}527 questions from
+10 conversations are not 1{,}527 independent trials
+\cite{cameron2008cluster}, and one of our own claims
 does not survive the correction (Section~\ref{sec:significance}). Every model
 is a pinned local copy with the hub disabled at import, and all numeric tables
 are generated from the committed result files rather than transcribed.
@@ -555,8 +599,8 @@ system. $\dagger$: the row on which the two metrics disagree in direction.}
 Table~\ref{tab:scorers} varies only the scorer, everything else fixed at the
 configuration of Section~\ref{sec:selection}. Three results follow, all
 significant under clustering. Scoring is worth doing: the hand-written
-heuristic gains $+11.19$ answer points over unscored recency. The LLM judge
-nonetheless loses: in the pre-fix run, Qwen2.5-0.5B-Instruct reaches 30.9\%
+heuristic gains $+11.19$ answer points over unscored recency. The LLM judge, the approach of LLM-as-a-judge evaluation
+\cite{zheng2023judge}, nonetheless loses: in the pre-fix run, Qwen2.5-0.5B-Instruct reaches 30.9\%
 against the heuristic's 36.8\%, $-5.87$ points with the interval excluding zero, at some
 fifteen minutes of GPU time per corpus against microseconds for a regular
 expression. And the headroom is real: a logistic scorer fitted under
@@ -866,12 +910,21 @@ zero.}
 The policy is also a working system. A chat application wraps a reader model
 in the same \texttt{observe()} and \texttt{build\_context()} calls the
 experiments use (Fig.~\ref{fig:arch}): every message, the user's and the
-model's reply alike, is scored and routed when it arrives, and each question
-is answered from the context MemGate assembles, never from the raw history.
+model's reply alike, passes through the policy, and each question is answered
+from the context MemGate assembles, never from the raw history. The
+application adds one step the experiments do not have, an entry gate that
+scores each message the moment it is said. A message the scorer labels filler
+(a greeting, ``ok cool'', at most two words), or a model reply scoring below
+$0.1$, is forgotten at once and never takes space. Under P1-A and P1-S a
+message with $u\ge\tau_{\text{fact}}$ is also written to Tier~3 at once, with
+its score, while it stays in Tier~1 for the next few replies; when it later
+leaves Tier~1, the near-duplicate rule above folds it into that copy. Every
+other message follows the experimental path unchanged. The gate can be
+switched off, and the built-in benchmark below runs the policies without it.
 The reader is interchangeable because it only ever receives two strings, the
 assembled context and the current message. The default runs offline on an
 8\,GB laptop with Qwen2.5-1.5B-Instruct \cite{qwen2025}; a hosted model
-(Claude, or Gemini on its free tier) can be substituted, and when a hosted
+(Claude, or Gemini \cite{gemini2023} on its free tier) can be substituted, and when a hosted
 model is rate-limited and a local copy is installed, Qwen answers that
 message instead. With no
 model at all the application shows the context the reader would have
@@ -897,8 +950,8 @@ sent to the reader, so every decision the paper measures in aggregate can be
 inspected one message at a time. The application runs at the experimental
 budgets by default and offers a reduced scale (Tier~1 of four messages, a
 512-token context and $S=150$) under which eviction becomes visible within a
-few messages; these sizes are the only settings that differ from the
-experiments.
+few messages; these sizes and the entry gate are the only settings that differ
+from the experiments.
 
 \subsection{Stress and scale through the application}
 \label{sec:stress}
@@ -973,7 +1026,9 @@ takes 70\,s.
 %% ======================================================================
 
 Three errors changed our results before we detected them. Each was caught by an
-invariant rather than by reading the code.
+invariant rather than by reading the code. Two are forms of leakage, a known
+cause of irreproducible machine-learning results
+\cite{kaufman2012leakage,kapoor2023leakage}.
 
 \emph{A policy that read its evaluation label.} LoCoMo supplies a
 \texttt{fact\_id} per evidence turn, and an early consolidation rule promoted
@@ -1016,10 +1071,11 @@ survive as not significant. REALTALK adds ten conversations but only 160
 answer-recoverable questions, too few to resolve most of its differences.
 
 \emph{A single reader model.} Section~\ref{sec:endtask} uses one 1.5B four-bit
-model decoding greedily. We claim the ordering of policies, not the absolute
+model \cite{qwen2025} decoding greedily. We claim the ordering of policies, not the absolute
 accuracies: the oracle arm's 67.3\% shows much of the remaining error is the
 reader, and a larger one would raise every arm and could compress or widen the
-margins.
+margins; a larger reader may also use position in the context differently
+\cite{liu2024lostmiddle}.
 
 \emph{Compression was tested in both forms.} Replacing P1-A's word-selection
 with a 1.5B model rewriting each evicted turn is worth $+4.06$ answer points
@@ -1070,8 +1126,8 @@ against storing everything and retrieving --- but that is an artefact of leaving
 the store unbounded. Bound it, and the decision of which items to forget is
 worth $+9.37$ answer-recall points at identical storage, fidelity and
 retrieval, while compressing an evicted item rather than dropping it loses
-$7.13$. The crossover at which compression should begin to pay is not reached
-to $182\times$. Charging the budget for the embedding index reverses the
+$7.13$. The crossover at which rate--distortion theory \cite{cover2006elements} says
+compression should begin to pay is not reached to $182\times$. Charging the budget for the embedding index reverses the
 ranking below about 40\,KiB. An LLM judge, the obvious route to a better
 scorer, loses to a regular expression, for an identifiable reason: salience is
 not a property of a turn in isolation. A logistic scorer over a sentence
@@ -1090,7 +1146,7 @@ and averaging with the earlier model did, without a significant loss at the
 paper's budgets.
 
 The practical recommendation is narrow. Retain a scored subset at full fidelity
-rather than compressing everything, and denominate the budget in bytes with the
+rather than compressing everything \cite{jiang2023llmlingua,ge2024icae}, and denominate the budget in bytes with the
 index included. The methodological recommendation is broader. Three of the
 results above changed in sign or in magnitude once a measurement error was
 removed, and none of those errors was visible in the aggregate numbers they

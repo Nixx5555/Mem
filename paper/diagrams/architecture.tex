@@ -9,7 +9,7 @@
 \node[model, text width=22mm] (sc) at (99,0) {\textbf{Scorer} $u\in[0,1]$\\GuardedScorer over\\P1 or P3 (Fig.~\ref{fig:scoring})};
 \node[proc, text width=22mm] (rt) at (132,0) {\textbf{Router}\\P1 / P1-A / P1-S\\(Fig.~\ref{fig:routing}a)};
 \node[tier, text width=26mm] (t3) at (170,9) {\textbf{Tier 3}: verbatim turns\\+ MiniLM vectors};
-\node[tier, text width=26mm] (t2) at (170,-9) {\textbf{Tier 2}: gists\\($\le$14 words) + vectors};
+\node[tier, text width=26mm] (t2) at (170,-9) {\textbf{Tier 2}: short gists\\(8--14 words) + vectors};
 \node[bad, text width=40mm] (bud) at (163,27) {\textbf{Budget} (Fig.~\ref{fig:routing}b): while $\sum_i c_i > S$, evict $\arg\min_i (u_i,t_i)$};
 \draw[flow] (msg) -- (ing);
 \draw[flow] (ing) -- (t1);
