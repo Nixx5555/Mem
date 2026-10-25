@@ -1,9 +1,14 @@
-# MemGate — IEEE conference paper
+# MemGate — IEEE conference and journal paper
 
 ```
 paper/
-  main.tex          the paper (hand-written prose)
-  refs.bib          24 references
+  main.tex          conference version: front matter (authors, abstract)
+  journal.tex       journal version (IEEEtran journal mode): authors with
+                    affiliation footnote, running heads, 250-word abstract,
+                    Index Terms, drop cap, author biographies
+  body.tex          the shared paper body, Introduction to Acknowledgment
+                    (hand-written prose); edit here and both versions follow
+  refs.bib          52 references, each cited in the body
   tables/*.tex      GENERATED — do not edit by hand
   figures/*.pdf     vector figures, copied from memgate/results/figures/
   diagrams/*.tex    TikZ diagrams and flowcharts (architecture, scoring,
@@ -20,7 +25,14 @@ On Debian/Ubuntu (this is how the cloud builds it):
 ```sh
 apt-get install texlive-latex-extra texlive-pictures texlive-publishers texlive-science
 cd paper && pdflatex main && bibtex main && pdflatex main && pdflatex main
+cd paper && pdflatex journal && bibtex journal && pdflatex journal && pdflatex journal
 ```
+
+The journal version is 13 pages and the conference version 14 (2026-10-25,
+after the code audit and the reference pass that took refs.bib to 52 entries).
+The journal abstract is a separate, shorter text in `journal.tex`, because
+IEEE journals cap abstracts at 250 words; if a number in the body changes,
+update both abstracts.
 
 **Tectonic is installed locally** (`brew install tectonic`, v0.17.0), so the
 paper compiles here:
