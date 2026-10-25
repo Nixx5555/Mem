@@ -1,0 +1,92 @@
+%% MemGate --- IEEE journal version (IEEEtran journal mode, IEEE Transactions layout)
+%% Compile: pdflatex journal / bibtex journal / pdflatex journal / pdflatex journal
+%% The body is shared with the conference version (main.tex) through body.tex;
+%% only the front matter, running heads and biographies differ.
+\documentclass[journal]{IEEEtran}
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc}
+
+\begin{document}
+\input{diagrams/styles}
+
+\title{Selection Beats Compression: Memory Decision Policies for LLM Agents Under a Bounded Store}
+
+\author{Simar~Singh~Khanuja,
+        Yash~Ramchandani,
+        and~Praveen~Modi% <- no space before \thanks
+\thanks{The authors are with the Department of Computer Science and
+Engineering, SVKM's Narsee Monjee Institute of Management Studies (NMIMS),
+Indore Campus, Indore, Madhya Pradesh, India.}%
+\thanks{Corresponding author: Simar Singh Khanuja.}%
+\thanks{Code, data and the chat application are available at
+\url{https://github.com/Nixx5555/Mem}.}}
+
+\markboth{Manuscript submitted for review, 2026}%
+{Khanuja \MakeLowercase{\textit{et al.}}: Selection Beats Compression: Memory Decision Policies for LLM Agents}
+
+\maketitle
+
+% IEEE journals cap the abstract at 250 words, so this is a shortened form of
+% the conference abstract in main.tex; every number in it is from body.tex.
+\begin{abstract}
+A long-running LLM agent cannot keep every turn of a conversation in its
+context window, so a memory layer must decide what to keep, compress, forget
+and recall. Tiered memory systems make these decisions, but the policy itself is
+rarely measured in isolation. We present MemGate, an evaluation
+harness that places memory policies on a common accuracy-per-token frontier,
+changing one factor per comparison. The usual accounting bounds the assembled
+context but not the store, charging a store-everything baseline nothing for
+retention. With the store also bounded,
+choosing which turns to forget is worth $+9.37$ answer-recall points over
+oldest-first eviction at identical storage, fidelity and retrieval (95\% CI
+$[+5.45, +14.90]$, clustered by conversation), while compressing an evicted
+turn instead of dropping it loses $7.13$ points; the rate--distortion crossover
+is not reached up to $182\times$ compression. Charging the budget for the
+embedding index reverses the ranking below about 40\,KiB. An LLM-judged
+salience scorer loses to a regular-expression heuristic by $5.87$ points,
+whereas a logistic scorer over shallow features and a sentence embedding,
+trained on LoCoMo and REALTALK, beats the heuristic by $+14.55$ points on
+held-out conversations. It also beats MemGPT-style and Mem0-style memory
+rebuilt in the same harness at every budget tested, and on million-token chats
+typed into the application it keeps the answer for 51.9\% of questions against
+19.2\% for retrieval. Through a fixed reader, $+6.0$ points of the selection
+advantage become correct answers. We release the policy as an offline chat
+application, and report three measurement errors found by invariants.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Large language models, agent memory, context management, retrieval-augmented
+generation, rate--distortion, empirical evaluation.
+\end{IEEEkeywords}
+
+\input{body}
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\begin{IEEEbiographynophoto}{Simar Singh Khanuja}
+is an undergraduate student in Computer Science and Engineering at SVKM's
+NMIMS, Indore Campus, India, with research interests in memory and context
+management for large language model agents and the empirical evaluation of
+machine learning systems.
+\end{IEEEbiographynophoto}
+
+\begin{IEEEbiographynophoto}{Yash Ramchandani}
+is an undergraduate student in Computer Science and Engineering at SVKM's
+NMIMS, Indore Campus, India, with research interests in large language models and
+retrieval-augmented generation.
+\end{IEEEbiographynophoto}
+
+\begin{IEEEbiographynophoto}{Praveen Modi}
+is a faculty member in the Department of Computer Science and Engineering at
+SVKM's NMIMS, Indore Campus, India, and guided this work.
+\end{IEEEbiographynophoto}
+
+\end{document}
