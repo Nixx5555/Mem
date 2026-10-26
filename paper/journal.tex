@@ -32,15 +32,16 @@
 Policies for Large Language Model Agents\\[2pt]
 Under a Bounded Store\par}
 \vspace{1.4em}
-{\large \mbox{YASH RAMCHANDANI\textsuperscript{1}}, \ \mbox{SIMAR SINGH KHANUJA\textsuperscript{1}},\\[2pt]
-\mbox{DR.\ PRAVEEN MODI\textsuperscript{1*}}\par}
+{\normalsize Yash Ramchandani\textsuperscript{1}, \ Simar Singh Khanuja\textsuperscript{1}, \
+\mbox{Dr.\ Praveen Modi\textsuperscript{1*}}\par}
 \vspace{1em}
-\textsuperscript{1}School of Technology Management \& Engineering, SVKM's NMIMS\\
-Deemed to be University, Indore Campus, India.\par
-\vspace{1.4em}
-\textsuperscript{*}Corresponding author: Dr.\ Praveen Modi, Assistant Professor.\par
+\textsuperscript{1}School of Technology Management \& Engineering, SVKM's NMIMS,\\
+Indore Campus, India.\par
 \end{center}
 
+{\renewcommand{\thefootnote}{}\footnotetext{\textsuperscript{*}Corresponding author: Dr.\ Praveen Modi, Assistant
+Professor, School of Technology Management \& Engineering, SVKM's NMIMS,
+Indore Campus, India.}}
 \vspace{1em}
 \begin{center}\small\textbf{Abstract}\end{center}
 \vspace{-0.6em}
@@ -77,13 +78,9 @@ memory at every budget tested. On held-out chats of up to ten million tokens
 it beats retrieval on every corpus; on million-token chats typed into the
 application it keeps the answer for 51.9\% of questions against 19.2\% for
 retrieval, and $+6.0$ points of its advantage become correct answers through a
-fixed reader. Three results changed sign or size once a measurement error was
-removed, and each was caught by an invariant rather than by reading the code.
-Selection, not compression, is what a bounded memory
-should spend its budget on, counted in bytes with the index included. The
-policy ships as an offline chat application built on the experimental code,
-which reproduces the retrieval and selection results at a 4096-token store
-(28.1\% and 37.5\%) exactly.
+fixed reader. Selection, not compression, is what a bounded memory should
+spend its budget on, counted in bytes with the index included. The learned
+scorer ships in an offline chat application built on the experimental code.
 \par\medskip\noindent\textbf{Keywords:} Large language models, agent memory, context management,
 retrieval-augmented generation, rate--distortion, empirical evaluation
 \par}

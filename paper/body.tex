@@ -2,13 +2,18 @@
 \section{Introduction}
 %% ======================================================================
 
-\IEEEPARstart{A}{n} agent that runs for weeks
-\cite{yao2023react,wang2024agentsurvey} builds up a history far longer than
-any context window \cite{brown2020gpt3}, so on every turn something has to
-decide what goes into the prompt. A bigger window does not make that decision
-go away. Across frontier models, accuracy drops by 30--50\% well before the
-advertised limit \cite{chroma2025contextrot}, and how much a model uses a
-passage depends on where it sits in a long input \cite{liu2024lostmiddle}.
+\IEEEPARstart{A}{n} agent that runs for weeks, planning, acting and
+reflecting on its own mistakes
+\cite{yao2023react,shinn2023reflexion,wang2024agentsurvey,xi2023agentsurvey},
+builds up a history far longer than any context window
+\cite{brown2020gpt3}, so on every turn something has to decide what goes
+into the prompt. A bigger window, even one stretched by position
+interpolation \cite{peng2024yarn}, does not make that decision go away.
+Across frontier models, accuracy drops by 30--50\% well before the
+advertised limit \cite{chroma2025contextrot}, synthetic tests find effective
+context lengths far shorter than the claimed ones \cite{hsieh2024ruler}, and
+how much a model uses a passage depends on where it sits in a long input
+\cite{liu2024lostmiddle}.
 Both effects come from attention over long sequences rather than from missing
 training data, so a larger window shifts the problem instead of removing it.
 What limits the agent is curation, not capacity.
@@ -19,10 +24,9 @@ about 92\%, while the same model choosing its own evidence reaches about 58\%
 correctly, so the 34-point gap is a failure of selection, not of reasoning.
 
 Systems that tackle selection already exist, and agent architectures now treat
-memory as a module in its own right \cite{sumers2024coala}. MemGPT
-\cite{packer2023memgpt}, MemoryBank \cite{zhong2024memorybank} and the designs
-surveyed in \cite{zhang2024memorysurvey} all summarise and forget across
-tiers. What nobody has shown is whether each of those mechanisms is worth what
+memory as a module in its own right \cite{sumers2024coala}. The designs
+surveyed in \cite{zhang2024memorysurvey}, including the systems reviewed in
+Section~\ref{sec:related}, all summarise and forget across tiers. What nobody has shown is whether each of those mechanisms is worth what
 it costs, because the systems are evaluated whole rather than one decision at
 a time. The same survey puts it plainly: current systems ``do not solve the
 fundamental challenge: deciding what to remember and what to forget''
@@ -34,7 +38,7 @@ We set out to measure the decision itself. Our question is simple to state:
 how much of the selection gap can a better memory policy close, and at what
 budget does compression start to pay?
 
-We make eleven contributions:
+We make nine contributions:
 \begin{itemize}
 \item A storage-budgeted protocol. Bounding only the assembled context charges
   a store-everything baseline nothing for what it keeps, which decides the
@@ -61,14 +65,9 @@ We make eleven contributions:
 \item A scale test on chats of up to ten million tokens, and a scorer
   retrained on 14.6 times the data, including the finding that more data on
   its own did not help (Sections~\ref{sec:scale} and~\ref{sec:retrain}).
-\item A working application that runs the same code as the experiments, with
-  the scoring rules and equations it uses (Sections~\ref{sec:equations}
-  and~\ref{sec:system}).
-\item Three measurement errors in our own results and the checks that caught
-  them (Section~\ref{sec:threats}).
 \end{itemize}
 
-Five of the eleven are negative or corrective, and we think that is the useful
+Several of the nine are negative or corrective, and we think that is the useful
 part. Described only as a three-tier memory layer, MemGate would repeat work
 others have done. Measured against controls, it tells us which parts of that
 design actually earn their keep.
@@ -113,8 +112,8 @@ here the future accesses are questions that no policy gets to see.
 
 On the evaluation side, LoCoMo \cite{maharana2024locomo} provides multi-session
 dialogues with gold evidence turns marked, which lets us compute a
-retrieval-level metric without running a generative model. LongMemEval
-\cite{wu2024longmemeval} separates several memory abilities and is where the
+retrieval-level metric without running a generative model. LongMemEval,
+introduced above, separates several memory abilities and is where the
 gap quoted above comes from, and LongBench \cite{bai2024longbench} tests long
 inputs with no memory layer at all. REALTALK \cite{lee2025realtalk} applies
 LoCoMo's annotation scheme to 21 days of messages between real people. That
@@ -125,61 +124,7 @@ and what it finds, including one case where fixing the protocol reverses the
 conclusion.
 
 %% ======================================================================
-\section{Datasets and Experimental Setup}
-\label{sec:setup}
-%% ======================================================================
-
-Our main corpus is LoCoMo \cite{maharana2024locomo}: 10 multi-session
-conversations, 5{,}882 turns and 1{,}527 scoreable questions. We leave out the
-category-5 (adversarial) items. They do carry evidence, but the right response
-is to decline, so retrieving that evidence would not count as success.
-
-Retrieval and semantic supersession use all-MiniLM-L6-v2
-\cite{reimers2019sbert} at 384 dimensions. Budgets are counted with
-\texttt{cl100k\_base}, so every budget is an exact token count. The P2 judge
-(Section~\ref{sec:harness}) is Qwen2.5-0.5B-Instruct \cite{qwen2025}, run locally. Rather than generating a
-rating and parsing it, we read salience as the expected value over the
-digit-token logits of a single forward pass. This is faster, cannot fail to
-parse, and leaves no ties in the eviction order.
-
-Every interval is a paired bootstrap \cite{efron1993bootstrap} with
-$B=10{,}000$ resamples drawn by conversation, paired with an exact McNemar test
-\cite{mcnemar1947,dietterich1998tests}. The resampling unit is not a detail.
-The 1{,}527 questions come from 10 conversations, so they are not 1{,}527
-independent trials
-\cite{cameron2008cluster}, and one of our own claims does not survive the
-correction (Section~\ref{sec:significance}). Every model is a pinned local
-copy, with the model hub disabled at import, and every numeric table is
-generated from the committed result files rather than typed in by hand.
-
-\subsection{Evaluation metrics}
-\label{sec:metrics}
-
-We use two retrieval-level metrics. Evidence recall, sometimes called strict
-recall, is the share of questions for which every gold evidence turn made it
-into the assembled context. Answer recall is the share for which the answer
-text itself survived into the context. It is a string-containment test, close
-in spirit to extractive QA scoring \cite{rajpurkar2016squad}, and we compute it
-over the 715 of 1{,}527 questions whose answer can be read directly off the
-evidence turns.
-
-The difference between the two matters a great deal. Evidence recall credits
-an identifier. A compressed gist keeps the identifier of a turn whose text it
-threw away, so it scores a hit with none of the answer behind it. During
-development we watched evidence recall climb from 8.1\% to 14.8\% while answer
-recall sat at 12.8\%; the whole gain was bookkeeping. Dropping versus
-compressing is exactly the comparison where the two metrics part ways, and
-evidence recall alone would have pointed us to the opposite conclusion. We
-therefore treat answer recall as the primary metric and report evidence recall
-next to it, so the disagreement stays in view.
-
-Both metrics measure context recall, which bounds end-task accuracy from above
-without being accuracy. What they offer is determinism: unlike LLM-judged
-accuracy \cite{zheng2023judge}, they do not mix the memory policy up with the
-reader's reasoning. Section~\ref{sec:endtask} measures accuracy directly.
-
-%% ======================================================================
-\section{Proposed Methodology: the MemGate Harness}
+\section{Proposed Methodology}
 \label{sec:harness}
 %% ======================================================================
 
@@ -193,9 +138,7 @@ fine-tune, so any difference we report comes from the memory policy.
 \resizebox{\textwidth}{!}{\input{diagrams/architecture}}
 \caption{System architecture. Write path (top): every message, the reader's
 replies included, enters Tier~1 verbatim; when it leaves Tier~1 it is scored
-once and routed, and the budget enforcer holds the store at $S$. (The
-application adds an entry gate in front of Tier~1, Section~\ref{sec:system};
-the experiments do not use it.) Read path
+once and routed, and the budget enforcer holds the store at $S$. Read path
 (bottom): each question in a message is its own retrieval query, and the
 reader receives only the assembled context of at most $B$ tokens, never the
 raw history. Dashed arrows carry state rather than the item being processed.}
@@ -455,6 +398,68 @@ same storage cap. They differ only in which turns they throw out when the cap
 binds: the oldest for RAG, the lowest-utility for P1-S. Whatever gap opens
 between them belongs to the decision policy.
 
+\subsection{Evaluation metrics}
+\label{sec:metrics}
+
+We use two retrieval-level metrics. Evidence recall, sometimes called strict
+recall, is the share of questions for which every gold evidence turn made it
+into the assembled context. Answer recall is the share for which the answer
+text itself survived into the context. It is a string-containment test, close
+in spirit to extractive QA scoring \cite{rajpurkar2016squad}, and we compute it
+over the 715 of 1{,}527 questions whose answer can be read directly off the
+evidence turns.
+
+The difference between the two matters a great deal. Evidence recall credits
+an identifier. A compressed gist keeps the identifier of a turn whose text it
+threw away, so it scores a hit with none of the answer behind it. During
+development we watched evidence recall climb from 8.1\% to 14.8\% while answer
+recall sat at 12.8\%; the whole gain was bookkeeping. Dropping versus
+compressing is exactly the comparison where the two metrics part ways, and
+evidence recall alone would have pointed us to the opposite conclusion. We
+therefore treat answer recall as the primary metric and report evidence recall
+next to it, so the disagreement stays in view.
+
+Both metrics measure context recall, which bounds end-task accuracy from above
+without being accuracy. What they offer is determinism: unlike LLM-judged
+accuracy \cite{zheng2023judge}, they do not mix the memory policy up with the
+reader's reasoning. Section~\ref{sec:endtask} measures accuracy directly.
+
+\subsection{Datasets and experimental setup}
+\label{sec:setup}
+Our main corpus is LoCoMo \cite{maharana2024locomo}: 10 multi-session
+conversations, 5{,}882 turns and 1{,}527 scoreable questions. We leave out the
+category-5 (adversarial) items. They do carry evidence, but the right response
+is to decline, so retrieving that evidence would not count as success.
+
+Retrieval and semantic supersession use all-MiniLM-L6-v2
+\cite{reimers2019sbert} at 384 dimensions. Budgets are counted with
+\texttt{cl100k\_base}, so every budget is an exact token count. The P2 judge
+(Section~\ref{sec:harness}) is Qwen2.5-0.5B-Instruct \cite{qwen2025}, run locally. Rather than generating a
+rating and parsing it, we read salience as the expected value over the
+digit-token logits of a single forward pass. This is faster, cannot fail to
+parse, and leaves no ties in the eviction order.
+
+Every interval is a paired bootstrap \cite{efron1993bootstrap} with
+$B=10{,}000$ resamples drawn by conversation, paired with an exact McNemar test
+\cite{mcnemar1947,dietterich1998tests}. The resampling unit is not a detail.
+The 1{,}527 questions come from 10 conversations, so they are not 1{,}527
+independent trials
+\cite{cameron2008cluster}, and one of our own claims does not survive the
+correction (Section~\ref{sec:significance}). Every model is a pinned local
+copy, with the model hub disabled at import, and every numeric table is
+generated from the committed result files rather than typed in by hand.
+
+\emph{Runs before a scorer fix.} We found a defect after the main runs. The heuristic scored each turn
+with its speaker tag still attached, which stopped the filler rule from firing
+and handed almost every turn the proper-noun bonus: 5{,}863 of 5{,}882 LoCoMo
+turns were labelled facts. The recall tables and Table~\ref{tab:transfer} use
+the fixed scorer; the judge, end-task, abstractive and LongMemEval runs came
+before the fix. Fixing it moves the headline P1-S result from 36.8\% to
+37.5\%, and shrinks the learned scorer's lead over the heuristic at $S=2048$
+from $+5.2$ to $+2.7$ points, since part of that lead was the defect holding
+the heuristic back.
+\label{sec:prefix}
+
 %% ======================================================================
 \section{Results}
 \label{sec:results}
@@ -625,7 +630,7 @@ Section~\ref{sec:transfer} tests.
 \begin{table}[t]
 \caption{Single-component scorer swap at $S=4096$ with context 2048. Policy,
 retrieval and compression are fixed and only the scorer varies. P3 is fitted
-on the other nine conversations. Pre-fix run (Section~\ref{sec:threats}).}
+on the other nine conversations. Pre-fix run (Section~\ref{sec:prefix}).}
 \label{tab:scorers}
 \centering
 \small
@@ -647,7 +652,7 @@ Every held-out conversation is scored by three models that never saw it:
 trained on the other conversations of the same corpus, on the other corpus
 only, or on all 19 other conversations pooled. Policy, budgets and retrieval
 are those of Section~\ref{sec:selection} with the fixed heuristic
-(Section~\ref{sec:threats}); only the scorer varies.
+(Section~\ref{sec:prefix}); only the scorer varies.
 
 Table~\ref{tab:transfer} reports the result. On LoCoMo the pooled scorer
 reaches 52.0\% answer recall against the heuristic's 37.5\%, a gain of
@@ -674,8 +679,9 @@ The embedding is what carries across. With the hand features alone, the
 pooled scorer is significantly \emph{worse} than the heuristic on REALTALK
 ($-8.75$, $[-17.45, -2.27]$): its feature weights encode LoCoMo's style, such
 as long turns ending in a period, which people messaging each other do not
-write. This is the same failure the heuristic shows on LongMemEval
-(Section~\ref{sec:limitations}). Logistic regression was kept after comparing
+write. The heuristic fails the same way on a LongMemEval
+subsample, where its separation between evidence and non-evidence turns
+flips sign. Logistic regression was kept after comparing
 it with boosted trees and a 64-unit MLP on the same folds: neither beat it by
 more than the spread between held-out conversations, and the trees were much
 slower both to fit and on the write path.
@@ -721,7 +727,7 @@ margin above that floor is attributable to the memory layer. P1-S reaches
 18.5\% against RAG's 12.4\%. Resampling by conversation as before, the realised
 gap is $+6.0$ points with a 95\% interval of $[+3.3, +9.1]$, which is 69\% of
 the $+8.7$-point recall gap between the same two arms in this pre-fix run
-(Section~\ref{sec:threats}).
+(Section~\ref{sec:prefix}).
 
 Accuracy is not bounded by answer recall, since a reader may guess, so the
 table separates the two regimes. Accuracy given that the answer was present is
@@ -737,7 +743,7 @@ locates the remaining headroom in the reader rather than in the memory layer.
 \caption{End-task accuracy through one fixed reader at $S=4096$ with context
 2048, over all 715 answer-recoverable questions. Acc.$\mid$present is accuracy
 restricted to the questions whose answer reached the context; it is undefined
-for the arms that never place one. Pre-fix run (Section~\ref{sec:threats}).}
+for the arms that never place one. Pre-fix run (Section~\ref{sec:prefix}).}
 \label{tab:endtask}
 \centering
 \small
@@ -908,162 +914,13 @@ zero.}
 \begin{adjustbox}{max width=\columnwidth}\input{tables/retrain}\end{adjustbox}
 \end{table}
 
-%% ======================================================================
-\section{Engineering Challenges and Limitations}
-\label{sec:challenges}
-%% ======================================================================
-
-\subsection{Measurement errors and how they were caught}
-\label{sec:threats}
-
-Three errors changed our results before we caught them, and in each case an
-invariant caught it, not a read-through of the code. Two of the three are
-forms of leakage, a well-known source of irreproducible machine-learning
-results \cite{kaufman2012leakage,kapoor2023leakage}.
-
-\emph{A policy that read its evaluation label.} LoCoMo marks every evidence
-turn with a \texttt{fact\_id}, and an early consolidation rule used it to
-decide what to promote. In effect the policy was reading the answer key. It
-was worth 45 to 47 recall points and invalidated the first result we reported.
-The fix is an invariant rather than a convention: strip every evaluation label
-from the input, and the resulting store must be bit-identical. Every decision
-point added since then was put under that check before it produced a number.
-
-\emph{A component's value depends on the current bottleneck.} We first
-measured the sentence embedder at $+0.2$ points and decided it hardly mattered.
-That was true only where we measured it, with retrieval saturated against a
-write path that threw away 93\% of the conversation. Once that bottleneck was
-gone, the same swap was worth $+19.7$. An ablation run against a bottlenecked
-pipeline will keep undervaluing whatever would matter once the dominant term
-moves.
-
-\emph{A failure invisible in the aggregate.} Batched judge scoring returned
-\texttt{NaN} for short turns, and only for short turns. We suspected numerical
-precision, but \texttt{float32} did not help. The real cause was left-padding,
-which produced attention rows that were entirely masked. Without an explicit
-guard, every filler turn would have scored \texttt{NaN} and turned the
-eviction order upside down.
-
-We found a fourth defect after the main runs. The heuristic scored each turn
-with its speaker tag still attached, which stopped the filler rule from firing
-and handed almost every turn the proper-noun bonus: 5{,}863 of 5{,}882 LoCoMo
-turns were labelled facts. The recall tables and Table~\ref{tab:transfer} use
-the fixed scorer; the judge, end-task, abstractive and LongMemEval runs came
-before the fix. Fixing it moves the headline P1-S result from 36.8\% to
-37.5\%, and shrinks the learned scorer's lead over the heuristic at $S=2048$
-from $+5.2$ to $+2.7$ points, since part of that lead was the defect holding
-the heuristic back.
-
-\subsection{Limitations}
-\label{sec:limitations}
-
-\emph{Few conversations.} The conversation is the right unit for resampling,
-but it leaves us with few clusters and therefore wide intervals. Effects that
-do not survive are reported as not significant. REALTALK adds ten
-conversations but only 160 answer-recoverable questions, too few to settle
-most of its differences.
-
-\emph{A single reader model.} Section~\ref{sec:endtask} uses one 1.5B four-bit
-model \cite{qwen2025} with greedy decoding. We claim the ordering of the
-policies, not their absolute accuracies. The oracle arm's 67.3\% shows that
-much of the remaining error belongs to the reader. A larger reader would lift
-every arm and could narrow or widen the margins, and it may also use position
-in the context differently \cite{liu2024lostmiddle}.
-
-\emph{Compression was tested in both forms.} Replacing P1-A's word selection
-with a 1.5B model that rewrites each evicted turn is worth $+4.06$ answer
-points (CI $[+0.84, +6.66]$), so part of the negative result was down to the
-compressor rather than to compression as such. Selection still wins (pre-fix
-run): 36.8\% against 34.1\%, at 2.1\,s against 3{,}892\,s and 4{,}879
-generations. The claim therefore narrows: a better compressor helps, but it
-does not overtake dropping.
-
-\emph{Concatenated streams are synthetic}, as discussed in
-Section~\ref{sec:scaling}.
-
-\emph{The scorer is tuned to this corpus.} On a 94-item LongMemEval
-\cite{wu2024longmemeval} subsample, whose turns average 210 tokens against
-LoCoMo's 32, the heuristic's separation between evidence and non-evidence turns
-flipped sign, and scored eviction lost to FIFO. The $+9.37$ of
-Section~\ref{sec:selection} should be read as what a policy recovers
-\emph{given a scorer suited to the corpus}, not as a property of scored
-selection in general. We have since tested the learned scorer held out on
-BEAM, where the heuristic also ranks evidence below chance, and on MemBench
-and everyday chat (Section~\ref{sec:scale}). LongMemEval, where the
-heuristic's sign first flipped, remains untested with it because we could not
-fetch it in our environment. The scorer's labels are distant supervision (a
-turn is positive if any question cites it), and that supervision is twice as
-dense on LoCoMo (24\% of turns) as on REALTALK (12\%). On PersonaChat it is
-weaker still: a word-overlap match with a persona line.
-
-\emph{Few answerable questions at scale.} BEAM's answers are mostly
-paraphrases, so only 34 to 55 questions per scale are answer-recoverable, and
-13 at 10M. The intervals in Table~\ref{tab:scale} are wide as a result, which
-is why we also report evidence recall, covering about ten times as many
-questions. The rebuilt MemGPT-style and Mem0-style arms reproduce those
-systems' memory structures without their LLM calls, so they measure the
-designs rather than the products.
-
-\emph{Single embedder and single judge.} The negative result of
-Section~\ref{sec:scorer} is evidence about a 0.5B model prompted one turn at a
-time, not about LLM-judged salience in general. A larger judge, or one shown
-the neighbouring turns, has not been tried, and it is the most direct way to
-challenge the finding.
-
-%% ======================================================================
-\section{Real-World Application: From Harness to Chat}
-\label{sec:system}
-%% ======================================================================
-
-The policy is not only an experiment; it also runs as a working system. A chat
-application wraps a reader model in the same \texttt{observe()} and
-\texttt{build\_context()} calls the experiments use (Fig.~\ref{fig:arch}).
-Every message, from the user or from the model, passes through the policy, and
-every question is answered from the context MemGate assembles, never from the
-raw history.
-
-The application adds one step the experiments do not have: an entry gate that
-scores each message the moment it is sent. A message the scorer labels filler
-(a greeting, ``ok cool'', at most two words), or a model reply scoring below
-$0.1$, is forgotten straight away and never takes up space. Under P1-A and P1-S
-a message with $u\ge\tau_{\text{fact}}$ is also written to Tier~3 immediately,
-with its score, while staying in Tier~1 for the next few replies; when it
-later leaves Tier~1, the near-duplicate rule folds it into that copy. All
-other messages follow the experimental path unchanged. The gate can be turned
-off, and the built-in benchmark described below runs the policies without it.
-
-The reader can be swapped freely because it only ever receives two strings:
-the assembled context and the current message. By default it runs offline on
-an 8\,GB laptop with Qwen2.5-1.5B-Instruct \cite{qwen2025}. A hosted model
-(Claude, or Gemini \cite{gemini2023} on its free tier) can take its place, and
-if the hosted model is rate-limited and a local copy is installed, Qwen
-answers that message instead. With no model at all, the application shows the
-context the reader would have received. P1-S is the default policy, using the
-shipped learned scorer of Section~\ref{sec:retrain} inside GuardedScorer
-(Eqs.~(\ref{eq:ens})--(\ref{eq:floor}), Fig.~\ref{fig:scoring}). If the MiniLM
-embedder is missing, the application falls back to the P1 heuristic instead
-of scoring with the wrong features. Any text can be added. Pasted text, PDF,
-Word, PowerPoint and other files are cleaned, and anything longer than 120
-tokens is cut into pieces of at most 48 tokens, each scored, stored and
-retrieved like a turn, because a single embedding of a long document describes
-little more than its opening.
-
-Reusing the experimental code gives two useful properties. First, persistence
-is exact. A conversation is saved as its messages and restored by replaying
-them through \texttt{observe()}, which is deterministic, so the tiers after a
-restart match the tiers before it. Second, the application can check itself.
-A built-in benchmark recomputes the RAG and P1-S arms on all of LoCoMo at
-$S=4096$ on a CPU and compares them with the committed results, reproducing
-28.1\% and 37.5\% exactly. A side panel shows each message's utility $u$, the
-tier it went to or the reason it was forgotten, and the exact context sent to
-the reader, so every decision the paper measures in aggregate can be inspected
-one message at a time. The application runs at the experimental budgets by
-default. It also offers a reduced scale (a Tier~1 of four messages, a
-512-token context and $S=150$) at which eviction becomes visible within a few
-messages. These sizes and the entry gate are the only settings that differ
-from the experiments.
 \subsection{Stress and scale through the application}
 \label{sec:stress}
+
+We also ran the complete pipeline the way a user meets it: a chat
+application wraps a reader model in the same \texttt{observe()} and
+\texttt{build\_context()} calls the experiments use, and adds an entry gate
+that forgets filler messages on arrival.
 
 The benchmarks above replay conversations straight through the policy. To
 test the system a person would actually use, whole BEAM chats were typed into the application
@@ -1162,10 +1019,7 @@ paper's budgets.
 
 Our practical advice is narrow: keep a scored subset at full fidelity rather
 than compressing everything \cite{jiang2023llmlingua,ge2024icae}, and count
-the budget in bytes with the index included. The methodological lesson is
-broader. Three of the results above changed sign or size once a measurement
-error was removed, and none of those errors showed up in the aggregate numbers
-they distorted.
+the budget in bytes with the index included.
 
 Two questions stay open. The pooled scorer's gains on human conversation
 become significant only once the store holds about 40\% of a conversation,
