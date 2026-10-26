@@ -32,11 +32,11 @@ cd paper && pdflatex main && bibtex main && pdflatex main && pdflatex main
 cd paper && pdflatex journal && bibtex journal && pdflatex journal && pdflatex journal
 ```
 
-The journal version is 30 pages (single column, 11 pt) and the conference
-version 14 (2026-10-26). Section order follows the sample manuscript the
-authors supplied: Introduction, Related Work, Datasets and Experimental
-Setup, Proposed Methodology, Results, Engineering Challenges and
-Limitations, Real-World Application, Conclusion and Future Work. Author order: Yash Ramchandani, Simar Singh Khanuja,
+The journal version is 28 pages (single column, 11 pt) and the conference
+version 13 (2026-10-26). Section order (mentor's review, 2026-10-26): Introduction (15 references),
+Related Work (23, none shared with the Introduction), Proposed Methodology
+(including evaluation metrics and datasets and experimental setup), Results,
+Conclusion and Future Work. The corresponding author is a page-1 footnote. Author order: Yash Ramchandani, Simar Singh Khanuja,
 Dr. Praveen Modi. `\colfig` sets one-column figure width in each wrapper.
 The two abstracts are written separately (both one paragraph; conference
 ~385 words, journal ~440). If a number in the body changes, update both.
