@@ -33,7 +33,7 @@ cd paper && pdflatex journal && bibtex journal && pdflatex journal && pdflatex j
 The journal version is 25 pages (single column, 12 pt) and the conference
 version 14 (2026-10-26). Author order: Yash Ramchandani, Simar Singh Khanuja,
 Dr. Praveen Modi. `\colfig` sets one-column figure width in each wrapper.
-The journal abstract is a separate, shorter text in `journal.tex`, because
+The two abstracts are written separately (conference: one paragraph, ~240 words; journal: structured, ~250 words), because
 journal abstracts are structured (Background, Methods, Results,
 Conclusions); if a number in the body changes, update both abstracts.
 

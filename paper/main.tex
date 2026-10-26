@@ -47,45 +47,28 @@ Indore Campus, India}
 \maketitle
 
 \begin{abstract}
-A long-running LLM agent cannot keep every turn of a conversation in its
-context window, so a memory layer has to decide what to keep, what to compress,
-what to forget and what to recall. Tiered memory systems that make these
-decisions are already in use, but the decision policy itself has rarely been
-isolated and measured. This paper presents MemGate, an evaluation harness that
-places competing memory policies on a common accuracy-per-token frontier. Each
-comparison is set up so that only one factor differs between the two arms. We
-first show that the accounting normally used in this area, which bounds the
-context assembled per query but leaves the store unbounded, charges a
-store-everything baseline nothing for retention and therefore settles the
-comparison in advance. When the store is also bounded, choosing which turns to
-forget is worth $+9.37$ answer-recall points over forgetting oldest-first at
-identical storage, fidelity and retrieval (95\% CI $[+5.45, +14.90]$ clustered
-by conversation, McNemar $p=2.8\!\times\!10^{-5}$), while compressing an evicted
-turn instead of dropping it loses $7.13$ points. We also test the
-rate--distortion prediction that compression must eventually win. Up to a
-compression ratio of $182\times$ it does not, although the margin in favour
-of selection narrows. Charging the budget for the embedding index, which is
-normally left out, reverses the ranking below about 40\,KiB, where a policy
-that stores no index at all performs best. Finally, an LLM-judged salience
-scorer performs worse than a regular-expression heuristic by $5.87$ points,
-with the confidence interval excluding zero, whereas a logistic scorer over
-shallow features and a sentence embedding, trained on LoCoMo and on REALTALK
-conversations between real people, beats the heuristic by $+14.55$ points on
-held-out LoCoMo conversations (95\% CI $[+10.40, +19.70]$). Across store
-budgets from 2048 to 16384 tokens its LoCoMo gain stays significant, and on
-REALTALK it becomes significant once the store holds about 40\% of a
-conversation. Rebuilt in the same harness, with their settings tuned on the
-test corpus in their favour, MemGPT-style and Mem0-style memory both lose to
-the learned scorer at every budget from 2048 to 16384 tokens. Held out on
-BEAM chats of up to ten million tokens it beats retrieval on every corpus
-tested, and when whole one-million-token chats are typed into the application
-one message at a time it keeps the answer for 51.9\% of questions against
-19.2\% for retrieval. Through a fixed local reader over
-all 715 answer-recoverable questions, $+6.0$ points of the selection advantage
-convert into correct answers (95\% CI $[+3.3, +9.1]$), which is 69\% of the
-recall gap in that run. We release the policy as a working chat application
-that runs offline on a laptop, and report three measurement errors that
-changed our own results, each found by an invariant rather than by inspection.
+Agents built on large language models (LLMs) accumulate conversations far
+longer than any context window, so a memory layer must decide what to keep,
+compress, forget and recall. Existing memory systems are evaluated end to end,
+so the value of each decision is unknown. We present MemGate, a harness that
+isolates the memory policy and compares policies on a common
+accuracy-per-token frontier, changing one factor at a time. We first show that
+the usual accounting, which bounds the assembled context but not the store,
+charges a store-everything baseline nothing for retention. Once the store is
+bounded, choosing which turns to forget gains $+9.37$ answer-recall points over
+oldest-first eviction at identical storage, fidelity and retrieval on LoCoMo
+(95\% CI $[+5.45, +14.90]$, clustered by conversation), whereas compressing
+evicted turns instead of dropping them loses $7.13$ points, with no
+rate--distortion crossover up to $182\times$ compression. Counting the
+embedding index in the budget reverses the ranking below about 40\,KiB. An
+LLM judge of salience loses to a regular-expression heuristic by $5.87$
+points, while a logistic scorer over shallow features and a sentence embedding
+beats it by $+14.55$ points on held-out conversations and outperforms
+MemGPT-style and Mem0-style memory at every budget tested. On
+million-token chats it keeps the answer for 51.9\% of questions against
+19.2\% for retrieval, and through a fixed reader $+6.0$ points of its advantage
+become correct answers. The policy ships as an offline chat application built
+on the experimental code.
 \end{abstract}
 
 \begin{IEEEkeywords}

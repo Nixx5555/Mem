@@ -41,35 +41,34 @@ Language Model Agents Under a Bounded Store}
             country={India}}
 
 \begin{abstract}
-\textbf{Background.} A long-running agent built on a large language model (LLM)
-cannot keep every turn of a conversation in its context window, so a memory
-layer must decide what to keep, compress, forget and recall. Tiered memory
-systems make these decisions, but the policy itself is rarely measured in
-isolation.
+\textbf{Background.} Agents built on large language models (LLMs) accumulate
+conversations far longer than any context window, so a memory layer must
+decide what to keep, compress, forget and recall, yet existing systems never
+measure each decision alone.
 
-\textbf{Methods.} We present MemGate, an evaluation harness that places memory
-policies on a common accuracy-per-token frontier and changes one factor per
-comparison. We bound the store as well as the assembled context, evaluate on
-LoCoMo, REALTALK and BEAM with intervals clustered by conversation, and train
-a logistic salience scorer over shallow features and a sentence embedding.
+\textbf{Methods.} MemGate is an evaluation harness that isolates the memory
+policy and compares policies on a common accuracy-per-token frontier, changing
+one factor at a time. It bounds the store as well as the assembled context,
+evaluates on LoCoMo, REALTALK and BEAM with confidence intervals clustered by
+conversation, and trains a logistic salience scorer over shallow features and
+a sentence embedding.
 
-\textbf{Results.} With the store bounded, choosing which turns to forget is
-worth $+9.37$ answer-recall points over oldest-first eviction at identical
-storage, fidelity and retrieval (95\% CI $[+5.45, +14.90]$), while compressing
-an evicted turn instead of dropping it loses $7.13$ points; the
-rate--distortion crossover is not reached up to $182\times$ compression.
-Charging the budget for the embedding index reverses the ranking below about
-40\,KiB. An LLM-judged scorer loses to a regular-expression heuristic by
-$5.87$ points, whereas the learned scorer beats it by $+14.55$ points on
-held-out conversations, beats MemGPT-style and Mem0-style memory at every
-budget tested, and on million-token chats typed into the application keeps
-the answer for 51.9\% of questions against 19.2\% for retrieval. Through a
-fixed reader, $+6.0$ points of the selection advantage become correct answers.
+\textbf{Results.} Bounding only the context charges a store-everything
+baseline nothing for retention. With the store bounded, choosing which turns
+to forget gains $+9.37$ answer-recall points over oldest-first eviction at
+identical storage, fidelity and retrieval (95\% CI $[+5.45, +14.90]$), while
+compressing evicted turns loses $7.13$ points, with no rate--distortion
+crossover up to $182\times$ compression. Counting the embedding index reverses
+the ranking below about 40\,KiB. An LLM judge loses to a regular-expression
+heuristic by $5.87$ points; the learned scorer beats the heuristic by
+$+14.55$ points on held-out conversations and outperforms MemGPT-style and
+Mem0-style memory at every budget tested. On million-token chats it keeps the
+answer for 51.9\% of questions against 19.2\% for retrieval, and $+6.0$ points
+of its advantage become correct answers through a fixed reader.
 
-\textbf{Conclusions.} Retaining a scored subset at full fidelity beats
-compressing everything, and budgets should be counted in bytes with the index
-included. We release the policy as an offline chat application and report
-three measurement errors that were found by invariants.
+\textbf{Conclusions.} Selection, not compression, is what a bounded memory
+should spend its budget on, counted in bytes with the index included. The
+policy ships as an offline chat application.
 \end{abstract}
 
 \begin{keyword}
