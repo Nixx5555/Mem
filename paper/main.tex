@@ -52,25 +52,36 @@ Indore Campus, India\\
 Agents built on large language models (LLMs) accumulate conversations far
 longer than any context window, so a memory layer must decide what to keep,
 compress, forget and recall. Existing memory systems are evaluated end to end,
-so the value of each decision is unknown. We present MemGate, a harness that
-isolates the memory policy and compares policies on a common
-accuracy-per-token frontier, changing one factor at a time. We first show that
-the usual accounting, which bounds the assembled context but not the store,
-charges a store-everything baseline nothing for retention. Once the store is
-bounded, choosing which turns to forget gains $+9.37$ answer-recall points over
-oldest-first eviction at identical storage, fidelity and retrieval on LoCoMo
-(95\% CI $[+5.45, +14.90]$, clustered by conversation), whereas compressing
+so the value of each of these decisions on its own is unknown. We present
+MemGate, a harness that sits between an agent and a frozen LLM, isolates the
+memory policy, and compares policies on a common accuracy-per-token frontier,
+changing one factor at a time. Every interval is a paired bootstrap clustered
+by conversation, and the primary metric, answer recall, checks that the answer
+text itself reaches the context rather than only the identifier of its turn.
+We first show that the usual accounting, which bounds the assembled context
+but not the store, charges a store-everything baseline nothing for retention.
+Once the store is bounded, choosing which turns to forget gains $+9.37$
+answer-recall points over oldest-first eviction at identical storage, fidelity
+and retrieval on LoCoMo (95\% CI $[+5.45, +14.90]$), whereas compressing
 evicted turns instead of dropping them loses $7.13$ points, with no
-rate--distortion crossover up to $182\times$ compression. Counting the
+rate--distortion crossover up to $182\times$ compression. A 1.5B model that
+rewrites evicted turns narrows this gap but does not close it. Counting the
 embedding index in the budget reverses the ranking below about 40\,KiB. An
 LLM judge of salience loses to a regular-expression heuristic by $5.87$
-points, while a logistic scorer over shallow features and a sentence embedding
-beats it by $+14.55$ points on held-out conversations and outperforms
-MemGPT-style and Mem0-style memory at every budget tested. On
-million-token chats it keeps the answer for 51.9\% of questions against
-19.2\% for retrieval, and through a fixed reader $+6.0$ points of its advantage
-become correct answers. The policy ships as an offline chat application built
-on the experimental code.
+points, because salience is not a property of a turn read on its own. A
+logistic scorer over shallow features and a sentence embedding, trained on
+generated and human conversations together, beats the heuristic by $+14.55$
+points on held-out conversations. It transfers from human to generated
+dialogue but not the reverse, and outperforms MemGPT-style and Mem0-style
+memory at every budget tested. On held-out chats of up to ten million tokens
+it beats retrieval on every corpus. When million-token chats are typed into
+the application it keeps the answer for 51.9\% of questions against 19.2\%,
+and through a fixed reader $+6.0$ points of its advantage become correct
+answers. Three of our results changed sign or size once a measurement error
+was removed, and we describe the invariants that caught each one. The policy
+ships as an offline chat application built on the experimental code, which
+reproduces the retrieval and selection results at a 4096-token store (28.1\%
+and 37.5\%) exactly.
 \end{abstract}
 
 \begin{IEEEkeywords}
