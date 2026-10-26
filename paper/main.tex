@@ -6,11 +6,14 @@
 \IEEEoverridecommandlockouts
 % body.tex opens with a journal drop cap; conference style has none
 \renewcommand{\IEEEPARstart}[2]{#1#2}
+% width of a one-column figure (narrower in the single-column journal.tex)
+\newcommand{\colfig}{\columnwidth}
 
 \usepackage{cite}
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
 \usepackage{booktabs}
+\usepackage{adjustbox}
 \usepackage{url}
 \usepackage[hidelinks]{hyperref}
 \usepackage{tikz}
@@ -22,13 +25,13 @@
 \title{Selection Beats Compression: Memory Decision\\Policies for LLM Agents Under a Bounded Store}
 
 \author{
-\IEEEauthorblockN{SIMAR SINGH KHANUJA}
+\IEEEauthorblockN{YASH RAMCHANDANI}
 \IEEEauthorblockA{\textit{Dept. of Computer Science}\\
 \textit{and Engineering}\\
 \textit{SVKM's NMIMS, Indore Campus}\\
 Indore, India}
 \and
-\IEEEauthorblockN{YASH RAMCHANDANI}
+\IEEEauthorblockN{SIMAR SINGH KHANUJA}
 \IEEEauthorblockA{\textit{Dept. of Computer Science}\\
 \textit{and Engineering}\\
 \textit{SVKM's NMIMS, Indore Campus}\\

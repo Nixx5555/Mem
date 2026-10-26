@@ -3,9 +3,11 @@
 ```
 paper/
   main.tex          conference version: front matter (authors, abstract)
-  journal.tex       journal version (IEEEtran journal mode): authors with
-                    affiliation footnote, running heads, 250-word abstract,
-                    Index Terms, drop cap, author biographies
+  journal.tex       journal version (Elsevier elsarticle, single-column
+                    preprint): authors and affiliation under the title,
+                    structured abstract, keywords, numbered sections,
+                    declarations (funding, competing interests, data,
+                    CRediT contributions, generative AI)
   body.tex          the shared paper body, Introduction to Acknowledgment
                     (hand-written prose); edit here and both versions follow
   refs.bib          52 references, each cited in the body
@@ -28,11 +30,12 @@ cd paper && pdflatex main && bibtex main && pdflatex main && pdflatex main
 cd paper && pdflatex journal && bibtex journal && pdflatex journal && pdflatex journal
 ```
 
-The journal version is 13 pages and the conference version 14 (2026-10-25,
-after the code audit and the reference pass that took refs.bib to 52 entries).
+The journal version is 25 pages (single column, 12 pt) and the conference
+version 14 (2026-10-26). Author order: Yash Ramchandani, Simar Singh Khanuja,
+Dr. Praveen Modi. `\colfig` sets one-column figure width in each wrapper.
 The journal abstract is a separate, shorter text in `journal.tex`, because
-IEEE journals cap abstracts at 250 words; if a number in the body changes,
-update both abstracts.
+journal abstracts are structured (Background, Methods, Results,
+Conclusions); if a number in the body changes, update both abstracts.
 
 **Tectonic is installed locally** (`brew install tectonic`, v0.17.0), so the
 paper compiles here:

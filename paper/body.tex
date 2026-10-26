@@ -364,7 +364,7 @@ eviction key.}
 
 \begin{figure}[t]
 \centering
-\resizebox{\columnwidth}{!}{\input{diagrams/training}}
+\resizebox{\colfig}{!}{\input{diagrams/training}}
 \caption{How the shipped scorer is built: two logistic regressions,
 Eq.~(\ref{eq:loss}), averaged in logit space and folded into one,
 Eq.~(\ref{eq:ens}), then calibrated, Eq.~(\ref{eq:cal}). It ships as 399
@@ -626,7 +626,7 @@ on the other nine conversations. Pre-fix run (Section~\ref{sec:threats}).}
 \label{tab:scorers}
 \centering
 \small
-\resizebox{\columnwidth}{!}{\input{tables/scorers}}
+\begin{adjustbox}{max width=\columnwidth}\input{tables/scorers}\end{adjustbox}
 \end{table}
 
 \subsection{A learned scorer across two corpora}
@@ -685,7 +685,7 @@ conversation; bold excludes zero.}
 \label{tab:transfer}
 \centering
 \small
-\resizebox{\columnwidth}{!}{\input{tables/transfer}}
+\begin{adjustbox}{max width=\columnwidth}\input{tables/transfer}\end{adjustbox}
 \end{table}
 
 \begin{table}[t]
@@ -696,7 +696,7 @@ resampled by conversation; bold excludes zero.}
 \label{tab:transfer-budget}
 \centering
 \small
-\resizebox{\columnwidth}{!}{\input{tables/transfer_budget}}
+\begin{adjustbox}{max width=\columnwidth}\input{tables/transfer_budget}\end{adjustbox}
 \end{table}
 
 \subsection{End-task accuracy}
@@ -738,12 +738,12 @@ for the arms that never place one. Pre-fix run (Section~\ref{sec:threats}).}
 \label{tab:endtask}
 \centering
 \small
-\resizebox{\columnwidth}{!}{\input{tables/endtask}}
+\begin{adjustbox}{max width=\columnwidth}\input{tables/endtask}\end{adjustbox}
 \end{table}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/fig5_endtask.pdf}
+\includegraphics[width=\colfig]{figures/fig5_endtask.pdf}
 \caption{Reader accuracy by memory policy, with the closed-book floor and the
 oracle ceiling. The ordering matches the recall ordering, at a lower level.}
 \label{fig:endtask}
@@ -791,12 +791,12 @@ at $S=4096$; P1-S and the held-out learned scorer P3 were not. Bold $\Delta$:
 \label{tab:external}
 \centering
 \small
-\resizebox{\columnwidth}{!}{\input{tables/external}}
+\begin{adjustbox}{max width=\columnwidth}\input{tables/external}\end{adjustbox}
 \end{table}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/fig6_external.pdf}
+\includegraphics[width=\colfig]{figures/fig6_external.pdf}
 \caption{Answer recall against the store budget for MemGate and the rebuilt
 MemGPT-style and Mem0-style memories (Table~\ref{tab:external}).}
 \label{fig:external}
@@ -842,7 +842,9 @@ Section~\ref{sec:retrain}.}
 \label{tab:scale}
 \centering
 \small
+\begin{adjustbox}{max width=\textwidth}
 \input{tables/scale_heldout}
+\end{adjustbox}
 \end{table*}
 
 \subsection{Ten times the training data}
@@ -899,7 +901,7 @@ zero.}
 \label{tab:retrain}
 \centering
 \small
-\resizebox{\columnwidth}{!}{\input{tables/retrain}}
+\begin{adjustbox}{max width=\columnwidth}\input{tables/retrain}\end{adjustbox}
 \end{table}
 
 %% ======================================================================
@@ -978,7 +980,7 @@ training corpora; BEAM 500K is inside them.}
 \label{tab:appbeam}
 \centering
 \small
-\resizebox{\columnwidth}{!}{\input{tables/app_beam}}
+\begin{adjustbox}{max width=\columnwidth}\input{tables/app_beam}\end{adjustbox}
 \end{table}
 
 Where the evidence sits explains much of the gap. Table~\ref{tab:age} splits
