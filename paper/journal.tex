@@ -1,15 +1,18 @@
-%% MemGate --- journal version (Elsevier elsarticle, single-column preprint)
+%% MemGate --- journal version, laid out after the Springer Nature journal
+%% template (sn-jnl): single column, one-paragraph abstract, numbered sections,
+%% Declarations before the references.
 %% Compile: pdflatex journal / bibtex journal / pdflatex journal / pdflatex journal
 %% The body is shared with the IEEE conference version (main.tex) through
 %% body.tex; only the front matter, abstract and declarations differ.
-\documentclass[preprint,12pt,a4paper,numafflabel]{elsarticle}
+\documentclass[11pt,a4paper]{article}
 
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{adjustbox}
 \usepackage{url}
-\usepackage[margin=2.5cm]{geometry}
+\usepackage[textwidth=135mm,textheight=215mm,centering]{geometry}
+\usepackage[numbers,sort&compress]{natbib}
 \usepackage[hidelinks]{hyperref}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc}
@@ -17,40 +20,38 @@
 % body.tex opens with an IEEE drop cap; journal style has none
 \newcommand{\IEEEPARstart}[2]{#1#2}
 % one-column figures of the IEEE layout, at a readable single-column width
-\newcommand{\colfig}{0.68\textwidth}
-
-\journal{a peer-reviewed journal}
-\biboptions{numbers,sort&compress}
+\newcommand{\colfig}{0.8\textwidth}
+% run-in heads for the Declarations, as in the template
+\renewcommand{\paragraph}[1]{\par\smallskip\noindent\textbf{#1}\ }
 
 \begin{document}
 \input{diagrams/styles}
 
-\begin{frontmatter}
+\begin{center}
+{\LARGE Selection Beats Compression: Memory Decision\\[2pt]
+Policies for Large Language Model Agents\\[2pt]
+Under a Bounded Store\par}
+\vspace{1.4em}
+{\large \mbox{YASH RAMCHANDANI\textsuperscript{1}}, \ \mbox{SIMAR SINGH KHANUJA\textsuperscript{1}},\\[2pt]
+\mbox{DR.\ PRAVEEN MODI\textsuperscript{1*}}\par}
+\vspace{1em}
+\textsuperscript{1}School of Technology Management \& Engineering, SVKM's NMIMS\\
+Deemed to be University, Indore Campus, India.\par
+\vspace{1.4em}
+\textsuperscript{*}Corresponding author: Dr.\ Praveen Modi, Assistant Professor.\par
+\end{center}
 
-\title{Selection Beats Compression: Memory Decision Policies for Large
-Language Model Agents Under a Bounded Store}
-
-\author[nmims]{YASH RAMCHANDANI}
-\author[nmims]{SIMAR SINGH KHANUJA}
-\author[nmims]{DR. PRAVEEN MODI\corref{cor1}}
-
-\cortext[cor1]{Corresponding author: Dr. Praveen Modi, Assistant Professor,
-School of Technology Management \& Engineering, SVKM's NMIMS Deemed to be
-University, Indore Campus, India.}
-
-\affiliation[nmims]{organization={School of Technology Management \&
-            Engineering, SVKM's NMIMS Deemed to be University, Indore Campus},
-            country={India}}
-
-\begin{abstract}
-\textbf{Background.} Agents built on large language models (LLMs) accumulate
+\vspace{1em}
+\begin{center}\small\textbf{Abstract}\end{center}
+\vspace{-0.6em}
+{\small\leftskip=8mm \rightskip=8mm \noindent
+Agents built on large language models (LLMs) accumulate
 conversations far longer than any context window, so a memory layer must
 decide what to keep, compress, forget and recall. Existing memory systems are
 evaluated end to end, so the contribution of each decision is never measured
 on its own, and the usual accounting bounds the context sent to the model but
 leaves the store unbounded.
-
-\textbf{Methods.} MemGate is an evaluation harness that sits between an agent
+We present MemGate, an evaluation harness that sits between an agent
 and a frozen LLM, isolates the memory policy and compares policies on a common
 accuracy-per-token frontier, changing one factor at a time. It bounds the
 store as well as the assembled context, in tokens or in bytes with the
@@ -60,8 +61,7 @@ answer recall, checks that the answer text itself reaches the context, not
 only the identifier of its turn. We compare a hand-written heuristic, a 0.5B
 LLM judge and a logistic salience scorer over shallow features and a sentence
 embedding, trained on generated and human conversations together.
-
-\textbf{Results.} Bounding only the context charges a store-everything
+Bounding only the context charges a store-everything
 baseline nothing for retention. With the store bounded, choosing which turns
 to forget gains $+9.37$ answer-recall points over oldest-first eviction at
 identical storage, fidelity and retrieval (95\% CI $[+5.45, +14.90]$), while
@@ -79,48 +79,45 @@ application it keeps the answer for 51.9\% of questions against 19.2\% for
 retrieval, and $+6.0$ points of its advantage become correct answers through a
 fixed reader. Three results changed sign or size once a measurement error was
 removed, and each was caught by an invariant rather than by reading the code.
-
-\textbf{Conclusions.} Selection, not compression, is what a bounded memory
+Selection, not compression, is what a bounded memory
 should spend its budget on, counted in bytes with the index included. The
 policy ships as an offline chat application built on the experimental code,
 which reproduces the retrieval and selection results at a 4096-token store
 (28.1\% and 37.5\%) exactly.
-\end{abstract}
+\par\medskip\noindent\textbf{Keywords:} Large language models, agent memory, context management,
+retrieval-augmented generation, rate--distortion, empirical evaluation
+\par}
 
-\begin{keyword}
-Large language models \sep agent memory \sep context management \sep
-retrieval-augmented generation \sep rate--distortion \sep empirical evaluation
-\end{keyword}
-
-\end{frontmatter}
+\vspace{1.5em}
 
 \input{body}
 
 \section*{Declarations}
 
-\paragraph{Funding} This research did not receive any specific grant from
+\paragraph{Funding.} This research did not receive any specific grant from
 funding agencies in the public, commercial, or not-for-profit sectors.
 
-\paragraph{Declaration of competing interest} The authors declare that they
-have no known competing financial interests or personal relationships that
-could have appeared to influence the work reported in this paper.
+\paragraph{Conflict of interest.} The authors declare that they have no
+competing interests.
 
-\paragraph{Data and code availability} The code, the result files behind
+\paragraph{Ethics approval.} Not applicable.
+
+\paragraph{Data and code availability.} The code, the result files behind
 every table and figure, the trained scorer and the chat application are
 available at \url{https://github.com/Nixx5555/Mem}. LoCoMo, REALTALK, BEAM,
 MemBench and PersonaChat are public datasets available from their authors.
 
-\paragraph{Author contributions (CRediT)} Yash Ramchandani: Investigation,
+\paragraph{Authors' contributions.} Yash Ramchandani: Investigation,
 Validation, Writing -- review \& editing. Simar Singh Khanuja:
 Conceptualization, Methodology, Software, Investigation, Formal analysis,
 Writing -- original draft. Praveen Modi: Supervision, Writing -- review \&
 editing.
 
-\paragraph{Use of generative AI} During the preparation of this work the
+\paragraph{Use of AI tools.} During the preparation of this work the
 authors used an AI assistant for drafting and code assistance. The authors
 reviewed and edited the content and take full responsibility for it.
 
-\bibliographystyle{elsarticle-num}
+\bibliographystyle{unsrtnat}
 \bibliography{refs}
 
 \end{document}

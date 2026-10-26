@@ -3,11 +3,13 @@
 ```
 paper/
   main.tex          conference version: front matter (authors, abstract)
-  journal.tex       journal version (Elsevier elsarticle, single-column
-                    preprint): authors and affiliation under the title,
-                    structured abstract, keywords, numbered sections,
-                    declarations (funding, competing interests, data,
-                    CRediT contributions, generative AI)
+  journal.tex       journal version, laid out after the Springer Nature
+                    sn-jnl template (the class itself could not be
+                    downloaded, so it uses article): authors and
+                    affiliation under the title, one-paragraph abstract,
+                    keywords, numbered sections, Declarations (funding,
+                    conflict of interest, ethics, data and code,
+                    contributions, AI tools)
   body.tex          the shared paper body, Introduction to Acknowledgment
                     (hand-written prose); edit here and both versions follow
   refs.bib          52 references, each cited in the body
@@ -30,12 +32,14 @@ cd paper && pdflatex main && bibtex main && pdflatex main && pdflatex main
 cd paper && pdflatex journal && bibtex journal && pdflatex journal && pdflatex journal
 ```
 
-The journal version is 25 pages (single column, 12 pt) and the conference
-version 14 (2026-10-26). Author order: Yash Ramchandani, Simar Singh Khanuja,
+The journal version is 30 pages (single column, 11 pt) and the conference
+version 14 (2026-10-26). Section order follows the sample manuscript the
+authors supplied: Introduction, Related Work, Datasets and Experimental
+Setup, Proposed Methodology, Results, Engineering Challenges and
+Limitations, Real-World Application, Conclusion and Future Work. Author order: Yash Ramchandani, Simar Singh Khanuja,
 Dr. Praveen Modi. `\colfig` sets one-column figure width in each wrapper.
-The two abstracts are written separately (conference: one paragraph, ~240 words; journal: structured, ~250 words), because
-journal abstracts are structured (Background, Methods, Results,
-Conclusions); if a number in the body changes, update both abstracts.
+The two abstracts are written separately (both one paragraph; conference
+~385 words, journal ~440). If a number in the body changes, update both.
 
 **Tectonic is installed locally** (`brew install tectonic`, v0.17.0), so the
 paper compiles here:
