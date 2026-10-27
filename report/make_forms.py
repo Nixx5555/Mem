@@ -5,7 +5,7 @@
 
 Writes MemGate_Log_Book.docx and MemGate_Annexure_Forms.docx (formats from
 the Capstone project guidelines 2026-27, Annexures A.1-A.7). Fields nobody
-has given us yet (roll numbers, contact numbers) are left blank.
+has given us yet (contact numbers) are left blank.
 """
 import os
 import sys
@@ -28,9 +28,9 @@ YEAR = "2026-27"
 SEMESTER = "VII"
 DEPARTMENT = "Artificial Intelligence and Data Science"
 PROGRAM = "B.Tech in Artificial Intelligence and Data Science"
-STUDENTS = [  # (SAP ID, name); roll numbers not known yet
-    ("70562300097", "Yash Ramchandani"),
-    ("70562200088", "Simar Singh Khanuja"),
+STUDENTS = [  # (SAP ID, name, roll no.)
+    ("70562300097", "Yash Ramchandani", "S024"),
+    ("70562200088", "Simar Singh Khanuja", "S019"),
 ]
 
 # ------------------------------------------------------------------ helpers
@@ -372,8 +372,8 @@ def log_book(out):
     field(doc, "Name of the Faculty Mentor:", MENTOR)
     para(doc, space_after=4)
     para(doc, "STUDENT DETAILS", bold=True, align="c", space_after=4)
-    rows = [["Student 1", STUDENTS[0][1], "", ""],
-            ["Student 2", STUDENTS[1][1], "", ""]]
+    rows = [["Student 1", STUDENTS[0][1], STUDENTS[0][2], ""],
+            ["Student 2", STUDENTS[1][1], STUDENTS[1][2], ""]]
     t = grid(doc, ["", "NAME", "ROLL NO.", "CONTACT"], rows,
              widths=[2.6, 6.0, 3.4, 4.6], size=10.5, heights=0.8)
     for i in range(1, 3):
@@ -382,10 +382,10 @@ def log_book(out):
     para(doc, "Name of group members:", bold=True, space_after=4)
     grid(doc, ["Roll No.", "Name", "Sign (Students)",
                "Grades (By Faculty Mentor)"],
-         [["", n, "", ""] for _, n in STUDENTS],
+         [[r, n, "", ""] for _, n, r in STUDENTS],
          widths=[3.0, 6.0, 3.6, 4.0], size=10.5, heights=1.0)
     para(doc, space_after=6)
-    para(doc, "SAP IDs: " + ", ".join(f"{n} ({s})" for s, n in STUDENTS),
+    para(doc, "SAP IDs: " + ", ".join(f"{n} ({s})" for s, n, _ in STUDENTS),
          size=10, italic=True)
 
     for i, bullets in enumerate(WEEKS):
@@ -446,8 +446,8 @@ REFERENCES = [
 
 def team_table(doc, sign_col="Signature"):
     grid(doc, ["S No", "SAP ID", "Roll No", "Name", sign_col],
-         [["1", STUDENTS[0][0], "", STUDENTS[0][1], ""],
-          ["2", STUDENTS[1][0], "", STUDENTS[1][1], ""],
+         [["1", STUDENTS[0][0], STUDENTS[0][2], STUDENTS[0][1], ""],
+          ["2", STUDENTS[1][0], STUDENTS[1][2], STUDENTS[1][1], ""],
           ["3", "-", "-", "-", "-"]],
          widths=[1.2, 3.0, 2.4, 5.2, 4.8], size=10.5, heights=0.8)
 
@@ -464,8 +464,8 @@ def dept_block(doc, semester=SEMESTER):
 def eval_sheet(doc, annex, title, criteria, total, signer_lines):
     letterhead(doc, title, annex)
     header = ["S No", "SAP ID", "Roll No", "Student Name"] + criteria + [total]
-    rows = [[str(i + 1), s, "", n] + [""] * (len(criteria) + 1)
-            for i, (s, n) in enumerate(STUDENTS)]
+    rows = [[str(i + 1), s, r, n] + [""] * (len(criteria) + 1)
+            for i, (s, n, r) in enumerate(STUDENTS)]
     fixed = [0.9, 2.5, 1.5, 2.4]
     rest = (16.6 - sum(fixed)) / (len(criteria) + 1)
     grid(doc, header, rows, widths=fixed + [rest] * (len(criteria) + 1),
@@ -588,7 +588,7 @@ def annexures(out):
     letterhead(doc, "Evaluation sheet for Research paper",
                "A.6 Evaluation sheet for Research paper")
     grid(doc, ["S No", "SAP ID", "Roll No", "Student Name", "Marks (10 marks)"],
-         [[str(i + 1), s, "", n, ""] for i, (s, n) in enumerate(STUDENTS)],
+         [[str(i + 1), s, r, n, ""] for i, (s, n, r) in enumerate(STUDENTS)],
          widths=[1.2, 3.0, 2.4, 5.6, 4.4], size=10.5, heights=1.0)
     para(doc, space_after=4)
     para(doc, "Paper: “Selection Beats Compression: Memory Decision "
