@@ -1,0 +1,183 @@
+\chapter{Introduction}
+\label{ch:intro}
+
+This chapter introduces the problem that MemGate addresses: how a long-running
+agent built on a large language model should decide what to remember. It
+explains why larger context windows do not remove the need for that decision,
+sets out the motivation and scope of the project, states the problem
+precisely, lists the contributions, and describes how the rest of the report
+is organised.
+
+\section{Background of the project topic}
+
+Large language models (LLMs) are now used as the core of \emph{agents}:
+programs that plan, call tools, reflect on their own mistakes and carry on
+working over many sessions
+\cite{yao2023react,shinn2023reflexion,wang2024agentsurvey,xi2023agentsurvey}.
+Coding assistants, research assistants, tutoring systems and personal
+assistants are all expected to remember what was said days or weeks earlier.
+An LLM, however, has no memory of its own between calls. Everything it knows
+about the conversation has to be placed in its prompt, inside a fixed
+\emph{context window} \cite{brown2020gpt3}.
+
+The simplest way to give an agent memory is to append every message to a
+growing prompt and send the whole history back to the model on every turn.
+This works at first but does not scale. The cost of self-attention grows with
+the square of the sequence length, and the key--value (KV) cache that the
+model keeps grows with every token, so each reply becomes slower and more
+expensive until the history no longer fits at all. Techniques that stretch the
+window, such as position interpolation \cite{peng2024yarn}, delay that point
+but do not remove it.
+
+A larger window does not solve the quality problem either. Across frontier
+models, accuracy drops by 30--50\% well before the advertised limit
+\cite{chroma2025contextrot}; synthetic tests find effective context lengths
+far shorter than the claimed ones \cite{hsieh2024ruler}; and how much a model
+uses a passage depends on where it sits in a long input
+\cite{liu2024lostmiddle}. These effects come from attention over long
+sequences rather than from missing training data. What limits an agent is
+therefore \emph{curation}, the choice of what goes into the prompt, rather than
+raw capacity.
+
+Several systems already manage agent memory. MemGPT \cite{packer2023memgpt}
+pages a virtual context in and out of external storage, MemoryBank
+\cite{zhong2024memorybank} applies a forgetting curve, Generative Agents
+\cite{park2023generative} rank memories by recency, importance and relevance,
+and Mem0 \cite{chhikara2025mem0} extracts and updates facts with an LLM.
+Retrieval-augmented generation (RAG) \cite{lewis2020rag} stores everything and
+retrieves the passages most similar to the query. Agent architectures now
+treat memory as a module in its own right \cite{sumers2024coala}. These
+designs show that tiered memory with forgetting works in practice. They are,
+however, evaluated as complete systems, so it is not known how much each
+individual decision inside them (what to keep, what to compress, what to
+forget) is actually worth.
+
+\section{Motivation and scope of the report}
+
+\subsection{Motivation}
+Poor curation has a measurable price. On the LongMemEval benchmark, a model
+given oracle retrieval of the right evidence reaches about 92\% accuracy, while
+the same model choosing its own evidence reaches about 58\%
+\cite{wu2024longmemeval}. Given the right evidence the model answers
+correctly, so the 34-point gap is a failure of \emph{selection}, not of
+reasoning. A recent survey of agent memory puts it plainly: current systems
+``do not solve the fundamental challenge: deciding what to remember and what
+to forget'' \cite{zhang2024memorysurvey}. A rate--distortion view of these
+decisions \cite{shannon1959rd,cover2006elements} has been proposed
+\cite{colaco2026rd}, but as an analytical framework rather than a measured
+system.
+
+At Review~1 the panel asked whether a three-tier memory layer was still novel,
+since commercial systems already ship one. The honest answer was that it is
+not. The project therefore moved its contribution one level deeper, to the
+\emph{decision policy} itself: building a layer in which each decision can be
+isolated, swapped and measured, and then using it to find out which parts of
+the familiar design actually earn their cost.
+
+\subsection{Scope}
+\textbf{In scope.}
+\begin{itemize}
+\item A memory controller that scores, compresses, stores, forgets and
+  retrieves conversational memory in front of a frozen LLM, which is treated
+  as a black box and never trained or fine-tuned.
+\item A three-tier store (recent verbatim turns, compressed gists, durable
+  facts with embeddings) held under a fixed storage budget.
+\item Several interchangeable scoring policies: recency only, a hand-written
+  heuristic, an LLM judge, and a learned scorer.
+\item Evaluation on public long-conversation benchmarks (LoCoMo, REALTALK,
+  BEAM, MemBench, PersonaChat, LongMemEval) with statistical tests that
+  respect the clustering of questions by conversation.
+\item A working chat application built on the same code, so that the memory
+  decisions can be seen and tested by a user.
+\end{itemize}
+
+\textbf{Out of scope.} Training or fine-tuning the base LLM; image and audio
+memory (the project is text only); production multi-user serving with
+accounts and billing.
+
+\section{Problem statement}
+
+\begin{quote}
+\emph{Given a conversation that grows without bound, a frozen LLM that can
+only see a bounded context of $B$ tokens, and a memory store that may hold at
+most $S$ tokens (or bytes), design and evaluate a memory decision policy that
+chooses, for every message, whether to keep it verbatim, compress it, forget
+it or recall it, so that the answers to later questions reach the model as
+often as possible. Measure the contribution of each decision separately,
+against controls that differ from it in exactly one factor.}
+\end{quote}
+
+The problem has two parts. The \emph{engineering} part is to build the layer
+so that it is fast, never exceeds its budget, and works on real input. The
+\emph{research} part is to find out, with proper statistics, whether
+scored forgetting beats oldest-first forgetting, whether compressing beats
+dropping, whether a learned scorer beats a hand-written one, and whether the
+answer survives a change of corpus.
+
+\section{Salient contribution}
+
+The project makes the following contributions.
+\begin{enumerate}
+\item \textbf{A storage-budgeted evaluation protocol.} Bounding only the
+  assembled context charges a store-everything baseline nothing for what it
+  keeps. MemGate bounds the whole store, which changes the ranking of the
+  policies (Section~\ref{sec:accounting}).
+\item \textbf{Selection pays; compression does not.} At identical storage,
+  fidelity and retrieval, scored forgetting gains $+9.37$ answer-recall points
+  over FIFO, while compressing an evicted turn instead of dropping it costs
+  $7.13$ points (Sections~\ref{sec:selection} and~\ref{sec:significance}).
+\item \textbf{A test of the rate--distortion crossover} up to $182\times$
+  compression, which is not reached (Section~\ref{sec:scaling}).
+\item \textbf{Byte accounting.} The embedding index outweighs the text it
+  indexes by about $12\times$ and reverses the policy ranking below roughly
+  40\,KiB (Section~\ref{sec:bytes}).
+\item \textbf{A negative result for LLM-judged salience.} A 0.5B judge loses
+  to a hand-written heuristic by $5.87$ points (Section~\ref{sec:scorer}).
+\item \textbf{A learned scorer} trained on generated and human conversations,
+  with the direction in which it transfers and the one in which it does not
+  (Section~\ref{sec:transfer}).
+\item \textbf{End-task accuracy} through a fixed reader, showing how much of
+  the recall advantage becomes correct answers (Section~\ref{sec:endtask}).
+\item \textbf{Comparison with MemGPT-style and Mem0-style memory} rebuilt in
+  the same harness (Section~\ref{sec:external}).
+\item \textbf{Scale.} A test on chats of up to ten million tokens and a scorer
+  retrained on 14.6 times the data (Sections~\ref{sec:scale}
+  and~\ref{sec:retrain}).
+\item \textbf{A working application.} A chat app that runs the shipped scorer,
+  shows every keep, compress and forget decision with its reasons, accepts
+  pasted text and uploaded documents, and was stress-tested on million-token
+  chats and 200 simultaneous users (Sections~\ref{sec:app}
+  and~\ref{sec:stress}).
+\item \textbf{A research paper}, ``\paperTitle'', prepared in conference and
+  journal versions (Appendix~\ref{app:papers}).
+\end{enumerate}
+
+Several of these results are negative or corrective. We regard that as the
+useful part: described only as a three-tier memory layer, MemGate would repeat
+work others have done, whereas measured against controls it shows which parts
+of that design are worth their cost.
+
+\section{Organisation of report}
+
+The rest of the report is organised as follows.
+\textbf{Chapter~\ref{ch:lit}} surveys the literature on agent memory, prompt
+and cache compression, retrieval and evaluation, compares the main systems,
+and identifies the research gap.
+\textbf{Chapter~\ref{ch:method}} describes the methodology and implementation:
+the block diagram, the computing resources used, the scoring, routing and
+budget algorithms with their equations and flowcharts, the training of the
+learned scorer, the experimental design, and the chat application.
+\textbf{Chapter~\ref{ch:results}} presents the results and their analysis,
+with confidence intervals, together with the standards followed.
+\textbf{Chapter~\ref{ch:adv}} discusses advantages, limitations and
+applications, and \textbf{Chapter~\ref{ch:concl}} concludes and sets out the
+future scope. The appendices contain the flowcharts of the software, data
+sheets of the datasets and models, the list of software components, and the
+papers prepared from this work.
+
+\section*{Summary}
+LLM agents need a policy that decides what to remember, because larger
+context windows move the problem rather than remove it. Existing memory
+systems are evaluated whole, so the worth of each decision is unknown. MemGate
+is built to measure those decisions one at a time under a bounded store, and
+the rest of this report describes how it was built and what it found.

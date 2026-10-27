@@ -1,0 +1,98 @@
+\chapter{Advantages, Limitations and Applications}
+\label{ch:adv}
+
+This chapter steps back from individual results to assess MemGate as a
+system: what it does better than the alternatives, where it falls short or
+has not yet been tested, and where it can be applied.
+
+\section{Advantages}
+\begin{enumerate}
+\item \textbf{Bounded cost on every turn.} The store never exceeds its budget
+  $S$ and the prompt never exceeds $B$, however long the conversation grows.
+  In the application a 5{,}000-message chat stayed at 4{,}093 of its 4{,}096
+  tokens, and million-token chats were held at about 2.5\% of their length.
+\item \textbf{Better recall at the same budget.} At identical storage,
+  fidelity and retrieval, scored forgetting beats oldest-first forgetting by
+  $+9.37$ answer points, and the learned scorer adds a further $+14.55$ over
+  the heuristic on held-out conversations. It beats rebuilt MemGPT-style and
+  Mem0-style memory at every budget tested.
+\item \textbf{Works with any model.} The base LLM is a black box. MemGate
+  needs no training of the model, so it can sit in front of a local model, a
+  hosted API, or a newer model later, unchanged.
+\item \textbf{Cheap to run.} Scoring a message is a 399-weight dot product
+  plus one sentence embedding; there is no LLM call on the write path. The
+  whole layer runs on a laptop CPU, and the shipped scorer is a small JSON
+  file.
+\item \textbf{Transparent decisions.} Every keep, compress and forget
+  decision has a score and an explanation that a user can inspect, which an
+  LLM-driven memory cannot easily offer.
+\item \textbf{Measured, not asserted.} Each design choice was tested against
+  a control that differs in one factor, with clustered confidence intervals,
+  and the results that did not hold are reported as such.
+\item \textbf{Private and offline.} With the local reply model, the memory
+  and the chats stay on the user's machine and nothing needs the internet
+  after setup.
+\item \textbf{Robust input handling.} Long pastes, documents, other
+  languages, emoji and code are cleaned, chunked and guarded before they
+  reach the scorer, and the server held 200 simultaneous visitors without an
+  error after the load-test fix.
+\end{enumerate}
+
+\section{Limitations}
+\begin{enumerate}
+\item \textbf{Context recall is not accuracy.} Most results measure whether
+  the answer reached the context. End-task accuracy was measured through one
+  small reader model, and that run, with the LLM-judge, abstractive and
+  LongMemEval runs, was made before the scorer fix and has not been repeated.
+\item \textbf{The heuristic does not transfer to every corpus.} On
+  LongMemEval the hand-written scorer's separation between evidence and other
+  turns reverses sign and selection loses to FIFO. The learned scorer has not
+  yet been tested there.
+\item \textbf{Limited statistical power on human conversation.} REALTALK has
+  160 answer-recoverable questions in ten conversations, so the learned
+  scorer's gains there are significant only once the store holds about 40\%
+  of a conversation.
+\item \textbf{Proxies in the scale tests.} BEAM answers are mostly
+  paraphrases, so few questions per corpus are answer-recoverable (13 for
+  BEAM 10M), and the everyday-chat test uses persona lines as queries, which
+  share wording with the evidence.
+\item \textbf{A linear scorer.} Logistic regression was kept because nothing
+  beat it reliably, but it is short of capacity: ten times more data did not
+  help on its own.
+\item \textbf{Text only.} Images, audio and tool outputs that are not text
+  are out of scope.
+\item \textbf{One slow path.} Reopening a saved million-token chat replays it
+  through memory and takes about 70\,s.
+\item \textbf{Dependence on the reply model.} When the free hosted model is
+  busy the application falls back to a small local model, whose answers are
+  weaker even when the right notes are supplied.
+\end{enumerate}
+
+\section{Applications}
+\begin{enumerate}
+\item \textbf{Personal and customer-support assistants} that must remember a
+  user's details, preferences and past requests across weeks without sending
+  the whole history on every call.
+\item \textbf{Coding and research agents} whose working history (files read,
+  decisions taken, errors seen) grows far beyond the context window.
+\item \textbf{On-device assistants.} The byte-level results show which
+  policy to use when the memory budget is a few tens of kilobytes, as on a
+  phone or an embedded device.
+\item \textbf{Education and tutoring}, where a tutor should recall what a
+  student has already learnt and where they struggled.
+\item \textbf{Healthcare and legal intake assistants}, where specific names,
+  dates and amounts must be kept while small talk can be forgotten (subject to
+  the privacy rules of those domains).
+\item \textbf{Document question answering} over long uploaded files, using
+  the chunk, score and recall path of the application.
+\item \textbf{Evaluating other memory systems.} The harness itself can be
+  used to measure any memory policy against controls under a bounded store.
+\end{enumerate}
+
+\section*{Summary}
+MemGate keeps cost bounded, improves recall at the same budget, works with
+any model, runs cheaply and explains its decisions. Its main limitations are
+that some results are measured as context recall or before the scorer fix,
+that transfer to every corpus is not established, and that the scorer is
+linear. It applies wherever a long-running assistant must remember specific
+facts under a cost or memory limit.
