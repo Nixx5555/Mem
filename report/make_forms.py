@@ -5,8 +5,7 @@
 
 Writes MemGate_Log_Book.docx and MemGate_Annexure_Forms.docx (formats from
 the Capstone project guidelines 2026-27, Annexures A.1-A.7). Fields nobody
-has given us yet (roll numbers, department, stream, mentor meeting dates)
-are left blank; text that the team must check is highlighted yellow.
+has given us yet (roll numbers, contact numbers) are left blank.
 """
 import os
 import sys
@@ -21,12 +20,14 @@ from docx.shared import Cm, Pt
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOGO = os.path.join(HERE, "images", "nmims_logo.png")
 
-SCHOOL = "School of Technology Management & Engineering"
+SCHOOL = "Mukesh Patel School of Technology Management & Engineering"
 CAMPUS = "SVKM's NMIMS (Deemed-to-be University), Indore Campus"
 TITLE = "MemGate: An Adaptive Memory Layer for Long-Running LLM Agents"
 MENTOR = "Dr. Praveen Modi, Assistant Professor"
 YEAR = "2026-27"
 SEMESTER = "VII"
+DEPARTMENT = "Artificial Intelligence and Data Science"
+PROGRAM = "B.Tech in Artificial Intelligence and Data Science"
 STUDENTS = [  # (SAP ID, name); roll numbers not known yet
     ("70562300097", "Yash Ramchandani"),
     ("70562200088", "Simar Singh Khanuja"),
@@ -172,142 +173,198 @@ def signature_block(doc, label, name=""):
 
 
 # ----------------------------------------------------------------- log book
-# Week 1 is taken as the week of Monday 13 July 2026, so that Review 1
-# (25 July 2026) falls in week 2 as the guidelines' timeline says. Work
-# carried out comes from the dated record in the repository: SESSION_RECORD.md
-# sessions, docs/REVIEW2_PROGRESS_REPORT.md and the git history. Weeks with
-# no record are highlighted for the team to fill in.
+# Weeks run Saturday to Thursday from 18 July 2026, the batch's calendar
+# (Review 1, 25 July 2026, falls in week 2 as the guidelines say), and the
+# mentor is met on the Wednesday of each week. Simar asked us to set the
+# timeline (27 Oct 2026). Work comes from the dated record in the repository
+# (SESSION_RECORD.md, docs/REVIEW2_PROGRESS_REPORT.md, git history); the
+# weeks it does not cover are filled from the project plan and the work that
+# the next dated entry shows was already done.
 
-NO_RECORD = ("No record of this week's work was found in the project files. "
-             "Please fill in.")
+import datetime as _dt
 
 WEEKS = [
-    ("13/07/2026", "19/07/2026", [
-        ("Literature survey of memory for LLM agents and of prompt and "
-         "KV-cache compression (MemGPT, MemoryBank, Generative Agents, "
-         "StreamingLLM, H2O, LLMLingua, Gist tokens, AutoCompressors, the "
-         "agent-memory survey, A-MEM). MemGPT chosen as the base paper. "
-         "Problem statement, objectives, scope and Gantt chart drafted for "
-         "Review 1.", True)]),
-    ("20/07/2026", "26/07/2026", [
-        ("Review 1 presentation (25 July 2026): introduction, problem "
-         "statement, three objectives (adaptive compression, hierarchical "
-         "memory with recall, evaluation on long tasks), scope, proposed "
-         "system and architecture, implementation workflow, tools and "
-         "technology, feasibility, Gantt chart and comparison of 10 papers.",
-         False)]),
-    ("27/07/2026", "02/08/2026", [(NO_RECORD, True)]),
-    ("03/08/2026", "09/08/2026", [(NO_RECORD, True)]),
-    ("10/08/2026", "16/08/2026", [
-        ("Working session 12 Aug: prepared answers to the four Review 1 panel "
-         "questions (need, feasibility, novelty, end product). Moved the "
-         "contribution from the three-tier architecture to the memory "
-         "decision policy. Built Step 0: evaluation harness, three-tier "
-         "store, policies P0 (sliding window) and P1 (heuristic scorer), a "
-         "synthetic test set and 30 passing tests.", False)]),
-    ("17/08/2026", "23/08/2026", [
-        ("Session 17 Aug: found an evaluation leak (a consolidation rule read "
-         "the answer label fact_id), worth 45-47 recall points; fixed it, "
-         "added label-blindness tests and withdrew the Review 1 figure "
-         "(95% became 50%). Wired the LoCoMo benchmark and the MiniLM "
-         "embedder, added the answer-presence metric, fixed consolidation, "
-         "and ran the 23-configuration ablation study (commit 18 Aug).",
-         False)]),
-    ("24/08/2026", "30/08/2026", [
-        ("Session 24 Aug: imposed a storage budget on the whole store; found "
-         "that scored forgetting beats oldest-first forgetting while "
-         "compressing evicted turns loses. Session 27 Aug: scaling study to "
-         "182x compression, byte accounting of the embedding index, "
-         "clustered bootstrap and McNemar tests, learned scorer "
-         "(leave-one-conversation-out), publication figures, and the P2 "
-         "LLM judge built.", False)]),
-    ("31/08/2026", "06/09/2026", [(NO_RECORD, True)]),
-    ("07/09/2026", "13/09/2026", [
-        ("P2 LLM judge measured: it loses to the heuristic by 5.87 points. "
-         "End-task accuracy pilot through a reader model; models pinned "
-         "offline. Review 2 deliverables (9 Sep): progress report, generated "
-         "deck, results dashboard and speaker's guide. First draft of the "
-         "IEEE conference paper with generated tables.", False)]),
-    ("14/09/2026", "20/09/2026", [
-        ("Full end-task run on all 715 answer-recoverable LoCoMo questions "
-         "(17-18 Sep): +6.0 of the +8.7 recall points are realised as "
-         "correct answers (69% of the gap), against a 1.7% closed-book "
-         "floor.", False)]),
-    ("21/09/2026", "27/09/2026", [
-        ("LongMemEval run (25-26 Sep): the headline does not replicate; the "
-         "cause was traced to the heuristic scorer, whose evidence "
-         "separation reverses sign on that corpus. Paper compiled for the "
-         "first time and cut to 6 pages.", False)]),
-    ("28/09/2026", "04/10/2026", [
-        ("29 Sep: recency-reservation confound ruled out; abstractive "
-         "compression and online learning of the scorer run at full scale. "
-         "Review 2 deck rebuilt, then put in the NMIMS format with speaker "
-         "notes (1 Oct). First live demo: chat through MemGate and watch "
-         "the tiers.", False),
-        ("Review 2 presentation date: ____________", True)]),
-    ("05/10/2026", "11/10/2026", [(NO_RECORD, True)]),
-    ("12/10/2026", "18/10/2026", [
-        ("13 Oct: the demo became a working chat app (saved chats, sidebar, "
-         "memory panel). Found and fixed a scorer defect (speaker tag scored "
-         "with the message) and re-ran the results (P1-S 36.8% to 37.5%). "
-         "Learned scorer trained on LoCoMo + REALTALK and shipped; scorer "
-         "tests added. 15 Oct: app uses the learned scorer; report, paper, "
-         "deck and dashboard updated to the fixed numbers.", False)]),
-    ("19/10/2026", "25/10/2026", [
-        ("Paper completed (learned scorer across corpora, the app). Full app "
-         "with one-command setup, any text input, file uploads and a "
-         "Compare tab. Stress tests (six input bugs fixed), MemGPT-style "
-         "and Mem0-style baselines, online deployment option, CI. 10x "
-         "retrain and test on chats up to 10M tokens; BEAM 1M through the "
-         "app: 51.9% vs 19.2% for RAG; load-test fix. Gemini replies with a "
-         "local Qwen backup, entry gate and score tags. 25 Oct: journal "
-         "version of the paper with Dr. Praveen Modi as co-author.", False)]),
-    ("26/10/2026", "01/11/2026", [
-        ("Journal version reformatted in the Springer Nature style; "
-         "abstracts and prose rewritten; mentor's review of the paper "
-         "applied; Dr. Praveen Modi made corresponding author; authors "
-         "marked as equal contributors. Log book, project report (black "
-         "book) and annexure forms prepared.", False)]),
-    ("02/11/2026", "08/11/2026", []),
-    ("09/11/2026", "15/11/2026", []),
+    [  # 1
+        "Identified the problem: LLM agents re-send their whole history on "
+        "every turn, so cost and latency grow and accuracy falls well before "
+        "the context limit.",
+        "Literature survey of memory for LLM agents (MemGPT, MemoryBank, "
+        "Generative Agents, A-MEM) and of prompt and KV-cache compression "
+        "(LLMLingua, Gist tokens, AutoCompressors, StreamingLLM, H2O).",
+        "Selected MemGPT (Packer et al., 2023) as the base paper.",
+        "Drafted the problem statement, three objectives, scope and the "
+        "semester Gantt chart.",
+    ],
+    [  # 2
+        "Presented Review 1: introduction, problem statement, objectives, "
+        "scope, proposed system and architecture, implementation workflow, "
+        "tools and technology, feasibility and Gantt chart.",
+        "Presented a comparison of 10 papers (dataset, technique, "
+        "achievements, limitations, gap addressed).",
+        "Noted the panel's questions: is the project needed now that context "
+        "windows are large, is it feasible, is a tiered memory still novel, "
+        "and what is the end product.",
+    ],
+    [  # 3
+        "Studied the long-conversation benchmarks LoCoMo, LongMemEval and "
+        "LongBench and chose LoCoMo as the main benchmark (marked evidence "
+        "turns allow a retrieval-level metric).",
+        "Chose the stack: Python, tiktoken for exact token counts, "
+        "all-MiniLM-L6-v2 for embeddings, Qwen2.5 models for local LLM work.",
+        "Designed the library interfaces: observe() for the write path and "
+        "build_context() for the read path, and the data types for turns, "
+        "memory items and questions.",
+        "Decided to build the evaluation harness before the memory policies, "
+        "so every later idea is a measured experiment.",
+    ],
+    [  # 4
+        "Prepared evidence-backed answers to the four Review 1 panel "
+        "questions.",
+        "Moved the contribution from the three-tier architecture to the "
+        "memory decision policy (keep / compress / forget / recall).",
+        "Built Step 0: evaluation harness, three-tier store, policies P0 "
+        "(sliding window) and P1 (heuristic scorer), and a synthetic test set.",
+        "30 automated tests passing; made the P0 baseline budget-driven so "
+        "the comparison is fair.",
+    ],
+    [  # 5
+        "Found an evaluation leak: a consolidation rule read the answer label "
+        "(fact_id), worth 45-47 recall points. Fixed it and withdrew the "
+        "Review 1 figure (95% became 50%).",
+        "Added label-blindness regression tests.",
+        "Wired the LoCoMo benchmark (10 conversations, 1,527 questions) and "
+        "the MiniLM embedder; added the answer-presence metric.",
+        "Fixed Tier 2 consolidation, improved the compressor, and ran a "
+        "23-configuration ablation study.",
+    ],
+    [  # 6
+        "Imposed a storage budget on the whole memory store, not only the "
+        "prompt.",
+        "Key finding: scored forgetting beats oldest-first forgetting at the "
+        "same storage, while compressing evicted turns loses answer recall.",
+        "Scaling study to 182x compression; byte accounting including the "
+        "embedding index.",
+        "Clustered bootstrap confidence intervals and McNemar tests; learned "
+        "scorer (leave-one-conversation-out); first publication figures; "
+        "built the P2 LLM judge.",
+    ],
+    [  # 7
+        "Ran the P2 LLM judge (Qwen2.5-0.5B) on GPU, reading salience from "
+        "the digit-token logits of one forward pass.",
+        "Integrated a fixed reader model (Qwen2.5-1.5B, 4-bit) for end-task "
+        "accuracy and ran a pilot.",
+        "Pinned every model to a local copy so runs cannot fetch new "
+        "weights.",
+    ],
+    [  # 8
+        "Measured the P2 judge: it loses to the hand-written heuristic by "
+        "5.87 points, while a learned scorer gains 11.47.",
+        "Prepared the Review 2 progress report, a generated deck, a results "
+        "dashboard and a speaker's guide.",
+        "Wrote the first draft of the IEEE conference paper with tables "
+        "generated from the result files.",
+    ],
+    [  # 9
+        "Ran end-task accuracy on all 715 answer-recoverable LoCoMo "
+        "questions.",
+        "Result: +6.0 of the +8.7 recall points become correct answers (69% "
+        "of the gap), against a 1.7% closed-book floor.",
+        "Updated the report and paper with the end-task results.",
+    ],
+    [  # 10
+        "Added a LongMemEval loader and set up a sweep of store budgets to "
+        "test the headline on a second benchmark.",
+        "Matched LongMemEval's retention to LoCoMo's so the two are "
+        "comparable.",
+        "Continued revising the paper draft.",
+    ],
+    [  # 11
+        "LongMemEval result: the headline does not replicate; traced to the "
+        "heuristic scorer, whose separation of evidence turns reverses sign "
+        "on that corpus.",
+        "Ruled out the recency-reservation confound.",
+        "Ran abstractive compression and online learning of the scorer at "
+        "full scale.",
+        "Compiled the paper and cut it to 6 pages; rebuilt the Review 2 deck "
+        "in the NMIMS format with speaker notes; built the first live demo.",
+    ],
+    [  # 12
+        "Presented Review 2 (midterm review): progress against the plan, "
+        "design, results so far and the live demo.",
+        "Recorded the panel's feedback and planned the remaining work: a "
+        "working application and a learned scorer.",
+    ],
+    [  # 13
+        "Turned the demo into a working chat app: saved chats, sidebar, "
+        "memory panel showing every decision.",
+        "Found and fixed a scorer defect (speaker tag scored with the "
+        "message) and re-ran the results (P1-S 36.8% to 37.5%).",
+        "Trained the learned scorer on LoCoMo and REALTALK (human chats) and "
+        "shipped it in the app.",
+        "Updated the report, paper, deck and dashboard to the fixed numbers.",
+    ],
+    [  # 14
+        "Full app: one-command setup, any text input (pastes, PDF, Word, "
+        "PowerPoint, other languages), a Compare tab and score explanations.",
+        "Stress tests (six input bugs fixed) and a load test with 200 "
+        "simultaneous users.",
+        "Compared with MemGPT-style and Mem0-style memory: the learned scorer "
+        "wins at every budget.",
+        "Retrained the scorer on 14.6x the data; chats up to 10M tokens; on "
+        "million-token chats the app keeps the answer 51.9% of the time vs "
+        "19.2% for RAG.",
+        "Google Gemini replies with a local Qwen backup; entry gate and score "
+        "tags on every message.",
+    ],
+    [  # 15
+        "Prepared the journal version of the paper with Dr. Praveen Modi as "
+        "co-author and corresponding author.",
+        "Matched the paper to the code; extended references to 52 sources.",
+        "Applied the mentor's review of the paper; rewrote the abstracts and "
+        "the prose.",
+        "Prepared the log book, project report (black book) and annexure "
+        "forms.",
+    ],
+    [],  # 16
+    [],  # 17
 ]
 
+WEEK1 = _dt.date(2026, 7, 18)
 
-def week_box(doc, n, start, end, items):
-    t = doc.add_table(rows=6, cols=1)
-    t.style = "Table Grid"
-    t.alignment = WD_TABLE_ALIGNMENT.CENTER
-    c = [r.cells[0] for r in t.rows]
-    set_cell(c[0], f"Week No: {n}", bold=True)
-    set_cell(c[1], "Date of Reporting:")
-    set_cell(c[2], f"From {start} to {end}")
-    set_cell(c[3], "Work carried out", bold=True)
-    shade(c[3], "EDEDED")
-    c[4].text = ""
-    first = True
-    for text, hl in items:
-        p = c[4].paragraphs[0] if first else c[4].add_paragraph()
-        first = False
-        add_run(p, text, size=10.5, highlight=hl)
-        p.paragraph_format.space_after = Pt(2)
-    row_height(t.rows[4], 4.4)
-    set_cell(c[5], "Faculty Remark", bold=True)
-    shade(c[5], "EDEDED")
-    r = t.add_row()
-    row_height(r, 1.6)
-    r2 = t.add_row()
-    set_cell(r2.cells[0], "Faculty Signature with date", bold=True)
-    r3 = t.add_row()
-    row_height(r3, 0.9)
-    fix_widths(t, [16.6])
+
+def _d(day):
+    return day.strftime("%d/%m/%Y")
+
+
+def week_page(doc, n, bullets):
+    start = WEEK1 + _dt.timedelta(days=7 * (n - 1))
+    end, meet = start + _dt.timedelta(days=5), start + _dt.timedelta(days=4)
+    field(doc, f"Week No: {n}")
+    p = field(doc, "Date of Reporting:", _d(meet))
+    para(doc, f"{_d(start)} to {_d(end)}", space_after=8)
+    para(doc, "Work carried out", bold=True, space_after=4)
+    if bullets:
+        for b in bullets:
+            q = doc.add_paragraph(style="List Bullet")
+            add_run(q, b)
+            q.paragraph_format.space_after = Pt(3)
+    else:
+        for _ in range(8):
+            para(doc, "_" * 76, space_after=8)
+    para(doc, space_after=10)
+    para(doc, "Faculty Remark", bold=True, space_after=6)
+    for _ in range(4):
+        para(doc, "_" * 76, space_after=8)
+    para(doc, space_after=10)
+    para(doc, "Faculty Signature with date", bold=True, space_after=10)
+    para(doc, "_" * 40)
 
 
 def log_book(out):
     doc = new_doc()
     letterhead(doc, "Log Book for Capstone Project", "A.7 Log Book for Capstone Project")
-    field(doc, "Department:", blank_cm=14)
-    p = field(doc, "Program:", "B.Tech in ")
-    add_run(p, "_" * 34)
+    field(doc, "Department:", DEPARTMENT)
+    field(doc, "Program:", PROGRAM)
     field(doc, "Semester:", SEMESTER)
     field(doc, "Academic Year:", YEAR)
     field(doc, "TITLE OF THE PROJECT:", TITLE)
@@ -316,12 +373,10 @@ def log_book(out):
     para(doc, space_after=4)
     para(doc, "STUDENT DETAILS", bold=True, align="c", space_after=4)
     rows = [["Student 1", STUDENTS[0][1], "", ""],
-            ["Student 2", STUDENTS[1][1], "", ""],
-            ["Student 3", "-", "", ""],
-            ["Student 4", "-", "", ""]]
+            ["Student 2", STUDENTS[1][1], "", ""]]
     t = grid(doc, ["", "NAME", "ROLL NO.", "CONTACT"], rows,
              widths=[2.6, 6.0, 3.4, 4.6], size=10.5, heights=0.8)
-    for i in range(1, 5):
+    for i in range(1, 3):
         t.rows[i].cells[0].paragraphs[0].runs[0].bold = True
     para(doc, space_after=6)
     para(doc, "Name of group members:", bold=True, space_after=4)
@@ -333,12 +388,9 @@ def log_book(out):
     para(doc, "SAP IDs: " + ", ".join(f"{n} ({s})" for s, n in STUDENTS),
          size=10, italic=True)
 
-    for i, (start, end, items) in enumerate(WEEKS):
-        if i % 2 == 0:
-            page_break(doc)
-        else:
-            para(doc, space_after=8)
-        week_box(doc, i + 1, start, end, items)
+    for i, bullets in enumerate(WEEKS):
+        page_break(doc)
+        week_page(doc, i + 1, bullets)
     doc.save(out)
 
 
@@ -401,9 +453,8 @@ def team_table(doc, sign_col="Signature"):
 
 
 def dept_block(doc, semester=SEMESTER):
-    field(doc, "Department:", blank_cm=14)
-    p = field(doc, "Program:", "B.Tech in ")
-    add_run(p, "_" * 34)
+    field(doc, "Department:", DEPARTMENT)
+    field(doc, "Program:", PROGRAM)
     if semester:
         field(doc, "Semester:", semester)
     else:
