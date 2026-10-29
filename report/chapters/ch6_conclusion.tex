@@ -1,0 +1,76 @@
+\chapter{Conclusion and Future Scope}
+\label{ch:concl}
+
+This chapter summarises the work carried out, the conclusions drawn from the
+results of Chapter~\ref{ch:results}, and the directions in which the work can
+be taken further.
+
+\section{Conclusion}
+
+This project set out to measure the memory decision of an LLM agent: what to
+keep, what to compress, what to forget and what to recall. It built MemGate, a
+memory layer in front of a frozen model, as a harness in which each of these
+decisions can be swapped and compared against a control that differs in
+exactly one factor, under a store held to a fixed budget.
+
+Under the accounting this field normally uses, tiered compression loses to
+storing everything and retrieving. That result is an artefact of leaving the
+store unbounded. Once the store is bounded, deciding which items to forget is
+worth $+9.37$ answer-recall points at identical storage, fidelity and
+retrieval, while compressing an evicted item instead of dropping it costs
+$7.13$. The point at which rate--distortion theory says compression should
+start to pay is not reached by $182\times$. Counting the embedding index in the
+budget reverses the ranking below about 40\,KiB.
+
+The obvious route to a better scorer, an LLM judge, loses to a regular
+expression, because salience is not a property of a turn read on its own. A
+logistic scorer over a sentence embedding, trained on generated and human
+conversations together, beats the heuristic by $+14.55$ points on held-out
+LoCoMo conversations and by a significant margin at every store budget from
+2048 to 16384 tokens. It transfers from human dialogue to generated dialogue,
+but not the other way round. Through a fixed reader, $+6.0$ points of the
+recall advantage survive as correct answers. The same scorer beats
+MemGPT-style and Mem0-style memory at every budget tried, beats retrieval on
+held-out chats of up to ten million tokens, and, when million-token chats are
+typed into the application, keeps the answer 51.9\% of the time against
+19.2\%. Ten times the training data did not, on its own, produce a better
+linear scorer; weighting corpora by their labels, adding everyday chat and
+averaging with the earlier model did.
+
+The practical advice from this work is narrow but well supported: keep a
+scored subset at full fidelity rather than compressing everything, and count
+the memory budget in bytes with the index included. The learned scorer ships
+in a working chat application that makes every one of these decisions visible
+to its user, and the findings have been written up as a research paper.
+
+\section{Future scope}
+\begin{enumerate}
+\item \textbf{Re-run the pre-fix experiments.} The LLM-judge, end-task,
+  abstractive and LongMemEval runs were made before the scorer fix and should
+  be repeated with the fixed heuristic and the shipped learned scorer.
+\item \textbf{LongMemEval with the learned scorer.} The heuristic inverts on
+  LongMemEval; whether the learned scorer does too is the most important open
+  test of transfer.
+\item \textbf{More human-written evidence.} The learned scorer's gains on
+  human conversation are significant only at larger budgets. More annotated
+  human conversations, rather than a larger model, are what would settle
+  this.
+\item \textbf{Personalised online learning.} A scorer learned online from
+  retrieval feedback is already level with the heuristic with no labels.
+  Starting it from the pooled scorer and letting it adapt to each user is the
+  step from a scorer fitted to benchmarks to one fitted to the person using
+  the application.
+\item \textbf{More capacity without losing speed.} A small non-linear scorer
+  that keeps the write path cheap, tested under the same lose-nowhere rule.
+\item \textbf{Multimodal memory.} Extending the tiers and the scorer to
+  images, audio and tool outputs.
+\item \textbf{Deployment.} Faster reopening of very long saved chats,
+  multi-user hosting, and integration as a memory module for agent
+  frameworks.
+\end{enumerate}
+
+\section*{Summary}
+Selection beats compression under a bounded store, a learned scorer beats both
+a heuristic and an LLM judge, and the result holds through a reader, against
+existing memory designs and at million-token scale. The open questions are
+transfer to every corpus and adaptation to each user.

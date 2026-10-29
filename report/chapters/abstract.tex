@@ -1,0 +1,41 @@
+Agents built on large language models (LLMs) now hold conversations that run
+for weeks and grow far longer than any context window. On every turn something
+has to decide which parts of that history go into the prompt. Re-sending the
+whole history makes each reply slower and costlier, a sliding window forgets
+the oldest messages whatever they contain, and uniform summarisation loses the
+names, numbers and dates that are asked about later. Existing memory systems combine tiers, summaries and forgetting,
+but they are evaluated end to end, so the value of each individual decision is
+unknown.
+
+This project builds \textbf{MemGate}, a memory layer that sits between an
+agent and a frozen LLM and decides, for every message, whether to
+\emph{keep} it, \emph{compress} it, \emph{forget} it, or \emph{recall} it
+later, without training the base model. It is built as a measurement
+harness: a three-tier store runs under a fixed storage budget, and policies
+that differ in exactly one factor are compared on the LoCoMo benchmark with
+95\% confidence intervals resampled by conversation.
+
+The main findings are as follows. (i) The usual accounting bounds the
+context but not the store; once the store is bounded, choosing
+\emph{which} turns to forget gains $+9.37$ answer-recall points over
+oldest-first eviction at identical storage, fidelity and retrieval, while
+compressing evicted turns instead of dropping them loses $7.13$ points.
+(ii) No rate--distortion crossover appears up to $182\times$ compression.
+(iii) Counting the embedding index in bytes reverses the ranking below about
+40\,KiB. (iv) A small LLM judge of salience loses to a hand-written heuristic,
+whereas a logistic-regression scorer over shallow features and a sentence
+embedding, trained on generated and human conversations, beats the heuristic
+by $+14.55$ points on held-out conversations and outperforms rebuilt
+MemGPT-style and Mem0-style memory at every budget tested. (v) On held-out
+chats of up to ten million tokens it beats retrieval on every corpus, and when
+million-token chats are typed into the application it keeps the answer for
+51.9\% of questions against 19.2\% for retrieval.
+
+The learned scorer ships in a working chat application that shows, for every
+message, the tier it went to and why. The work has been written up as a
+research paper with the project mentor as corresponding author.
+
+\vspace{6pt}
+\noindent\textbf{Keywords:} large language models, agent memory, context
+management, retrieval-augmented generation, learned salience scoring,
+rate--distortion, empirical evaluation.

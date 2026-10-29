@@ -1,0 +1,227 @@
+%% MemGate capstone project report ("black book"), SVKM's NMIMS STME Indore.
+%% Format: Capstone project guidelines 2026-27, Annexure A.8, and the STME
+%% front-matter template. Build with ./build.sh (pdflatex + bibtex).
+%% Team details (names, SAP IDs, stream) are in details.tex.
+\documentclass[12pt,a4paper,oneside]{report}
+
+\usepackage[a4paper,left=1.5in,right=1in,top=1in,bottom=1in,headheight=15pt]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}   % Times New Roman (text and maths)
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{adjustbox}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{amsmath,amssymb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc,fit}
+\usepackage{pdfpages}
+\usepackage{rotating}
+\usepackage{cite}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+
+\input{details}
+
+%% ---------------------------------------------------------------- layout
+\onehalfspacing
+\emergencystretch=3em
+\setlength{\parskip}{4pt}
+\setlist{itemsep=2pt,topsep=4pt}
+
+% chapter title 18 pt bold, section 14 pt bold, subsection 12 pt bold
+\titleformat{\chapter}[display]
+  {\centering\bfseries\fontsize{18}{22}\selectfont}
+  {\chaptertitlename\ \thechapter}{10pt}{\fontsize{18}{22}\selectfont}
+\titleformat{name=\chapter,numberless}[display]
+  {\centering\bfseries\fontsize{18}{22}\selectfont}{}{0pt}{\fontsize{18}{22}\selectfont}
+\titlespacing*{\chapter}{0pt}{0pt}{20pt}
+\titleformat{\section}{\bfseries\fontsize{14}{17}\selectfont}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\bfseries\fontsize{12}{15}\selectfont}{\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{14pt}{6pt}
+\titlespacing*{\subsection}{0pt}{10pt}{4pt}
+
+% figure names below figures, table names above tables, Times 10 pt
+\DeclareCaptionFont{tenpt}{\fontsize{10}{12}\selectfont}
+\captionsetup{font=tenpt,labelfont={tenpt,bf},labelsep=period,justification=centering}
+\captionsetup[table]{position=top,skip=4pt}
+\captionsetup[figure]{position=bottom,skip=6pt}
+
+% header: project title left, academic year right; footer: page number right
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\fontsize{10}{12}\selectfont\projtitleshort}
+\fancyhead[R]{\fontsize{10}{12}\selectfont Academic Year \acadyear}
+\fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancypagestyle{plain}{\fancyhf{}%
+  \fancyhead[L]{\fontsize{10}{12}\selectfont\projtitleshort}%
+  \fancyhead[R]{\fontsize{10}{12}\selectfont Academic Year \acadyear}%
+  \fancyfoot[R]{\thepage}}
+
+% the paper's diagrams and tables are reused as they are
+\newcommand{\colfig}{0.8\textwidth}
+\renewcommand{\listfigurename}{List of Figures}
+\renewcommand{\listtablename}{List of Tables}
+\renewcommand{\bibname}{References}
+
+\begin{document}
+\input{../paper/diagrams/styles}
+
+%% ================================================================ title
+\begin{titlepage}
+\centering
+\vspace*{0.2cm}
+{\fontsize{18}{24}\selectfont\bfseries \projtitle\par}
+\vspace{1.0cm}
+{\large\bfseries Project Report submitted in partial fulfilment\\ of\par}
+\vspace{0.4cm}
+{\large Bachelor of Technology (B.Tech) in\par}
+\vspace{0.2cm}
+{\large \stream\par}
+\vspace{0.8cm}
+{\large\bfseries by\par}
+\vspace{0.4cm}
+{\large \textbf{\studentA} (SAP ID: \sapA)\\[2pt]
+        \textbf{\studentB} (SAP ID: \sapB)\par}
+\vspace{0.8cm}
+{\large\bfseries Under the supervision of\par}
+\vspace{0.4cm}
+{\large\bfseries \mentor\par}
+{(\mentordesig, STME, Indore Campus)\par}
+\vfill
+{\large\bfseries SVKM's NMIMS University\par}
+{(Deemed-to-be University)\par}
+\vspace{0.4cm}
+\includegraphics[width=2.8cm]{images/nmims_logo.png}\par
+\vspace{0.3cm}
+{\large\bfseries SCHOOL OF TECHNOLOGY MANAGEMENT \&\\ ENGINEERING (STME)\par}
+\vspace{0.3cm}
+{\bfseries \acadyear\par}
+\end{titlepage}
+
+%% ========================================================== certificate
+\thispagestyle{empty}
+\begin{center}
+{\fontsize{18}{22}\selectfont\bfseries CERTIFICATE\par}
+\vspace{0.6cm}
+\includegraphics[width=3cm]{images/nmims_logo.png}\par
+\vspace{0.4cm}
+{\large\bfseries SVKM's NMIMS University\\ (Deemed-to-be University)\par}
+\end{center}
+\vspace{0.4cm}
+\noindent This is to certify that the project entitled \textbf{``\projtitle''}
+has been done by \textbf{\studentA} (SAP: \sapA) and \textbf{\studentB}
+(SAP: \sapB) under my guidance and supervision \& has been submitted in partial
+fulfilment of the degree of \textbf{B.Tech} in \textbf{\streamshort} of STME,
+SVKM's NMIMS (Deemed-to-be University), Indore Campus, India.
+
+\vspace{2.2cm}
+\noindent\rule{5cm}{0.4pt}\\
+\textbf{\mentor}\\
+(Internal Guide)
+
+\vspace{1.8cm}
+\noindent\rule{5cm}{0.4pt}\\
+\textbf{Examiner}\\
+(External)
+
+\vspace{1.8cm}
+\noindent\rule{5cm}{0.4pt}\\
+\textbf{\assocdean}\\
+(Associate Dean, STME)
+
+\vfill
+\noindent\textbf{Date:} \rule{3cm}{0.4pt}\hfill\textbf{Place:} Indore
+\clearpage
+
+%% ======================================================== roman numbers
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+\chapter*{Acknowledgement}
+\addcontentsline{toc}{chapter}{Acknowledgement}
+We would like to express our sincere gratitude to all those who contributed to
+the successful completion of this project.
+
+First and foremost, we extend our heartfelt thanks to our faculty mentor,
+\textbf{\mentor}, \mentordesig, for invaluable guidance, continuous
+support and insightful feedback throughout the course of this project. The
+mentor's review of our research paper, and the steady push for every claim to
+be backed by a measurement, shaped this work.
+
+We are deeply grateful to SVKM's NMIMS University and the School of Technology
+Management \& Engineering (STME) for providing the necessary resources,
+infrastructure and academic environment that made this work possible.
+
+We would like to express our profound gratitude to \textbf{\director},
+Director, NMIMS University Indore Campus. We also extend our sincere thanks to
+\textbf{\assocdean}, Associate Dean, School of Technology Management \&
+Engineering (STME), Indore Campus, for his continuous support and motivation.
+
+We would also like to thank the faculty members of STME for their teaching and
+support, which laid the foundation for this project, and the members of the
+review panels, whose questions at Review~1 led us to move the project's
+contribution from the memory architecture to the memory decision policy.
+
+We thank the authors of the LoCoMo, REALTALK, BEAM, MemBench, PersonaChat and
+LongMemEval datasets for releasing them openly; this project collected no data
+of its own.
+
+Finally, we are immensely thankful to our families for their unwavering
+support, patience and encouragement throughout our academic journey.
+
+\vspace{1.2cm}
+\begin{flushright}
+\textbf{\studentA} (SAP: \sapA)\\
+\textbf{\studentB} (SAP: \sapB)
+\end{flushright}
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+\input{chapters/abstract}
+
+\tableofcontents
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Figures}
+\listoffigures
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Tables}
+\listoftables
+\clearpage
+\input{chapters/abbreviations}
+
+%% ======================================================= decimal numbers
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\input{chapters/ch1_introduction}
+\input{chapters/ch2_literature}
+\input{chapters/ch3_methodology}
+\input{chapters/ch4_results}
+\input{chapters/ch5_advantages}
+\input{chapters/ch6_conclusion}
+
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{References}
+\bibliographystyle{IEEEtran}
+\bibliography{../paper/refs}
+
+\appendix
+\input{chapters/appendices}
+
+\end{document}

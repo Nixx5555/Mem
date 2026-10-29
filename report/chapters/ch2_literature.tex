@@ -1,0 +1,254 @@
+\chapter{Literature Survey}
+\label{ch:lit}
+
+This chapter reviews the work on which MemGate builds. It first gives the
+background of the overall topic: why LLM agents need memory, how long
+contexts fail, and the older ideas from computer systems and psychology that
+memory layers borrow. It then surveys the most relevant papers one by one,
+compares them in a table, and ends by identifying the research gap that
+defines the problem addressed in this project.
+
+\section{Introduction to the overall topic}
+
+\subsection{LLM agents and their memory}
+Large language models learn to perform new tasks from instructions and a few
+examples placed in the prompt \cite{brown2020gpt3}. Building on this, agent
+frameworks interleave reasoning with actions such as tool calls
+\cite{yao2023react} and let a model learn from its own failures by writing
+verbal reflections into its context \cite{shinn2023reflexion}. Two broad
+surveys describe how such agents are assembled from a profile, a planner, a
+memory and an action module
+\cite{wang2024agentsurvey,xi2023agentsurvey}, and the CoALA framework treats
+memory explicitly as working, episodic, semantic and procedural stores around
+the model \cite{sumers2024coala}. A survey devoted to agent memory organises
+the field by memory source, form and operation, and concludes that deciding
+what to remember and what to forget remains the open problem
+\cite{zhang2024memorysurvey}.
+
+\subsection{Why longer context windows are not enough}
+One response is to make the window larger. YaRN extends the context of
+existing models by interpolating rotary position embeddings
+\cite{peng2024yarn}. Larger windows, however, are used unevenly. Models make
+best use of information at the beginning and the end of a long input and
+lose it in the middle \cite{liu2024lostmiddle}; the RULER benchmark finds
+effective context lengths far below the advertised ones \cite{hsieh2024ruler};
+and a 2025 study of 18 frontier models reports accuracy losses of 30--50\% well
+before the documented limit \cite{chroma2025contextrot}. Long-context
+benchmarks such as LongBench measure this capacity directly, without a memory
+layer \cite{bai2024longbench}.
+
+\subsection{Retrieval as the default baseline}
+Retrieval-augmented generation (RAG) keeps external text and puts the passages
+most similar to the query into the prompt \cite{lewis2020rag}. Dense passage
+retrieval made this practical with learned sentence embeddings
+\cite{karpukhin2020dpr}, and RETRO showed that retrieval from a very large
+store can stand in for model size \cite{borgeaud2022retro}. Sentence-BERT
+\cite{reimers2019sbert} and the distilled MiniLM model \cite{wang2020minilm}
+provide the small, fast embeddings that this project uses. RAG stores
+everything and never forgets, so it is the natural control against which a
+forgetting policy must be judged.
+
+\subsection{Ideas borrowed from systems and psychology}
+Memory layers for agents reuse older ideas. The multi-store model of human
+memory separates a short-term store from a long-term store with control
+processes between them \cite{atkinson1968memory}. Operating systems face the
+same choice when physical memory is full: Belady's study of page replacement
+\cite{belady1966replacement} and Denning's working-set model
+\cite{denning1968workingset} are the classical treatments, and MemGPT makes
+the analogy explicit \cite{packer2023memgpt}. Rate--distortion theory
+\cite{shannon1959rd,cover2006elements} gives the language for trading the size
+of a stored representation against its fidelity, and has recently been
+proposed as a framework for agent memory \cite{colaco2026rd}.
+
+\subsection{How memory is evaluated}
+LoCoMo provides very long multi-session dialogues with question--answer pairs
+whose evidence turns are marked \cite{maharana2024locomo}. LongMemEval
+separates several abilities of chat assistants over long histories and
+measures the gap between oracle and self-selected evidence
+\cite{wu2024longmemeval}. REALTALK applies LoCoMo's annotation scheme to 21 days
+of real messages between people \cite{lee2025realtalk}; BEAM scales
+conversations to ten million tokens \cite{tavakoli2026beam}; and MemBench
+tests factual and reflective memory of agents \cite{tan2025membench}.
+LLM-as-a-judge evaluation \cite{zheng2023judge} is widely used for open-ended
+answers, while extractive question answering is scored by string match
+\cite{rajpurkar2016squad}. For comparing two systems on the same questions,
+McNemar's test \cite{mcnemar1947,dietterich1998tests} and the bootstrap
+\cite{efron1993bootstrap} are standard; when questions are grouped into
+conversations, the resampling must respect that grouping
+\cite{cameron2008cluster}. Finally, studies of data leakage show how easily an
+evaluation can be contaminated by information that would not be available at
+prediction time \cite{kaufman2012leakage,kapoor2023leakage}, a failure this
+project met and fixed (Section~\ref{sec:leak}).
+
+\section{Survey of the most relevant work}
+
+This section discusses the most relevant papers in more detail, grouped by
+the decision they make.
+
+\subsection{Memory systems for agents}
+
+\textbf{MemGPT} (Packer et al., 2023) \cite{packer2023memgpt} treats the
+context window like the main memory of an operating system. The model itself
+decides, through function calls, what to page out to an archive and what to
+bring back, and a recursive summary keeps a compressed record of evicted
+messages. MemGPT shows that an agent can work well beyond its window, and it
+was chosen as the base paper of this project. Its limitation, for our
+purpose, is that every memory decision is left to the LLM, so there is no
+explicit importance policy whose value can be measured on its own.
+
+\textbf{MemoryBank} (Zhong et al., 2024) \cite{zhong2024memorybank} adds a
+long-term memory with an Ebbinghaus-style forgetting curve: memories decay
+with elapsed time and are reinforced when recalled. It produces human-like
+forgetting, but it forgets by age rather than by importance and does not hold
+the store to a fixed budget.
+
+\textbf{Generative Agents} (Park et al., 2023) \cite{park2023generative}
+record a stream of observations for each simulated character and retrieve
+from it by a weighted sum of recency, importance (rated by the LLM) and
+relevance, with periodic reflections that summarise the stream. The design
+sustains believable long-horizon behaviour, but the stream is never bounded
+and the system is not built to reduce tokens or cost.
+
+\textbf{A-MEM} (Xu et al., 2025) \cite{xu2025amem} organises memories as
+linked notes in the style of a Zettelkasten. Each new memory is written as a
+structured note, linked to related notes, and may cause older notes to be
+revised. On LoCoMo it improves multi-hop reasoning while using fewer tokens.
+Its focus is on how notes are linked rather than on what to forget under a
+strict budget.
+
+\textbf{Mem0} (Chhikara et al., 2025) \cite{chhikara2025mem0} is a
+production-oriented memory layer. An LLM extracts candidate facts from each
+exchange and chooses among ADD, UPDATE, DELETE and NOOP against the nearest
+stored facts. It reports large savings in latency and tokens against
+full-context baselines on LoCoMo. Because the extraction and update decisions
+are made by an LLM end to end, the contribution of each decision cannot be
+separated, which is why Section~\ref{sec:external} rebuilds its memory
+structure inside the MemGate harness.
+
+\subsection{Compressing the prompt or the cache}
+
+\textbf{LLMLingua} (Jiang et al., 2023) \cite{jiang2023llmlingua} compresses a
+given prompt by removing tokens that a small language model finds predictable,
+under a budget controller, reaching up to about 20$\times$ compression with
+small losses. It compresses what it is given but does not decide what to
+store or forget across sessions.
+
+\textbf{Gist tokens} (Mu et al., 2023) \cite{mu2023gist} train a model to
+compress an instruction into a few virtual tokens that can be cached and
+reused. \textbf{AutoCompressors} (Chevalier et al., 2023)
+\cite{chevalier2023autocompressor} recursively compress long documents into
+summary vectors used as soft prompts, and the \textbf{in-context autoencoder}
+(Ge et al., 2024) \cite{ge2024icae} packs a context into a small number of
+memory slots. All three require training the model and produce opaque
+vectors rather than readable memories.
+
+\textbf{StreamingLLM} (Xiao et al., 2024) \cite{xiao2024streaming} observes
+that models attend heavily to the first few tokens (``attention sinks'') and
+keeps those plus a rolling window of recent tokens in the KV cache, giving
+stable generation over millions of tokens. \textbf{H\textsubscript{2}O}
+(Zhang et al., 2023) \cite{zhang2023h2o} keeps the ``heavy-hitter'' tokens that
+receive the most attention and evicts the rest. Both operate inside one
+forward pass over a contiguous context; anything they evict is gone for good.
+Compressive Transformers \cite{rae2020compressive}, Memorizing Transformers
+\cite{wu2022memorizing} and LongMem \cite{wang2023longmem} go further and
+change the model so that it can compress or index its own past activations.
+
+\subsection{Benchmarks and theory}
+
+\textbf{LoCoMo} (Maharana et al., 2024) \cite{maharana2024locomo} contains ten
+very long conversations, generated by LLM agents with personas and event
+graphs and then checked by people, with about 1{,}500 questions in five
+categories whose evidence turns are marked. The marked evidence is what lets
+a retrieval-level metric be computed without running a generative model, and
+LoCoMo is the main corpus of this project.
+
+\textbf{LongMemEval} (Wu et al., 2024) \cite{wu2024longmemeval} tests five
+memory abilities (information extraction, multi-session reasoning, temporal
+reasoning, knowledge updates and abstention) over histories of up to about
+1.5 million tokens. Its key observation for this project is the 34-point gap
+between oracle and self-selected evidence.
+
+\textbf{REALTALK} (Lee et al., 2025) \cite{lee2025realtalk} collects 21 days of
+messaging between real people and annotates it in LoCoMo's scheme. Because
+LoCoMo is generated by an LLM, REALTALK is the natural test of whether a
+scorer learned on LoCoMo has learned what people ask about or only what
+generated dialogue looks like.
+
+\textbf{The agent memory survey} (Zhang et al., 2024)
+\cite{zhang2024memorysurvey} organises the field and states the open
+problem. \textbf{The rate--distortion framework} (Colaco and Lahjouji, 2026)
+\cite{colaco2026rd} argues that keeping, compressing and forgetting are one
+decision about how much to retain and at what fidelity under a budget, and
+predicts that compression should win once the budget is tight enough. It is a
+framework rather than a measured system, and Section~\ref{sec:scaling} tests
+its prediction.
+
+\section{Comparison of the surveyed work}
+
+Table~\ref{tab:litcompare} compares the main systems along the lines used in
+the Review~1 presentation, with the gap each one leaves and how MemGate
+addresses it.
+
+{\renewcommand{\arraystretch}{1.15}
+\fontsize{9}{11}\selectfont
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{2.3cm}>{\raggedright\arraybackslash}p{2.3cm}>{\raggedright\arraybackslash}p{2.7cm}>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{2.7cm}@{}}
+\caption{Comparison of the main related systems and the gap each leaves.}
+\label{tab:litcompare}\\
+\toprule
+\textbf{Work} & \textbf{Data / benchmark} & \textbf{Technique} & \textbf{Limitation} & \textbf{Addressed in MemGate} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Work} & \textbf{Data / benchmark} & \textbf{Technique} & \textbf{Limitation} & \textbf{Addressed in MemGate} \\
+\midrule
+\endhead
+MemGPT \cite{packer2023memgpt} (2023) & Multi-Session Chat; document QA & Tiered memory; LLM pages context via function calls & Memory decisions left to the LLM; no measurable importance policy & An explicit, swappable scoring policy, measured on its own \\
+MemoryBank \cite{zhong2024memorybank} (2024) & Long-term dialogue (SiliconFriend) & Vector memory with Ebbinghaus forgetting curve & Forgets by elapsed time, not importance; no budget & Forgets by scored utility under a hard storage budget \\
+Generative Agents \cite{park2023generative} (2023) & Sandbox simulation & Memory stream; recency, importance and relevance; reflection & Unbounded stream; not built to cut tokens & Bounds the store; keeps retrieval by relevance \\
+A-MEM \cite{xu2025amem} (2025) & LoCoMo & Linked notes, dynamic revision & Focus on linking, not on budgeted forgetting & Budget-driven forgetting, compared on LoCoMo \\
+Mem0 \cite{chhikara2025mem0} (2025) & LoCoMo & LLM fact extraction with ADD/UPDATE/DELETE & Decisions made end to end by an LLM & Rebuilt in the same harness and compared at equal budgets \\
+StreamingLLM \cite{xiao2024streaming} (2024) & Long-stream language modelling & Attention sinks plus rolling KV cache & Evicted content is gone for good & Evicted items can live on as gists or facts and be recalled \\
+H\textsubscript{2}O \cite{zhang2023h2o} (2023) & OPT and LLaMA tasks & Keeps heavy-hitter tokens in the KV cache & Works inside one forward pass & Works across sessions, at the conversation level \\
+LLMLingua \cite{jiang2023llmlingua} (2023) & GSM8K, BBH and others & Token-level prompt compression & Compresses, but does not decide what to keep & Tests compression against dropping inside one policy \\
+Gist tokens \cite{mu2023gist} (2023) & Instruction following & Learned virtual tokens & Needs training; fixed instructions only & No training of the base model; readable memory \\
+AutoCompressors \cite{chevalier2023autocompressor} (2023) & Long-context language modelling & Recursive summary vectors & Opaque vectors; no explicit forgetting & Readable gists plus a retrievable fact store \\
+Memory survey \cite{zhang2024memorysurvey} (2024) & Survey & Taxonomy of agent memory & No system & Measures several of its open questions \\
+Rate--distortion \cite{colaco2026rd} (2026) & Theory & Memory as rate--distortion & Framework, not a measured system & Tests its crossover prediction to 182$\times$ \\
+\bottomrule
+\end{longtable}}
+
+\section{Research gap and problem definition}
+\label{sec:gap}
+
+The survey leads to four observations.
+\begin{enumerate}
+\item \textbf{Tiered memory with forgetting is no longer new.} MemGPT, Mem0,
+  A-MEM and others already ship it. A project that only builds another
+  three-tier layer would repeat their work.
+\item \textbf{No one has measured the decisions separately.} Each system is
+  evaluated as a whole, with its own model, prompts and budgets, so a reader
+  cannot tell whether its gains come from what it keeps, how it compresses,
+  how it retrieves, or the model it uses.
+\item \textbf{The accounting is incomplete.} Evaluations cap the context sent
+  to the model but leave the store unbounded, which lets a store-everything
+  baseline keep its whole history for free. Byte costs, including the
+  embedding index, are not counted.
+\item \textbf{Salience scoring is ad hoc.} Importance is rated by hand-written
+  rules or by asking an LLM, and whether a learned scorer would do better, and
+  whether it would carry over from generated to human conversation, has not
+  been tested.
+\end{enumerate}
+
+These observations define the problem stated in Section~1.3: build a memory
+layer whose keep, compress, forget and recall decisions can be isolated and
+swapped; hold it to a storage budget counted in tokens and in bytes; and
+measure each decision, including a learned scorer, against controls that
+differ from it in one factor only, with statistics that respect the grouping
+of questions into conversations.
+
+\section*{Summary}
+The literature offers many working memory systems, several ways to compress
+prompts and caches, and good long-conversation benchmarks. What it lacks is a
+controlled measurement of the individual memory decisions under a bounded
+store, a byte-level accounting of their cost, and a tested learned scorer.
+MemGate is designed to fill exactly that gap.

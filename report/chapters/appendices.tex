@@ -1,0 +1,226 @@
+%% Appendices A-D, as listed in the guideline table of contents.
+
+\chapter{Soft Code Flowcharts}
+\label{app:flow}
+
+This appendix gives the flowcharts of the two paths a message takes through
+the MemGate application: storing it (Fig.~\ref{fig:flowwrite}) and answering
+from memory (Fig.~\ref{fig:flowread}). The routing and budget loops inside the
+library are shown in Fig.~\ref{fig:routing}, the scorer's guard in
+Fig.~\ref{fig:scoring}, and the training of the shipped scorer in
+Fig.~\ref{fig:training}.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=5mm and 6mm, font=\small,
+  st/.style={draw, rounded corners=8pt, fill=green!8, align=center, inner sep=4pt, minimum width=3.4cm},
+  pr/.style={draw, rounded corners=2pt, fill=gray!8, align=center, inner sep=4pt, minimum width=4.6cm},
+  dc/.style={draw, diamond, aspect=2.4, fill=yellow!12, align=center, inner sep=1pt},
+  ar/.style={->, >={Stealth[length=2mm]}, thick}]
+\node[st] (in) {Message or file arrives};
+\node[pr, below=of in] (clean) {Clean text: strip control and zero-width\\characters, NFC-normalise};
+\node[dc, below=of clean] (long) {Longer than\\120 tokens?};
+\node[pr, right=10mm of long] (chunk) {Cut into pieces of at most\\48 tokens; tag with file name};
+\node[pr, below=of long] (gate) {Entry gate: score with GuardedScorer};
+\node[dc, below=of gate] (fill) {Filler, or\\$u<0.1$?};
+\node[pr, right=10mm of fill, fill=red!8] (forget) {Forget on arrival;\\tag ``forgotten''};
+\node[pr, below=of fill] (t1) {Append to Tier 1 (verbatim);\\$u\ge\tau_{\text{fact}}$ goes to Tier 3 at once};
+\node[dc, below=of t1] (full) {Tier 1 holds\\more than 6?};
+\node[pr, below=of full] (route) {Score the oldest item once and route it\\(Algorithm~\ref{alg:observe}, Eq.~\ref{eq:route})};
+\node[pr, below=of route] (budget) {Enforce the storage budget $S$\\(Algorithm~\ref{alg:budget})};
+\node[st, below=of budget] (out) {Tag the message with its tier and score;\\save the chat};
+\draw[ar] (in) -- (clean);
+\draw[ar] (clean) -- (long);
+\draw[ar] (long) -- node[above, font=\scriptsize]{yes} (chunk);
+\draw[ar] (chunk) |- (gate);
+\draw[ar] (long) -- node[right, font=\scriptsize]{no} (gate);
+\draw[ar] (gate) -- (fill);
+\draw[ar] (fill) -- node[above, font=\scriptsize]{yes} (forget);
+\draw[ar] (fill) -- node[right, font=\scriptsize]{no} (t1);
+\draw[ar] (t1) -- (full);
+\draw[ar] (full) -- node[right, font=\scriptsize]{yes} (route);
+\draw[ar] (route) -- (budget);
+\draw[ar] (budget) -- (out);
+\draw[ar] (full.west) -- ++(-12mm,0) |- node[pos=0.25, left, font=\scriptsize]{no} (out.west);
+\draw[ar] (forget) |- (out.east);
+\end{tikzpicture}
+\caption{Flowchart of the write path in the application: how one message is
+cleaned, gated, stored and kept within budget.}
+\label{fig:flowwrite}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=5mm and 6mm, font=\small,
+  st/.style={draw, rounded corners=8pt, fill=green!8, align=center, inner sep=4pt, minimum width=3.4cm},
+  pr/.style={draw, rounded corners=2pt, fill=gray!8, align=center, inner sep=4pt, minimum width=4.8cm},
+  dc/.style={draw, diamond, aspect=2.4, fill=yellow!12, align=center, inner sep=1pt},
+  ar/.style={->, >={Stealth[length=2mm]}, thick}]
+\node[st] (in) {User sends a message};
+\node[pr, below=of in] (q) {Find the questions in it\\(the whole message if none)};
+\node[pr, below=of q] (t1) {Pack recent Tier 1 turns into $\lfloor B/4\rfloor$ tokens};
+\node[pr, below=of t1] (ret) {For each question: embed it and rank\\Tier 2 $\cup$ Tier 3 by cosine (top 60)};
+\node[pr, below=of ret] (mix) {Interleave the rankings, best of each first;\\add notes while they fit in $B$};
+\node[pr, below=of mix, fill=orange!10] (llm) {Send the notes and the message to the\\reply model (Gemini / Claude / local Qwen)};
+\node[dc, below=of llm] (ok) {Reply within\\the deadline?};
+\node[pr, right=10mm of ok] (fb) {Retry or use a backup model;\\local Qwen answers this message};
+\node[pr, below=of ok] (obs) {Store the reply through the write path\\(Fig.~\ref{fig:flowwrite})};
+\node[st, below=of obs] (out) {Show the reply, the notes used\\and the memory panel};
+\draw[ar] (in) -- (q);
+\draw[ar] (q) -- (t1);
+\draw[ar] (t1) -- (ret);
+\draw[ar] (ret) -- (mix);
+\draw[ar] (mix) -- (llm);
+\draw[ar] (llm) -- (ok);
+\draw[ar] (ok) -- node[above, font=\scriptsize]{no} (fb);
+\draw[ar] (fb) |- (obs);
+\draw[ar] (ok) -- node[right, font=\scriptsize]{yes} (obs);
+\draw[ar] (obs) -- (out);
+\end{tikzpicture}
+\caption{Flowchart of the read path in the application: how a reply is
+assembled from memory.}
+\label{fig:flowread}
+\end{figure}
+
+\chapter{Data Sheets}
+\label{app:data}
+
+MemGate uses no hardware components, so its data sheets describe the datasets
+and models it depends on (Tables~\ref{tab:datasets} and~\ref{tab:models}). All
+datasets are public and were used under their published licences; no personal
+data was collected by the project.
+
+\begin{table}[htbp]
+\caption{Datasets used.}
+\label{tab:datasets}
+\centering
+\fontsize{9}{11}\selectfont
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.8cm}>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Dataset} & \textbf{Size} & \textbf{Use in this project} \\
+\midrule
+LoCoMo \cite{maharana2024locomo} & 10 conversations, 5{,}882 turns, 1{,}527 questions (715 answer-recoverable) & Main benchmark; LLM-generated multi-session dialogue with marked evidence \\
+REALTALK \cite{lee2025realtalk} & 10 conversations, 8{,}944 turns, 660 questions (160 answer-recoverable) & Human conversation over 21 days; transfer test and training \\
+BEAM 100K / 500K \cite{tavakoli2026beam} & 20 and 35 chats & Long user--assistant chats; training and held-out tests \\
+BEAM 1M & 35 chats, 74{,}630 turns, 622 questions with evidence & Held-out million-token test; app-path test \\
+BEAM 10M & 10 chats, 208{,}696 turns, 128 pinned questions & Held-out ten-million-token test \\
+MemBench \cite{tan2025membench} & 4{,}330 trajectories, 252{,}058 turns & Short factual agent memories; training and test \\
+PersonaChat \cite{zhang2018personachat} & 894 long chats (262{,}876 turns) train; 50 chats test & Everyday chat with weak labels from persona lines \\
+LongMemEval \cite{wu2024longmemeval} & 94 histories of 38--62 sessions & Second-benchmark test of the headline \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Models and tokeniser used.}
+\label{tab:models}
+\centering
+\fontsize{9}{11}\selectfont
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.8cm}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Model} & \textbf{Size} & \textbf{Role} \\
+\midrule
+all-MiniLM-L6-v2 \cite{reimers2019sbert,wang2020minilm} & 22.7M parameters, 384-d output, about 90\,MB & Embeddings for retrieval, dedupe, supersession and the learned scorer \\
+Learned scorer P3 (this work) & 399 weights + bias, plain JSON & Utility of each message \\
+Qwen2.5-0.5B-Instruct \cite{qwen2025} & 0.5B parameters & LLM judge of salience (P2) \\
+Qwen2.5-1.5B-Instruct \cite{qwen2025} & 1.5B parameters (4-bit on Apple silicon) & End-task reader; abstractive compressor; offline reply model \\
+Google Gemini (flash) \cite{gemini2023} & hosted & Default reply model in the application (free key) \\
+\texttt{cl100k\_base} (tiktoken) & 100K-token vocabulary & Exact token counts for every budget \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\chapter{List of Components}
+\label{app:components}
+
+MemGate has no hardware components. Its software components are listed in
+Tables~\ref{tab:files} and~\ref{tab:libs}. The source code is in the
+project repository (branch \texttt{endtask-full-run}).
+
+\begin{table}[htbp]
+\caption{Software components: main files of the repository.}
+\label{tab:files}
+\centering
+\fontsize{9}{11}\selectfont
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{6.4cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{File or folder} & \textbf{Purpose} \\
+\midrule
+\texttt{memgate/memgate/} & The library (Table~\ref{tab:modules}) \\
+\texttt{memgate/app.py}, \texttt{web/chat.html} & The chat application: server and page \\
+\texttt{run\_locomo.py},\newline \texttt{run\_storage\_sweep.py} & LoCoMo evaluation and the storage-budget sweep \\
+\texttt{run\_ablations.py}, \texttt{run\_significance.py} & Component ablations; bootstrap and McNemar tests \\
+\texttt{run\_scaling.py}, \texttt{run\_cost\_model.py} & Compression-ratio scaling; byte accounting \\
+\texttt{train\_scorer.py}, \texttt{train\_transfer.py},\newline \texttt{retrain\_10x.py}, \texttt{export\_scorer.py} & Training, transfer tests, retraining and export of the learned scorer \\
+\texttt{run\_judge\_eval.py}, \texttt{run\_endtask.py} & LLM-judge comparison; end-task accuracy \\
+\texttt{run\_longmemeval.py},\newline \texttt{run\_abstractive.py}, \texttt{run\_online.py} & LongMemEval; abstractive compression; online learning \\
+\texttt{run\_external\_baselines.py} & MemGPT-style and Mem0-style comparison \\
+\texttt{scale\_app.py}, \texttt{stress\_inputs.py},\newline \texttt{stress\_questions.py} & Application scale, load and stress tests \\
+\texttt{test\_*.py}, \texttt{run\_tests.py} & Test suites and their runner \\
+\texttt{setup.sh}/\texttt{.ps1}, \texttt{start.sh}/\texttt{.bat} & One-command setup and start \\
+\texttt{deploy/} & Docker image for an online Hugging Face Space \\
+\texttt{paper/} & Research paper sources, generated tables and diagrams \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[htbp]
+\caption{Software libraries.}
+\label{tab:libs}
+\centering
+\fontsize{9}{11}\selectfont
+\begin{tabularx}{\textwidth}{@{}p{4.2cm}X@{}}
+\toprule
+\textbf{Library} & \textbf{Use} \\
+\midrule
+NumPy & Vectors and numerics \\
+tiktoken & Token counting \\
+sentence-transformers / ONNX Runtime & MiniLM embeddings \\
+huggingface\_hub & One-time model downloads \\
+PyTorch, Transformers, mlx-lm & Local Qwen models (judge, reader, offline replies) \\
+scikit-learn & Training the learned scorer \\
+Matplotlib & Figures \\
+pypdf & Reading uploaded PDF files \\
+anthropic (optional) & Claude replies \\
+Python standard library & HTTP server, JSON, Word/PowerPoint reading, statistics \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\chapter{Plagiarism and AI-Content Check Report}
+\label{app:plag}
+
+This appendix holds the similarity and AI-writing check of this report, run
+through Turnitin. The figures below are filled in by hand from the Turnitin
+report, and the report's summary page is inserted after this page.
+
+\begin{table}[h]
+\centering
+\caption{Turnitin check summary}
+\label{tab:plag}
+\renewcommand{\arraystretch}{1.8}
+\begin{tabular}{|p{6.5cm}|p{6cm}|}
+\hline
+\textbf{Item} & \textbf{Value} \\ \hline
+Tool & Turnitin \\ \hline
+Date of check & \\ \hline
+Submission ID & \\ \hline
+Overall similarity index (\%) & \\ \hline
+AI-writing detection (\%) & \\ \hline
+Excluded from the check & \\ \hline
+\end{tabular}
+\end{table}
+
+\vspace{2cm}
+\noindent\rule{5cm}{0.4pt}\\
+\textbf{\mentor}\\
+(Internal Guide)
+
+\clearpage
+\vspace*{\fill}
+\begin{center}
+\fbox{\parbox{0.8\textwidth}{\centering\vspace{3cm}
+\large Turnitin similarity and AI-writing report\\[4pt]
+\normalsize (insert the printed report here)\vspace{3cm}}}
+\end{center}
+\vspace*{\fill}
