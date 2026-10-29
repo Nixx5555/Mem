@@ -206,7 +206,7 @@ MemGPT \cite{packer2023memgpt} (2023) & Multi-Session Chat; document QA & Tiered
 MemoryBank \cite{zhong2024memorybank} (2024) & Long-term dialogue (SiliconFriend) & Vector memory with Ebbinghaus forgetting curve & Forgets by elapsed time, not importance; no budget & Forgets by scored utility under a hard storage budget \\
 Generative Agents \cite{park2023generative} (2023) & Sandbox simulation & Memory stream; recency, importance and relevance; reflection & Unbounded stream; not built to cut tokens & Bounds the store; keeps retrieval by relevance \\
 A-MEM \cite{xu2025amem} (2025) & LoCoMo & Linked notes, dynamic revision & Focus on linking, not on budgeted forgetting & Budget-driven forgetting, compared on LoCoMo \\
-Mem0 \cite{chhikara2025mem0} (2025) & LoCoMo & LLM fact extraction with ADD/UPDATE/DELETE & Decisions made end to end by an LLM & Rebuilt in the same harness and compared at equal budgets \\
+Mem0 \cite{chhikara2025mem0} (2025) & LoCoMo & LLM fact extraction with ADD, UPDATE and DELETE & Decisions made end to end by an LLM & Rebuilt in the same harness and compared at equal budgets \\
 StreamingLLM \cite{xiao2024streaming} (2024) & Long-stream language modelling & Attention sinks plus rolling KV cache & Evicted content is gone for good & Evicted items can live on as gists or facts and be recalled \\
 H\textsubscript{2}O \cite{zhang2023h2o} (2023) & OPT and LLaMA tasks & Keeps heavy-hitter tokens in the KV cache & Works inside one forward pass & Works across sessions, at the conversation level \\
 LLMLingua \cite{jiang2023llmlingua} (2023) & GSM8K, BBH and others & Token-level prompt compression & Compresses, but does not decide what to keep & Tests compression against dropping inside one policy \\
