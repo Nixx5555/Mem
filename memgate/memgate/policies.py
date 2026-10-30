@@ -15,8 +15,9 @@ from .types import (Turn, MemoryItem, ContextBundle,
                     SHORT_TERM, WORKING, LONG_TERM)
 from .utils import count_tokens, embed, cosine
 from .compress import compress
-from .store import ThreeTierStore
+from .store import ThreeTierStore, rank
 from .scoring import HeuristicScorer
+from .pretrained import default_scorer
 
 
 def _pack(items: List[MemoryItem], budget: int) -> ContextBundle:
@@ -73,7 +74,7 @@ def _as_item(turn: Turn) -> MemoryItem:
         text=f"[{turn.speaker}] {turn.text}",
         tier=SHORT_TERM, kind="turn",
         session=turn.session, turn_index=turn.index,
-        fact_id=turn.fact_id,
+        fact_id=turn.fact_id, speaker=turn.speaker,
     )
 
 
@@ -248,11 +249,8 @@ class RAGPolicy:
         b_recent = int(budget * self.split[0])
         recent = _pack(list(reversed(self.items)), b_recent)
         seen = {id(i) for i in recent.items}
-        q = embed(query)
-        scored = [(cosine(q, i.embedding), i)
-                  for i in self.items if id(i) not in seen]
-        scored.sort(key=lambda x: -x[0])
-        hits = [i for sc, i in scored[:self.retrieve_k] if sc > 0]
+        hits = rank(query, [i for i in self.items if id(i) not in seen],
+                    self.retrieve_k)
         for i in hits:
             i.access_count += 1
         long_ = _pack(hits, budget - recent.tokens)
@@ -332,7 +330,7 @@ class MemGatePolicy:
         # stored tokens on a 16384-token allowance.
         if write_mode == "adaptive" and store_budget is not None:
             working_capacity_tokens = max(64, int(store_budget * 0.5))
-        self.scorer = scorer or HeuristicScorer()
+        self.scorer = scorer or default_scorer()
         self.store = ThreeTierStore(short_capacity, working_capacity_tokens,
                                     promote_threshold=promote_threshold,
                                     supersede_threshold=supersede_threshold,
@@ -407,7 +405,7 @@ class MemGatePolicy:
         item = _as_item(turn)
         evicted = self.store.add_short(item)
         if evicted is not None:
-            self._route(evicted, turn.speaker)
+            self._route(evicted, evicted.speaker)
 
     def _route(self, item: MemoryItem, speaker: str = "user"):
         u, label = self.scorer.score(item.text, speaker)

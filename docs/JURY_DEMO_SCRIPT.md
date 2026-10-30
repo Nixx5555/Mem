@@ -12,23 +12,23 @@ as `P3-learned`. To demo the hand-written P1 rules instead, start the app with
 
 ## Before the jury walks in
 
-1. Start the app and leave it running (`docs/RUN_FOR_JURY.md` has the setup):
+1. Start the app and leave it running (`docs/RUNNING.md` has the setup):
    ```bash
-   cd MemGate/memgate && source .venv/bin/activate
-   python3 live_demo.py
+   cd MemGate && ./start.sh        # Windows: start.bat
    ```
    Open `http://localhost:8765` and make sure the terminal shows
    `embedder: all-MiniLM-L6-v2` (not `hash-bow`) and `scorer: P3-learned`.
    The learned scorer needs MiniLM; without it the app falls back to P1.
-2. In the left sidebar set **Sizes → Demo (evicts quickly)** and
+2. In the left sidebar set **Sizes → Compact (forgets quickly)** and
    **Memory → P1-S · forget lowest score first**. Changing either starts a
    fresh chat, which is what you want.
 3. Open `MemGate/frontend/index.html` in a second browser tab (the results
    dashboard).
 4. Run **Benchmark check** once now, so you know it ends in two MATCH lines
    on this laptop.
-5. Close other heavy apps. Keep a screen recording of one clean run as a
-   backup.
+5. Close other heavy apps. Keep the 96-second recorded walkthrough
+   (`memgate_demo.mp4`, made with `docs/demo/record_demo.js`) open in a player
+   as the backup.
 
 ## 1. What MemGate is (30 s, no clicking)
 
@@ -57,7 +57,7 @@ model takes 8 November."
 
 ## 3. Watch it decide (2 min)
 
-**Click** **＋ New chat** (still Demo sizes, P1-S), then **Load sample chat**.
+**Click** **＋ New chat** (still Compact sizes, P1-S), then **Load sample chat**.
 This is 18 messages: greetings, small talk, a deadline, a correction, and a
 preference.
 
@@ -85,6 +85,37 @@ hand-written rules, this policy beats forgetting oldest-first by **+9.4
 answer-recall points** on LoCoMo. With the learned scorer, on conversations
 it never trained on, it is **+14.6 points better again**: 52.0% against
 37.5%."
+
+## 3b. Same question, three memories (1 min)
+
+Still in the sample chat, ask: `What is my name?`
+
+**Click** the second chip under the reply, **"2 the baselines forgot"**. It
+opens **Memory → Compare**: the same question answered from three memories
+that each hold at most S = 150 tokens and may send 512.
+
+* **MemGate** sent 11 notes, 140 tokens. Two are green, *only MemGate*: the
+  name ("My name is Simar…", message 2) and the review date (message 4).
+* **Sliding window (P0)** and **RAG store-all** each sent 14 notes, 137
+  tokens: "lol yes", "ok thanks", "You're welcome!"… and no name. Both had
+  already forgotten messages 0 to 4 because they were the oldest.
+* Click **Answer from this memory** under either baseline. The model answers
+  from that memory only, and should say it doesn't remember. Nothing is
+  saved, so the chat is unchanged.
+
+**Say:** "Same model, same budget, same question. The only difference is what
+each memory chose to keep. Forgetting by age loses the name; forgetting by
+score keeps it."
+
+Then **click** any Tier 3 note in **Tiers**. It opens *why this score*: the
+starting point, then each part that pushed the score up (green) or down
+(red), largest first, adding up exactly to the u shown. For "My name is
+Simar…" the largest part is what the message is about (MiniLM meaning),
+then that it names someone. **Decisions** has a box to score any message:
+`My exam is on 3 May` gives u = 0.98, `lol ok` gives 0.08.
+
+**Say:** "The learned scorer is a logistic regression, so every score breaks
+down exactly into its parts. Nothing here is a black box."
 
 ## 4. Why we don't compress (1 min)
 
@@ -161,7 +192,7 @@ they see their own messages being scored.
 
 ## If something breaks
 
-* **The model doesn't reply:** restart with `python3 live_demo.py --no-llm`.
+* **The model doesn't reply:** restart with `./start.sh --no-llm`.
   Steps 2–5 still work: the reply then shows what the model *would* see.
 * **Benchmark says DIFFERS:** check the embedder in the top-right info line.
   If it says `hash-bow`, MiniLM didn't load; restart.

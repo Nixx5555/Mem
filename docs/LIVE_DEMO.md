@@ -1,4 +1,4 @@
-# MemGate — live demo guide
+# MemGate — presenting the app
 
 There are two live pieces, and both run on one page:
 
@@ -7,20 +7,18 @@ There are two live pieces, and both run on one page:
    compressed or forgotten, and the exact context the model was given.
 2. **Benchmark check.** This re-runs the slide 11/12 comparison on all of
    LoCoMo in about 20 seconds and checks the result against the committed CSV.
-   The expected output is RAG 28.1%, P1-S 36.8%, both **MATCH**, +8.7 points.
+   The expected output is RAG 28.1%, P1-S 37.5%, both **MATCH**, +9.4 points.
 
 Everything runs offline on the laptop. No internet and no API key are needed.
 
 ## Starting it
 
 ```bash
-cd memgate
-python3 live_demo.py          # loads MiniLM + Qwen2.5-1.5B (~10 s), then:
-# open http://localhost:8765
+./start.sh          # from the repo root; opens http://localhost:8765
 ```
 
 * If the model won't load, the app says so in the terminal and carries on
-  without it. `python3 live_demo.py --no-llm` does the same on purpose. The
+  without it. `./start.sh --no-llm` does the same on purpose. The
   memory still works and the page shows what the model *would* have been sent.
 * `python3 run_live_check.py` runs the benchmark check from a terminal on its
   own, without the page.
@@ -46,7 +44,7 @@ The main page (`/`) is a chat app; the memory sits in a side panel behind the
 The app opens at **full scale**, the sizes the experiments ran with: Tier 1
 holds 6 messages, the context is 2048 tokens, and P1-S/P1-A use S = 4096. At
 that scale nothing is evicted until a long conversation. For the jury, pick
-**Demo scale** in the top bar: Tier 1 holds 4 messages, the context is 512
+**Sizes → Compact** in the sidebar: Tier 1 holds 4 messages, the context is 512
 tokens and S = 150, so decisions happen within a few messages. Those sizes are
 the only settings that differ from the experiments.
 
@@ -54,6 +52,15 @@ Every conversation is saved (in `memgate/chats/`) and comes back after a
 restart. *New chat* starts a fresh memory; the dropdown next to it switches
 between saved chats. Every decision on screen comes from the same `observe()` and
 `build_context()` code the results came from.
+
+### Any text, not just chat turns
+
+The composer takes anything: a long paste, another language, code, emoji. The
+**＋** button (or dropping a file on the page) adds a whole file to memory:
+PDF, Word (.docx), PowerPoint (.pptx), Markdown, plain text in any encoding,
+CSV, JSON, HTML, notebooks and code. Long input is cut into sentence-sized
+pieces, each scored, stored and recalled on its own, and the file's pieces are
+tagged with its name. See `docs/ANY_INPUT.md` for how and what was measured.
 
 ## The script
 

@@ -1,0 +1,39 @@
+% Fig.: system architecture. Write path on top (left to right), read path
+% below (right to left); the reader's reply re-enters the write path like
+% any other message, so the application stores both sides of the chat.
+\begin{tikzpicture}[x=1mm, y=1mm]
+% ---- write path
+\node[proc, text width=19mm] (msg) at (0,0) {Message\\(user or reply)};
+\node[proc, text width=22mm] (ing) at (33,0) {Ingest: clean;\\$>$120 tokens $\Rightarrow$\\pieces of $\le$48};
+\node[tier, text width=21mm] (t1) at (66,0) {\textbf{Tier 1}\\last 6 items,\\verbatim, FIFO};
+\node[model, text width=22mm] (sc) at (99,0) {\textbf{Scorer} $u\in[0,1]$\\\mbox{GuardedScorer}\\over P1 or P3\\(Fig.~\ref{fig:scoring})};
+\node[proc, text width=22mm] (rt) at (132,0) {\textbf{Router}\\P1, \mbox{P1-A},\\\mbox{P1-S}\\(Fig.~\ref{fig:routing}a)};
+\node[tier, text width=31mm] (t3) at (172,9) {\textbf{Tier 3}: \mbox{verbatim turns}\\+ MiniLM vectors};
+\node[tier, text width=31mm] (t2) at (172,-9) {\textbf{Tier 2}: short gists\\(8--14 words) + vectors};
+\node[bad, text width=40mm] (bud) at (165,27) {\textbf{Budget} (Fig.~\ref{fig:routing}b): while $\sum_i c_i > S$, evict $\arg\min_i (u_i,t_i)$};
+\draw[flow] (msg) -- (ing);
+\draw[flow] (ing) -- (t1);
+\draw[flow] (t1) -- node[lab, above=1mm]{evicted} (sc);
+\draw[flow] (sc) -- node[lab, above]{$u$} (rt);
+\draw[flow] (rt.east) -- ++(3,0) |- (t3.west);
+\draw[flow] (rt.east) -- ++(3,0) |- (t2.west);
+\draw[aux] (t3.east) -- ++(3,0) |- node[lab, right, pos=0.25, align=left]{demote\\(P1, P1-A)} (t2.east);
+\draw[aux] (bud.south -| t3.north) -- (t3.north);
+% ---- read path, right to left
+\node[proc, text width=19mm] (q) at (172,-38) {Question};
+\node[proc, text width=22mm] (qs) at (132,-38) {\texttt{queries()}: one query per question asked};
+\node[proc, text width=22mm] (ret) at (99,-38) {Retrieve: cosine top-$k$, $k=60$};
+\node[proc, text width=21mm] (asm) at (66,-38) {Assemble $\le B$ tokens: 25\% recent, rest by rank};
+\node[model, text width=22mm] (llm) at (33,-38) {\textbf{Frozen reader}\\Qwen2.5 (local),\\Claude, Gemini};
+\node[res, text width=19mm] (rep) at (0,-38) {Reply\\(no raw history)};
+\draw[flow] (q) -- (qs);
+\draw[flow] (qs) -- (ret);
+\draw[flow] (ret) -- node[lab, above=1mm]{ranked} (asm);
+\draw[flow] (asm) -- node[lab, above=1mm]{context} (llm);
+\draw[flow] (llm) -- (rep);
+\draw[aux] (t2.south) -- ++(0,-10) -| node[lab, above, pos=0.25]{search Tier 3 (+ Tier 2 in P1-A, P1-S)} (ret.north);
+\draw[aux] (t1.south) -- node[lab, right, pos=0.5]{recent} (asm.north);
+\draw[aux] (rep.north) -- node[lab, left, align=right, pos=0.5]{observed\\like any\\message} (msg.south);
+\node[lab, font=\dscript\itshape, anchor=west] at (-10,14) {write path};
+\node[lab, font=\dscript\itshape, anchor=west] at (-10,-50) {read path};
+\end{tikzpicture}

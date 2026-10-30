@@ -1,0 +1,38 @@
+# Runs every test suite (python run_tests.py) on each push and pull request,
+# with the real MiniLM embedder and LoCoMo, so "all tests pass" can be checked
+# by anyone from the repository page. No chat model: the app tests use a stub.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: memgate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: memgate/requirements*.txt
+      - name: Install packages (CPU-only torch)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements-research.txt
+      - name: Cache the embedder and the benchmark
+        uses: actions/cache@v4
+        with:
+          path: |
+            memgate/models
+            memgate/data/locomo
+          key: models-minilm-locomo-v1
+      - name: Download the embedder and LoCoMo
+        run: python setup_models.py --no-chat
+      - name: Run the tests
+        run: python run_tests.py

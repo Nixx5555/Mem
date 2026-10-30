@@ -1,0 +1,5 @@
+  {'test': '5,000 messages in one chat', 'first_100_mean_s': 0.037, 'last_100_mean_s': 0.119, 'p95_s': 0.124, 'max_s': 0.18, 'stored_tokens': 4093, 'store_budget': 4096}
+  BEAM 1M: 35 chats, 74630 turns, 622 questions (dropped 0 dangling-evidence, 75 empty-evidence, 3 ambiguous)
+  {'test': 'BEAM 1M chat (beam-1M-1) typed into one chat', 'messages': 855, 'said_tokens': 975611, 'stored_tokens': 25991, 'first_100_mean_s': 0.287, 'last_100_mean_s': 0.37, 'p95_s': 0.473, 'max_s': 1.84, 'saved_file_mb': 4.2, 'reopen_s': 70.5, 'reopened_same_state': True, 'peak_rss_mb': 2816}
+  {'test': '200 visitors x 10 messages at once', 'wall_s': 25.0, 'errors': 0, 'leaks': 0, 'messages': 2000, 'p50_s': 2.39, 'p95_s': 2.66}
+  {'test': '100 messages into one chat at once', 'kept': 100, 'transcript': 200}

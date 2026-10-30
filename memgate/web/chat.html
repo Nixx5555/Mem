@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MemGate</title>
+<style>
+  :root {
+    --ink: #1d1d1b; --muted: #6b6b66; --faint: #9a9a94; --line: #e6e5df;
+    --bg: #ffffff; --side: #f6f5f1; --bubble: #f1f0eb; --accent: #c1272d;
+    --accent-ink: #ffffff; --hover: #ecebe5;
+    --t1: #34617c; --t1-soft: #e7eef5; --t2: #8a6d1f; --t2-soft: #f7f0dc;
+    --t3: #2e6b4a; --t3-soft: #e7f2eb; --drop: #9a1f24;
+    font-family: -apple-system, "Segoe UI", Inter, Roboto, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px;
+         display: grid; grid-template-columns: 260px 1fr auto; overflow: hidden; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+
+  /* sidebar */
+  #side { background: var(--side); border-right: 1px solid var(--line);
+          display: flex; flex-direction: column; min-height: 0; }
+  .brand { padding: 16px 16px 8px; font: 700 21px/1 Georgia, "Times New Roman", serif; }
+  .brand span { color: var(--accent); }
+  #newChat { margin: 8px 12px; padding: 10px 12px; border: 1px solid var(--line);
+             border-radius: 10px; background: var(--bg); text-align: left; font-weight: 600; }
+  #newChat:hover { background: var(--hover); }
+  .label { padding: 12px 16px 4px; font-size: 11px; letter-spacing: .06em;
+           text-transform: uppercase; color: var(--faint); }
+  #chatList { flex: 1; overflow-y: auto; padding: 0 8px; }
+  .ci { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 8px;
+        cursor: pointer; font-size: 14px; }
+  .ci:hover { background: var(--hover); }
+  .ci.on { background: var(--hover); font-weight: 600; }
+  .ci .t { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .ci .x { visibility: hidden; border: 0; background: none; color: var(--faint); padding: 0 4px; }
+  .ci:hover .x { visibility: visible; }
+  #settings { border-top: 1px solid var(--line); padding: 10px 12px 14px;
+              display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+  #settings select, #settings input { width: 100%; padding: 6px 8px; border: 1px solid var(--line);
+              border-radius: 8px; background: var(--bg); }
+  #settings .row { display: flex; gap: 8px; align-items: center; }
+  #settings .row label { white-space: nowrap; color: var(--muted); }
+  .small { color: var(--faint); font-size: 11.5px; line-height: 1.4; }
+  .linkbtn { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 6px 8px; }
+  .linkbtn:hover { background: var(--hover); }
+
+  /* main chat */
+  #main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  #top { display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+         border-bottom: 1px solid var(--line); min-height: 52px; }
+  #menuBtn { display: none; border: 0; background: none; font-size: 20px; }
+  #title { font-weight: 600; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .pill { font-size: 12px; color: var(--muted); border: 1px solid var(--line);
+          border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+  #memBtn { border: 1px solid var(--line); background: var(--bg); border-radius: 999px;
+            padding: 5px 12px; font-size: 13px; font-weight: 600; }
+  #memBtn.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  #scroll { flex: 1; overflow-y: auto; }
+  #msgs { max-width: 760px; margin: 0 auto; padding: 24px 20px 12px;
+          display: flex; flex-direction: column; gap: 18px; }
+  .m { display: flex; gap: 12px; line-height: 1.55; }
+  .m .av { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid;
+           place-items: center; font-size: 13px; font-weight: 700; }
+  .m.bot .av { background: var(--accent); color: var(--accent-ink); }
+  .m.user { justify-content: flex-end; }
+  .m.user .body { background: var(--bubble); border-radius: 18px; padding: 9px 15px; max-width: 78%; }
+  .m.bot .body { max-width: calc(100% - 42px); padding-top: 3px; }
+  .m .body, .m .txt { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .m.user { flex-direction: column; align-items: flex-end; gap: 3px; }
+  .fate { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 2px 10px;
+          border: 1.5px solid currentColor; cursor: pointer; white-space: nowrap; }
+  .fate.t1 { color: var(--t1); background: var(--t1-soft); }
+  .fate.t2 { color: var(--t2); background: var(--t2-soft); }
+  .fate.t3 { color: var(--t3); background: var(--t3-soft); }
+  .fate.gone { color: var(--drop); background: #fbeaea; }
+  .fate.wait { color: var(--muted); background: var(--bg); border-style: dashed; }
+  .m.bot .fate { margin-top: 6px; display: inline-block; font-size: 11px; }
+  .fatewhy { max-width: min(460px, 100%); align-self: flex-end; background: var(--bg);
+             border: 1px solid var(--line); border-radius: 10px; padding: 4px 10px 8px; }
+  .m.bot .fatewhy { align-self: auto; margin-top: 6px; }
+  .md p { margin: 0 0 8px; } .md p:last-child { margin-bottom: 0; }
+  .md ul, .md ol { margin: 4px 0 8px; padding-left: 22px; } .md li { margin: 2px 0; }
+  .md code { background: var(--bubble); border-radius: 4px; padding: 0 4px; font-size: 0.92em; }
+  .md .h { font-weight: 700; margin: 6px 0 4px; }
+  .fate.moved { animation: pulse 1.2s ease-out 1; }
+  @keyframes pulse { from { box-shadow: 0 0 0 4px currentColor; } to { box-shadow: 0 0 0 0 transparent; } }
+  .m .meta { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px;
+          padding: 2px 9px; background: var(--bg); }
+  button.chip:hover { background: var(--hover); }
+  .note { align-self: center; color: var(--faint); font-size: 12.5px; text-align: center; }
+  .dots span { display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 50%;
+               background: var(--faint); animation: blink 1.2s infinite both; }
+  .waiting { margin-top: 6px; font-size: 12px; color: var(--muted, #888); }
+  .dots span:nth-child(2) { animation-delay: .2s; } .dots span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+
+  #welcome { max-width: 640px; margin: 12vh auto 0; padding: 0 20px; text-align: center; }
+  #welcome h2 { font: 600 28px/1.25 Georgia, "Times New Roman", serif; margin: 0 0 8px; }
+  #welcome p { color: var(--muted); margin: 0 0 22px; }
+  .sugg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
+  .sugg button { border: 1px solid var(--line); background: var(--bg); border-radius: 12px;
+                 padding: 12px 14px; font-size: 14px; }
+  .sugg button:hover { background: var(--side); }
+  .sugg small { display: block; color: var(--faint); margin-top: 2px; }
+
+  #composer { padding: 8px 16px 18px; }
+  #form { max-width: 760px; margin: 0 auto; display: flex; align-items: flex-end; gap: 8px;
+          border: 1px solid #d6d5cf; border-radius: 22px; padding: 8px 8px 8px 16px;
+          box-shadow: 0 2px 10px rgba(0,0,0,.05); background: var(--bg); }
+  #text { flex: 1; border: 0; outline: none; resize: none; max-height: 180px; padding: 6px 0;
+          line-height: 1.45; background: transparent; }
+  #send { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 0;
+          background: var(--accent); color: var(--accent-ink); font-size: 18px; font-weight: 700; }
+  #send:disabled { opacity: .35; cursor: default; }
+  #attach { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 0; background: none;
+            color: var(--muted); font-size: 20px; line-height: 1; }
+  #attach:hover { background: var(--hover); }
+  #form.drag { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(193,39,45,.15); }
+  .file { display: flex; gap: 10px; align-items: center; }
+  .file .ic { flex: none; width: 34px; height: 40px; border-radius: 6px; background: var(--accent);
+              color: var(--accent-ink); display: grid; place-items: center; font-size: 10px; font-weight: 700;
+              text-transform: uppercase; }
+  .file .fn { font-weight: 600; overflow-wrap: anywhere; }
+  .file .fs { font-size: 12px; color: var(--muted); }
+  .m.user .body details { margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+  .m.user .body details div { max-height: 220px; overflow: auto; margin-top: 4px; }
+  .hint { max-width: 760px; margin: 6px auto 0; text-align: center; color: var(--faint); font-size: 11.5px; }
+
+  /* memory panel */
+  #mem { width: 0; overflow: hidden; border-left: 1px solid var(--line); background: var(--side);
+         display: flex; flex-direction: column; transition: width .2s; min-height: 0; }
+  body.memOpen #mem { width: 400px; }
+  #mem .head { padding: 12px 14px 0; }
+  #mem .head b { font-size: 15px; }
+  .stats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 6px 0 10px; }
+  .stats b { color: var(--ink); font-size: 16px; margin-right: 3px; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); padding: 0 10px; }
+  .tabs button { border: 0; background: none; padding: 8px 10px; font-size: 13px; color: var(--muted);
+                 border-bottom: 2px solid transparent; }
+  .tabs button.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+  .pane { flex: 1; overflow-y: auto; padding: 10px 12px; min-height: 0; }
+  .tierh { font-size: 12px; font-weight: 700; margin: 10px 0 6px; display: flex; justify-content: space-between; }
+  .tierh small { font-weight: 400; color: var(--faint); }
+  .tierh.t1 { color: var(--t1); } .tierh.t2 { color: var(--t2); } .tierh.t3 { color: var(--t3); }
+  .it { background: var(--bg); border: 1px solid var(--line); border-left: 3px solid var(--line);
+        border-radius: 7px; padding: 6px 8px; font-size: 13px; line-height: 1.35; margin-bottom: 5px; }
+  .it.t1 { border-left-color: var(--t1); } .it.t2 { border-left-color: var(--t2); } .it.t3 { border-left-color: var(--t3); }
+  .it.fresh { animation: flash 1.6s ease-out; }
+  @keyframes flash { from { background: #fff4b8; } to { background: var(--bg); } }
+  .it.gone { text-decoration: line-through; color: var(--faint); }
+  .it .mt { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; gap: 6px; align-items: center; }
+  .bar { width: 44px; height: 4px; background: #e5e5e0; border-radius: 2px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  .ev { font-size: 12.5px; line-height: 1.35; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  .tg { font-weight: 700; font-size: 10.5px; text-transform: uppercase; margin-right: 6px; }
+  .tg.t1 { color: var(--t1); } .tg.t2 { color: var(--t2); } .tg.t3 { color: var(--t3); }
+  .tg.drop, .tg.supersede { color: var(--drop); }
+  .ev .q { color: var(--muted); font-style: italic; margin-top: 2px; }
+  .empty { color: var(--faint); font-size: 13px; padding: 6px 0; }
+  .it.t2, .it.t3 { cursor: pointer; }
+  .it.t2:hover, .it.t3:hover { border-color: #cfcec8; }
+
+  /* why this score */
+  .why { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); font-size: 12px; cursor: default; }
+  .why .wr { display: grid; grid-template-columns: 1fr 92px 46px; gap: 6px; align-items: center; padding: 1.5px 0; }
+  .why .wn { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .why .wb { height: 7px; position: relative; background: #f0efea; border-radius: 2px; }
+  .why .wb i { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+  .why .wb i.up { left: 50%; background: var(--t3); } .why .wb i.dn { right: 50%; background: var(--drop); }
+  .why .wb::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: #c9c8c2; }
+  .why .wv { text-align: right; font-variant-numeric: tabular-nums; }
+  .why .wt { margin-top: 4px; color: var(--ink); }
+  #tryForm { display: flex; gap: 6px; margin-bottom: 10px; }
+  #tryForm input { flex: 1; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-size: 13px; }
+
+  /* compare with baselines */
+  .cmp { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; margin-bottom: 10px; }
+  .cmp.mg { border-color: var(--t3); }
+  .cmp h4 { margin: 0 0 2px; font-size: 13px; display: flex; justify-content: space-between; gap: 8px; }
+  .cmp h4 small { font-weight: 400; color: var(--faint); }
+  .cmp .n { font-size: 12.5px; line-height: 1.35; padding: 3px 0; border-top: 1px dotted var(--line); }
+  .cmp .n.only { background: var(--t3-soft); margin: 0 -10px; padding: 3px 10px; }
+  .badge { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--t3); margin-left: 4px; }
+  .cmp .ans { margin-top: 6px; font-size: 13px; white-space: pre-wrap; background: var(--side); border-radius: 7px; padding: 6px 8px; }
+  .save { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; line-height: 1.45; }
+  .save b { color: var(--ink); }
+
+  /* benchmark dialog */
+  dialog { border: 1px solid var(--line); border-radius: 14px; padding: 0; width: min(760px, 94vw); }
+  dialog .dh { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  dialog pre { margin: 0; padding: 12px 16px; height: 46vh; overflow: auto; font-size: 12px; background: #fafaf8; }
+  dialog .res { padding: 10px 16px; font-size: 14px; border-top: 1px solid var(--line); }
+  .ok { color: var(--t3); font-weight: 700; } .bad { color: var(--drop); font-weight: 700; }
+  .primary { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 6px 12px; font-weight: 600; }
+
+  @media (max-width: 860px) {
+    body { grid-template-columns: 1fr; }
+    #side { position: fixed; inset: 0 auto 0 0; width: 270px; z-index: 5; transform: translateX(-100%);
+            transition: transform .2s; box-shadow: 4px 0 20px rgba(0,0,0,.1); }
+    body.sideOpen #side { transform: none; }
+    #menuBtn { display: block; }
+    #mem { position: fixed; inset: 0 0 0 auto; z-index: 5; box-shadow: -4px 0 20px rgba(0,0,0,.1); }
+    body.memOpen #mem { width: min(400px, 100vw); }
+    .sugg { grid-template-columns: 1fr; }
+    .pill { display: none; }
+  }
+</style>
+</head>
+<body>
+<aside id="side">
+  <div class="brand">Mem<span>Gate</span></div>
+  <button id="newChat">＋ New chat</button>
+  <div class="label">Chats</div>
+  <div id="chatList"></div>
+  <div id="settings">
+    <div class="row"><label for="mode">Memory</label>
+      <select id="mode">
+        <option value="p1s">P1-S · forget lowest score first</option>
+        <option value="p1">P1 · threshold routing</option>
+        <option value="p1a">P1-A · demote to a gist</option>
+      </select></div>
+    <div class="row"><label for="scale">Sizes</label>
+      <select id="scale">
+        <option value="full">Full (as in experiments)</option>
+        <option value="compact">Compact (forgets quickly)</option>
+      </select></div>
+    <div class="row" id="sRow"><label for="S">Store S</label><input id="S" type="number" min="40" step="10" value="4096"></div>
+    <div class="small">Changing these starts a new chat.</div>
+    <div class="row">
+      <button class="linkbtn" id="sample" style="flex:1">Load sample chat</button>
+      <button class="linkbtn" id="benchBtn" style="flex:1">Benchmark check</button>
+    </div>
+    <a class="small" href="/inspect" target="_blank" style="color:var(--muted)">Open the full memory view (all three tiers side by side) ↗</a>
+    <div class="small" id="info"></div>
+  </div>
+</aside>
+
+<main id="main">
+  <div id="top">
+    <button id="menuBtn" aria-label="chats">☰</button>
+    <div id="title">New chat</div>
+    <span class="pill" id="modePill"></span>
+    <button id="memBtn" title="what MemGate is holding">Memory</button>
+  </div>
+  <div id="scroll">
+    <div id="welcome" hidden>
+      <h2>What should I remember?</h2>
+      <p>Chat normally. MemGate scores every message, yours and the model's replies,
+         and decides what to keep, compress or forget; the tag under each message shows
+         where it went and its score (click it for why). The model only ever sees what
+         MemGate sends it. Open <b>Memory</b> to watch it happen.</p>
+      <div class="sugg">
+        <button data-t="My name is Simar and my capstone final review is on 6 November.">Tell it a fact<small>“My final review is on 6 November.”</small></button>
+        <button data-t="Actually the review moved to 8 November.">Correct yourself<small>“Actually it moved to 8 November.”</small></button>
+        <button data-t="When is my final review?">Ask about it later<small>“When is my final review?”</small></button>
+        <button data-sample="1">Load a sample chat<small>18 messages to ask questions about</small></button>
+      </div>
+    </div>
+    <div id="msgs"></div>
+  </div>
+  <div id="composer">
+    <form id="form" autocomplete="off">
+      <button type="button" id="attach" title="Add a file: text, Markdown, code, CSV, JSON, HTML, PDF, Word, PowerPoint">＋</button>
+      <input type="file" id="fileIn" multiple hidden
+             accept=".txt,.md,.markdown,.csv,.tsv,.json,.jsonl,.html,.htm,.xml,.yaml,.yml,.log,.pdf,.docx,.pptx,.ipynb,.tex,.srt,.py,.js,.ts,.java,.c,.cpp,.h,.go,.rs,.rb,.php,.sql,.sh,.css,text/*">
+      <textarea id="text" rows="1" placeholder="Message MemGate…"></textarea>
+      <button id="send" title="Send" disabled>↑</button>
+    </form>
+    <div class="hint" id="hint">Enter to send · Shift+Enter for a new line · ＋ or drop a file (PDF, Word, PowerPoint, text, code) to add it to memory</div>
+  </div>
+</main>
+
+<aside id="mem">
+  <div class="head"><b>Memory</b><div class="stats" id="stats"></div></div>
+  <div class="tabs">
+    <button data-tab="tiers" class="on">Tiers</button>
+    <button data-tab="log">Decisions</button>
+    <button data-tab="ctx">Sent to model</button>
+    <button data-tab="cmp">Compare</button>
+  </div>
+  <div class="pane" id="pane"></div>
+</aside>
+
+<dialog id="bench">
+  <div class="dh"><b>Benchmark check</b>
+    <label class="small">S <input id="benchS" type="number" value="4096" step="1024" min="512" style="width:80px"></label>
+    <button class="primary" id="benchRun">Run</button>
+    <span id="benchStatus" class="small"></span>
+    <button class="linkbtn" id="benchClose" style="margin-left:auto">Close</button></div>
+  <pre id="benchOut">Replays all 10 LoCoMo conversations (1,527 questions) through RAG store-all and
+P1-S select at the same storage budget, and compares the result with the
+committed results/storage_sweep.csv. About 20 seconds.</pre>
+  <div class="res" id="benchRes" hidden></div>
+</dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const SCALE_S = {full: 4096, compact: 150};
+let state = null, seen = new Set(), busy = false, tab = 'tiers', lastCtx = null;
+let lastCmp = null, rivalAns = {}, whyOpen = null, whyData = null, tryData = null;
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const MAX_CHARS = 200000;  // app.py MAX_CHARS
+const MAX_FILE_MB = 15;    // ingest.py MAX_UPLOAD_BYTES
+// Which visitor this browser is, for a public link (app.py --public). Sent as
+// a header as well as the cookie, because a page shown inside another site (a
+// Hugging Face Space) may not get its cookies.
+const VISITOR = (() => {
+  try {
+    let v = localStorage.getItem('mg_visitor');
+    if (!/^[0-9a-f]{32}$/.test(v || '')) {
+      v = Array.from(crypto.getRandomValues(new Uint8Array(16)),
+                     b => b.toString(16).padStart(2, '0')).join('');
+      localStorage.setItem('mg_visitor', v);
+    }
+    return v;
+  } catch (e) { return ''; }
+})();
+async function api(path, body) {
+  const hdr = VISITOR ? {'X-MemGate-Visitor': VISITOR} : {};
+  const r = await fetch(path, body === undefined ? {headers: hdr} :
+    {method: 'POST', headers: {...hdr, 'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+const strip = t => t.replace(/^\[(user|assistant|file [^\]]*)\]\s*/, '');
+
+// ---------------------------------------------------------------- messages
+function bottom() { $('scroll').scrollTop = $('scroll').scrollHeight; }
+function addMsg(who, text) {
+  $('welcome').hidden = true;
+  const d = document.createElement('div');
+  d.className = 'm ' + (who === 'user' ? 'user' : 'bot');
+  d.innerHTML = who === 'user' ? `<div class="body"></div>`
+                               : `<div class="av">M</div><div class="body"><div class="txt"></div></div>`;
+  const el = d.querySelector(who === 'user' ? '.body' : '.txt');
+  if (who === 'user' && text.length > 1500) {     // a long paste: show its start
+    el.innerHTML = '<div></div><details><summary>Show all</summary><div></div></details>';
+    el.firstChild.textContent = text.slice(0, 320) + '…';
+    el.querySelector('details div').textContent = text;
+  } else el.textContent = text;
+  $('msgs').appendChild(d); bottom();
+  return d;
+}
+function fileSize(f) {
+  const w = f.words || 0;
+  return `${w.toLocaleString()} words · ${(f.tokens || 0).toLocaleString()} tokens`;
+}
+function addFile(f, preview) {
+  const d = addMsg('user', '');
+  const ext = (f.name.split('.').pop() || 'txt').slice(0, 4);
+  d.querySelector('.body').innerHTML = `<div class="file"><div class="ic">${esc(ext)}</div>
+    <div><div class="fn">${esc(f.name)}</div><div class="fs">${fileSize(f)} · added to memory</div></div></div>` +
+    (preview ? `<details><summary>Show the text</summary><div></div></details>` : '');
+  if (preview) d.querySelector('details div').textContent = preview;
+  return d;
+}
+function addNote(text) {
+  const d = document.createElement('div'); d.className = 'note'; d.textContent = text;
+  $('msgs').appendChild(d); bottom();
+}
+function typeInto(el, text) {          // reveal the reply word by word
+  return new Promise(res => {
+    const words = text.split(/(\s+)/); let i = 0; el.textContent = '';
+    const step = () => {
+      el.textContent += words.slice(i, i + 3).join(''); i += 3; bottom();
+      if (i < words.length) setTimeout(step, 22); else res();
+    };
+    step();
+  });
+}
+function showTranscript(s) {
+  $('msgs').innerHTML = '';
+  s.transcript.forEach((m, i) => {
+    const d = m.file ? addFile(m.file, m.text) : addMsg(m.speaker, m.text);
+    if (m.speaker === 'assistant') {
+      const txt = d.querySelector('.txt');
+      txt.classList.add('md'); txt.innerHTML = md(m.text);
+    }
+    d.dataset.ti = i;
+  });
+  $('welcome').hidden = s.transcript.length > 0;
+  lastCtx = null; lastCmp = null; rivalAns = {}; whyOpen = null;
+}
+
+// ---------------------------------------------------------------- memory panel
+function itemHTML(it, fresh) {
+  const sc = it.tier !== 't1';
+  return `<div class="it ${it.tier} ${fresh ? 'fresh' : ''} ${it.superseded ? 'gone' : ''}" data-id="${esc(it.id)}"
+    ${sc ? 'title="Click: why this score?"' : ''}>${esc(it.text)}
+    <div class="mt">${sc ? `<span class="bar"><i style="width:${Math.round(it.utility * 100)}%"></i></span>
+      <span>u ${it.utility.toFixed(2)}</span><span>${esc(it.label)}</span>` : `<span>#${it.turn}</span>`}
+      <span>${it.tokens} tok</span>${it.superseded ? '<span>superseded</span>' : ''}</div>
+      ${whyOpen === it.id ? whyHTML(whyData) : ''}</div>`;
+}
+
+// The scorer's breakdown: every part that adds up to the score, largest first.
+function whyHTML(w) {
+  if (!w) return '<div class="why">working out why…</div>';
+  if (w.error) return `<div class="why">${esc(w.error)}</div>`;
+  const max = Math.max(1e-6, ...w.parts.map(p => Math.abs(p.effect)));
+  const fmt = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2);
+  const rows = w.parts.map(p => `<div class="wr"><span class="wn" title="${esc(p.name)}">${esc(p.name)}</span>
+      <span class="wb"><i class="${p.effect >= 0 ? 'up' : 'dn'}" style="width:${Math.abs(p.effect) / max * 50}%"></i></span>
+      <span class="wv">${fmt(p.effect)}</span></div>`).join('');
+  const u0 = w.guard ? w.unguarded : w.utility;   // what the parts add up to
+  const how = (w.unit === 'log-odds'
+    ? `${esc(w.scorer)}: ${w.base.toFixed(2)} ${esc(w.base_name)}, plus the parts below, gives ${w.total.toFixed(2)} log-odds, so u = ${u0.toFixed(2)}.`
+    : `${esc(w.scorer)}: ${esc(w.base_name)} ${w.base.toFixed(2)}${w.parts.length ? ' plus the rules that fired' : ''} gives u = ${u0.toFixed(2)}.`)
+    + (w.guard ? ` Then a guard for unusual input sets u = ${w.utility.toFixed(2)}: ${esc(w.guard)}.` : '');
+  const merged = w.made_from && w.made_from.length > 1
+    ? `<div class="small" style="margin-bottom:4px">Merged from messages ${w.made_from.map(n => '#' + n).join(', ')}; this is the score of #${w.made_from[0]}.</div>` : '';
+  return `<div class="why">${merged}<div class="small" style="margin-bottom:4px">${how}</div>${rows}
+    <div class="wt">→ <b>${esc(w.label)}</b>, u = ${w.utility.toFixed(2)}${state && state.mode === 'p1' ?
+      ` (Tier 3 needs ≥ ${state.tau_fact}, Tier 2 ≥ ${state.tau_low})` : ' (lowest u is forgotten first)'}</div></div>`;
+}
+async function toggleWhy(id) {
+  if (whyOpen === id) { whyOpen = null; renderPane(); return; }
+  whyOpen = id; whyData = null; renderPane();
+  try { whyData = await api('/api/why', {id}); } catch (e) { whyData = {error: e.message}; }
+  if (whyOpen === id) renderPane();
+}
+
+const ROWS = {memgate: ['MemGate', 'what this chat actually sent'],
+              window: ['Sliding window (P0)', 'keeps the most recent S tokens'],
+              rag: ['RAG store-all', 'keeps every message, forgets the oldest past S']};
+function cmpHTML() {
+  const c = lastCmp;
+  if (!c) return '<div class="empty">Ask a question to see the same question answered from three memories: MemGate, a sliding window and RAG, all holding at most the same S tokens.</div>';
+  const mg = c.rows.memgate, only = mg.notes.filter(n => n.only).length;
+  let h = `<div class="save">“${esc(c.query)}”<br>Each memory holds at most <b>S = ${c.store_budget}</b> tokens and may send
+    <b>${c.context_budget}</b>. ${only ? `<b>${only}</b> of MemGate's notes come from messages <b>both baselines had already forgotten</b> (green).`
+      : c.said_tokens <= c.store_budget ? 'The chat still fits in S, so nothing has been forgotten yet: try Compact sizes or a longer chat.'
+      : 'Here MemGate sent nothing the baselines lacked.'}</div>`;
+  for (const k of ['memgate', 'window', 'rag']) {
+    const r = c.rows[k];
+    h += `<div class="cmp ${k === 'memgate' ? 'mg' : ''}"><h4>${ROWS[k][0]} <small>${r.tokens} tok sent · ${r.stored_tokens} held</small></h4>
+      <div class="small" style="margin-bottom:4px">${ROWS[k][1]}; draws on ${r.messages} message${r.messages === 1 ? '' : 's'}</div>` +
+      r.notes.map(n => `<div class="n ${n.only ? 'only' : ''}">${esc(n.text)}${n.only ? '<span class="badge">only MemGate</span>' : ''}</div>`).join('') +
+      (k !== 'memgate' && state && state.model_enabled
+        ? (rivalAns[k] ? `<div class="ans">${esc(rivalAns[k])}</div>`
+                       : `<button class="linkbtn" data-rival="${k}" style="margin-top:6px">Answer from this memory</button>`) : '') +
+      '</div>';
+  }
+  return h;
+}
+const TAG = {enter: 't1', t3: 't3', t2: 't2', dup: 't3', drop: 'drop', demote: 't2', merge: 't2', supersede: 'supersede'};
+const TAGNAME = {enter: 'Tier 1', t3: 'Tier 3', t2: 'Tier 2', dup: 'Tier 3', drop: 'forgot', demote: 'demoted', merge: 'merged', supersede: 'replaced'};
+
+function renderPane() {
+  const s = state; if (!s) return;
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  let h = '';
+  if (tab === 'tiers') {
+    const heads = {t1: ['Tier 1 · short-term', `last ${s.short_capacity} messages, verbatim`],
+                   t2: ['Tier 2 · working', 'compressed gists'],
+                   t3: ['Tier 3 · long-term', 'facts, retrieved by meaning']};
+    for (const k of ['t3', 't2', 't1']) {
+      const items = s[k];
+      const why = (k === 't2' && s.mode === 'p1s') ? 'P1-S never compresses: kept whole or forgotten.' : 'empty';
+      h += `<div class="tierh ${k}">${heads[k][0]} <small>${heads[k][1]}</small></div>` +
+        (items.length ? items.slice().reverse().map(it => itemHTML(it, !seen.has(it.id))).join('')
+                      : `<div class="empty">${why}</div>`);
+    }
+  } else if (tab === 'cmp') {
+    h = cmpHTML();
+  } else if (tab === 'log') {
+    const ev = s.log.slice().reverse().filter(e => e.type !== 'enter');
+    h = `<form id="tryForm"><input id="tryText" placeholder="Score any message, e.g. “my exam is on 3 May”"><button class="linkbtn">Score</button></form>` +
+        (tryData ? `<div class="it t3">${esc(tryData.text || '')}${whyHTML(tryData)}</div>` : '') +
+        (ev.length ? ev.map(e => `<div class="ev"><span class="tg ${TAG[e.type]}">${TAGNAME[e.type]}</span>${esc(e.msg)}
+          <div class="q">“${esc(e.text.length > 110 ? e.text.slice(0, 110) + '…' : e.text)}”</div></div>`).join('')
+        : '<div class="empty">Nothing has left Tier 1 yet. Decisions happen when a message is pushed out of it.</div>');
+  } else {
+    const name = {t1: 'TIER 1', t2: 'TIER 2', t3: 'TIER 3'};
+    h = lastCtx ? `<div class="small" style="margin-bottom:8px">${lastCtx.tokens} of ${s.context_budget} tokens.
+          The model saw only these notes, not the chat history.</div>` +
+        (lastCtx.items.length ? lastCtx.items.map(it =>
+          `<div class="it ${it.tier}"><span class="tg ${it.tier}">${name[it.tier]}</span>${esc(it.text)}</div>`).join('')
+          : '<div class="empty">Nothing retrieved.</div>')
+      : '<div class="empty">Send a message to see exactly what MemGate puts in the prompt.</div>';
+  }
+  $('pane').innerHTML = h;
+  if ($('tryText')) $('tryText').value = tryText;
+}
+let tryText = '';
+$('pane').addEventListener('click', async e => {
+  const rb = e.target.closest('[data-rival]');
+  if (rb) {
+    const k = rb.dataset.rival; rb.disabled = true; rb.textContent = 'answering…';
+    try { rivalAns[k] = (await api('/api/rival', {rival: k})).reply; }
+    catch (err) { rivalAns[k] = 'Error: ' + err.message; }
+    renderPane(); return;
+  }
+  if (e.target.closest('.why, form')) return;
+  const it = e.target.closest('.it.t2[data-id], .it.t3[data-id]');
+  if (it) toggleWhy(it.dataset.id);
+});
+$('pane').addEventListener('submit', async e => {
+  e.preventDefault();
+  tryText = $('tryText').value; if (!tryText.trim()) return;
+  tryData = null;
+  try { tryData = await api('/api/why', {text: tryText}); }
+  catch (err) { tryData = {error: err.message, text: tryText}; }
+  renderPane();
+});
+
+// A tag under each of the user's messages: where MemGate holds it right now.
+// It updates after every message, so the jury can watch one move from
+// Tier 1 to a kept fact, a gist, or forgotten as the chat goes on.
+const FATE = {
+  t1: ['Tier 1 · recent', 'In the short-term buffer of the latest messages. Facts are also copied to Tier 3 at once; the rest is judged when it leaves Tier 1.'],
+  t2: ['Tier 2 · gist', 'Compressed to a short gist in working memory.'],
+  t3: ['Tier 3 · fact', 'Kept word for word in long-term memory. When memory is full, the lowest scores are forgotten first.'],
+  gone: ['forgotten', 'Not in memory.'],
+};
+const GONE = {'small talk': 'Scored as small talk, so it was forgotten the moment it was said and takes no space.',
+              'low score': 'A reply with little to remember (a greeting, a pleasantry), so it was forgotten as soon as it was written.',
+              'forgotten for space': 'Memory was full (Store S), so the lowest scores were forgotten first.'};
+function fateTag(d) {
+  let t = d.querySelector(':scope > .fate, :scope > .body > .fate');
+  if (!t) {
+    t = document.createElement('button'); t.className = 'fate';
+    t.onclick = () => toggleFateWhy(d);
+    (d.classList.contains('user') ? d : d.querySelector('.body')).appendChild(t);
+  }
+  return t;
+}
+function setTag(t, tier, txt, help) {
+  if (t.dataset.tier && t.dataset.tier !== tier) {
+    t.classList.remove('moved'); void t.offsetWidth; t.classList.add('moved');
+  }
+  t.dataset.tier = tier;
+  t.classList.remove('t1', 't2', 't3', 'gone', 'wait'); t.classList.add(tier);
+  t.textContent = txt; t.title = help + ' Click to see why it got this score.';
+}
+function tagFates(s) {
+  const fates = s.fates || [];
+  for (const d of $('msgs').querySelectorAll('.m[data-ti]')) {
+    const f = fates[+d.dataset.ti];
+    if (!f) continue;
+    let [label, help] = FATE[f.tier];
+    if (f.tier === 't3' && !(f.score >= s.tau_fact)) label = 'Tier 3 · kept';
+    const sc = f.score !== null && f.score !== undefined ? ` · score ${f.score.toFixed(2)}` : '';
+    const txt = (d.classList.contains('bot') ? 'reply: ' : '') + label + sc +
+      (f.tier === 'gone' && f.why ? ` · ${f.why}` : '') +
+      (f.pieces > 1 ? ` · ${f.held} of ${f.pieces} pieces` : '');
+    setTag(fateTag(d), f.tier, txt, f.tier === 'gone' ? (GONE[f.why] || help) : help);
+  }
+}
+async function toggleFateWhy(d) {
+  const open = d.querySelector('.fatewhy');
+  if (open) { open.remove(); return; }
+  const box = document.createElement('div'); box.className = 'fatewhy';
+  box.innerHTML = whyHTML(null);
+  fateTag(d).after(box);
+  try {
+    box.innerHTML = whyHTML(await api('/api/why', d.dataset.ti !== undefined
+      ? {msg: +d.dataset.ti} : {text: d.dataset.text || ''}));
+  } catch (e) { box.innerHTML = whyHTML({error: e.message}); }
+}
+// Before the reply arrives: score the message at once, so its tag shows
+// straight away where it is going (the full state replaces it after).
+async function previewTag(d, text) {
+  const t = fateTag(d);
+  t.className = 'fate wait'; t.textContent = 'scoring…';
+  try {
+    const w = await api('/api/why', {text});
+    if (t.dataset.tier) return;            // the real state already arrived
+    const tier = w.label === 'filler' ? 'gone' : (state && w.utility >= state.tau_fact && state.mode !== 'p1' ? 't3' : 't1');
+    const label = tier === 'gone' ? 'forgotten · score ' + w.utility.toFixed(2) + ' · small talk'
+                                  : FATE[tier][0] + ' · score ' + w.utility.toFixed(2);
+    t.classList.remove('wait'); t.classList.add(tier); t.textContent = label;
+  } catch (e) { /* the tag fills in with the reply */ }
+}
+// The model's reply as simple Markdown (bold, italics, code, lists,
+// headings), escaped first so nothing in it can run as HTML.
+function md(text) {
+  const inline = s => esc(s)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/__([^_]+)__/g, '<b>$1</b>')
+    .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<i>$2</i>');
+  let html = '', list = null, para = [];
+  const flush = () => { if (para.length) html += `<p>${para.map(inline).join('<br>')}</p>`; para = []; };
+  const close = () => { if (list) { html += `</${list}>`; list = null; } };
+  for (const line of String(text).split('\n')) {
+    const ul = line.match(/^\s*[-*•]\s+(.*)/), ol = line.match(/^\s*\d+[.)]\s+(.*)/),
+          h = line.match(/^\s*#{1,6}\s+(.*)/);
+    if (ul || ol) {
+      flush();
+      const want = ul ? 'ul' : 'ol';
+      if (list !== want) { close(); html += `<${want}>`; list = want; }
+      html += `<li>${inline((ul || ol)[1])}</li>`;
+    } else if (h) { flush(); close(); html += `<div class="h">${inline(h[1])}</div>`; }
+    else if (!line.trim()) { flush(); close(); }
+    else { close(); para.push(line); }
+  }
+  flush(); close();
+  return html;
+}
+function lastBot(s) {
+  for (let i = s.transcript.length - 1; i >= 0; i--)
+    if (s.transcript[i].speaker === 'assistant') return i;
+  return -1;
+}
+function lastUser(s) {
+  for (let i = s.transcript.length - 1; i >= 0; i--)
+    if (s.transcript[i].speaker === 'user') return i;
+  return -1;
+}
+function render(s) {
+  state = s;
+  tagFates(s);
+  $('mode').value = s.mode; $('scale').value = s.scale;
+  if (s.store_budget) $('S').value = s.store_budget;
+  $('sRow').style.display = s.mode === 'p1' ? 'none' : '';
+  $('title').textContent = s.title;
+  $('modePill').textContent = `${s.mode.toUpperCase().replace('P1S', 'P1-S').replace('P1A', 'P1-A')} · ${s.scale} sizes`;
+  $('info').innerHTML = `Model: ${esc(s.model)}${s.model_note ? `<br><span style="color:var(--drop)">${esc(s.model_note)}</span>` : ''}<br>Scorer: ${esc(s.scorer || '')}<br>Embedder: ${esc(s.backends.embedder)}`;
+  const c = s.counts;
+  const kept = s.said_tokens ? Math.round(100 * s.stored_tokens / s.said_tokens) : 100;
+  $('stats').innerHTML = `<span><b>${s.messages}</b>messages</span>
+    <span title="everything said in this chat"><b>${s.said_tokens}</b>tokens said</span>
+    <span><b>${s.stored_tokens}</b>tokens kept${s.store_budget ? ` / ${s.store_budget}` : ''}</span>
+    <span><b>${c.dropped}</b>forgotten</span>
+    ${s.mode !== 'p1s' ? `<span><b>${c.compressed}</b>compressed</span>` : ''}
+    ${s.said_tokens > s.stored_tokens ? `<span title="memory held, as a share of everything said"><b>${kept}%</b>held</span>` : ''}`;
+  renderPane();
+  seen = new Set([...s.t1, ...s.t2, ...s.t3].map(i => i.id));
+}
+
+async function refreshChats() {
+  const c = await api('/api/chats');
+  $('chatList').innerHTML = c.chats.map(ch =>
+    `<div class="ci ${ch.id === c.current ? 'on' : ''}" data-id="${esc(ch.id)}">
+       <span class="t">${esc(ch.title || 'Untitled')}</span>
+       <button class="x" data-del="${esc(ch.id)}" title="delete">✕</button></div>`).join('');
+}
+
+// ---------------------------------------------------------------- actions
+async function send(text) {
+  text = text.trim();
+  if (!text || busy) return;
+  if (text.length > MAX_CHARS) {
+    addNote(`That message is ${text.length.toLocaleString()} characters; the limit is ${MAX_CHARS.toLocaleString()}. Send it in parts.`);
+    return;
+  }
+  busy = true; $('send').disabled = true; $('text').value = ''; grow();
+  const mine = addMsg('user', text);
+  previewTag(mine, text);
+  const bot = addMsg('bot', '');
+  const txt = bot.querySelector('.txt');
+  txt.innerHTML = '<span class="dots"><span></span><span></span><span></span></span>';
+  // Say what is happening while a slow reply is on its way.
+  const model = String((state && state.model) || '');
+  const slow = model.startsWith('gemini')
+    ? [[6, 'Gemini is slow or busy, trying again or a backup Gemini model…'],
+       [16, 'Still waiting on Gemini. If it does not answer soon, the local model will reply…'],
+       [30, 'The local model is writing the reply (it is slower on a laptop CPU)…']]
+    : [[8, 'The model is still writing the reply…'],
+       [30, 'Still writing. A local model on a laptop CPU can take a while…']];
+  const t0 = Date.now();
+  const tick = setInterval(() => {
+    const secs = Math.round((Date.now() - t0) / 1000);
+    const line = slow.filter(([at]) => secs >= at).pop();
+    if (!line) return;
+    let w = txt.querySelector('.waiting');
+    if (!w) { w = document.createElement('div'); w.className = 'waiting'; txt.appendChild(w); }
+    w.textContent = `${line[1]} (${secs}s)`;
+  }, 1000);
+  try {
+    const s = await api('/api/chat', {text});
+    clearInterval(tick);
+    mine.dataset.ti = lastUser(s);
+    lastCtx = {items: s.context, tokens: s.context_tokens};
+    lastCmp = s.compare; rivalAns = {};
+    await typeInto(txt, s.reply);
+    txt.classList.add('md'); txt.innerHTML = md(s.reply);
+    if (lastBot(s) > lastUser(s)) bot.dataset.ti = lastBot(s);
+    const used = s.context.filter(i => i.tier !== 't1').length;
+    const meta = document.createElement('div'); meta.className = 'meta';
+    const only = s.compare ? s.compare.rows.memgate.notes.filter(n => n.only).length : 0;
+    meta.innerHTML = `<button class="chip">${s.context.length} notes from memory${used ? ` · ${used} recalled` : ''}</button>
+      <button class="chip">${only ? `${only} the baselines forgot` : 'compare with baselines'}</button>`;
+    const [b1, b2] = meta.querySelectorAll('button');
+    b1.onclick = () => openMem('ctx');
+    b2.onclick = () => openMem('cmp');
+    bot.querySelector('.body').appendChild(meta); bottom();
+    if (s.message_pieces > 1)
+      addNote(`Long message: MemGate stored it as ${s.message_pieces} pieces, each scored on its own, and recalled the ones this message needs.`);
+    render(s); refreshChats();
+  } catch (err) { clearInterval(tick); txt.textContent = 'Error: ' + err.message; }
+  busy = false; $('send').disabled = !$('text').value.trim(); $('text').focus();
+}
+
+async function readB64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(',')[1] || '');
+    r.onerror = () => rej(new Error('could not read the file'));
+    r.readAsDataURL(file);
+  });
+}
+async function upload(files) {
+  for (const file of files) {
+    if (busy) return;
+    if (file.size > MAX_FILE_MB * 1024 * 1024) {
+      addNote(`${file.name} is ${(file.size / 1048576).toFixed(1)} MB; the limit is ${MAX_FILE_MB} MB.`);
+      continue;
+    }
+    busy = true; $('send').disabled = true;
+    addNote(`Reading ${file.name} into memory…`);
+    const note = $('msgs').lastChild;
+    try {
+      const s = await api('/api/upload', {name: file.name, data: await readB64(file)});
+      note.remove();
+      const u = s.upload, last = s.transcript[s.transcript.length - 1];
+      addFile(u, last && last.text).dataset.ti = s.transcript.length - 1;
+      const why = [];
+      if (u.duplicates) why.push(`${u.duplicates} repeated text already stored, so the stored copy was reinforced instead`);
+      if (u.forgotten) why.push(`${u.forgotten} ${s.mode === 'p1' ? 'scored too low to keep' :
+        `were forgotten to stay within S = ${(s.store_budget || 0).toLocaleString()} tokens, lowest score first (raise Store S to keep more)`}`);
+      addNote(`${u.name}: split into ${u.pieces} pieces; ${u.held} are in memory (${u.held_tokens.toLocaleString()} tokens)` +
+        (why.length ? `. Of the rest, ${why.join('; ')}.` : '.') + ' Ask about it.');
+      render(s); refreshChats();
+    } catch (err) { note.textContent = `${file.name}: ${err.message}`; }
+    busy = false; $('send').disabled = !$('text').value.trim();
+  }
+}
+
+async function newChat() {
+  const scale = $('scale').value;
+  const s = await api('/api/chats/new', {mode: $('mode').value, scale,
+                                         store_budget: +$('S').value || SCALE_S[scale]});
+  seen = new Set(); showTranscript(s); render(s); refreshChats();
+  document.body.classList.remove('sideOpen'); $('text').focus();
+}
+async function openChat(id) {
+  const s = await api('/api/chats/open', {id});
+  seen = new Set(); showTranscript(s); render(s); refreshChats();
+  document.body.classList.remove('sideOpen');
+}
+async function sample() {
+  const s = await api('/api/sample', {});
+  showTranscript(s);
+  addNote('Sample conversation loaded. Try asking: “When is my report due?”');
+  render(s); refreshChats();
+}
+function openMem(t) { if (t) tab = t; document.body.classList.add('memOpen'); $('memBtn').classList.add('on'); renderPane(); }
+
+function grow() { const t = $('text'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 180) + 'px'; }
+$('text').addEventListener('input', () => { grow(); $('send').disabled = busy || !$('text').value.trim(); });
+$('text').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send($('text').value); }
+});
+$('form').addEventListener('submit', e => { e.preventDefault(); send($('text').value); });
+$('attach').onclick = () => $('fileIn').click();
+$('fileIn').onchange = () => { const f = [...$('fileIn').files]; $('fileIn').value = ''; upload(f); };
+['dragenter', 'dragover'].forEach(t => document.addEventListener(t, e => {
+  if (![...(e.dataTransfer?.types || [])].includes('Files')) return;
+  e.preventDefault(); $('form').classList.add('drag');
+}));
+['dragleave', 'drop'].forEach(t => document.addEventListener(t, e => {
+  if (t === 'dragleave' && e.relatedTarget) return;
+  $('form').classList.remove('drag');
+  if (t === 'drop' && e.dataTransfer?.files?.length) { e.preventDefault(); upload([...e.dataTransfer.files]); }
+}));
+$('text').addEventListener('paste', e => {
+  const f = [...(e.clipboardData?.files || [])];
+  if (f.length) { e.preventDefault(); upload(f); }
+});
+$('newChat').onclick = newChat;
+$('mode').onchange = newChat;
+$('scale').onchange = () => { $('S').value = SCALE_S[$('scale').value]; newChat(); };
+$('S').onchange = newChat;
+$('sample').onclick = sample;
+$('chatList').onclick = async e => {
+  const del = e.target.closest('[data-del]');
+  if (del) {
+    e.stopPropagation();
+    if (!confirm('Delete this chat and its memory?')) return;
+    const s = await api('/api/chats/delete', {id: del.dataset.del});
+    seen = new Set(); showTranscript(s); render(s); refreshChats(); return;
+  }
+  const ci = e.target.closest('.ci'); if (ci) openChat(ci.dataset.id);
+};
+$('welcome').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.sample) sample(); else { $('text').value = b.dataset.t; grow(); $('send').disabled = false; $('text').focus(); }
+};
+$('memBtn').onclick = () => {
+  const open = document.body.classList.toggle('memOpen');
+  $('memBtn').classList.toggle('on', open); renderPane();
+};
+$('menuBtn').onclick = () => document.body.classList.toggle('sideOpen');
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; renderPane(); });
+
+// benchmark
+let benchTimer = null;
+$('benchBtn').onclick = () => $('bench').showModal();
+$('benchClose').onclick = () => $('bench').close();
+function showBench(b) {
+  if (b.lines.length) $('benchOut').textContent = b.lines.join('\n');
+  $('benchOut').scrollTop = 1e9;
+  $('benchStatus').textContent = b.running ? 'running…' : (b.code === null ? '' : 'done');
+  $('benchRun').disabled = b.running;
+  const res = b.lines.filter(l => /live .*committed/.test(l));
+  if (!b.running && res.length) {
+    $('benchRes').hidden = false;
+    $('benchRes').innerHTML = res.map(l => esc(l.trim()).replace('MATCH', '<span class="ok">MATCH</span>')
+      .replace('DIFFERS', '<span class="bad">DIFFERS</span>')).join('<br>') +
+      '<br>' + esc((b.lines.find(l => l.includes('selection over FIFO')) || '').trim());
+  }
+}
+$('benchRun').onclick = async () => {
+  $('benchRes').hidden = true; $('benchOut').textContent = 'starting…';
+  showBench(await api('/api/bench', {store: +$('benchS').value || 4096}));
+  clearInterval(benchTimer);
+  benchTimer = setInterval(async () => {
+    const b = await api('/api/bench'); showBench(b);
+    if (!b.running) clearInterval(benchTimer);
+  }, 700);
+};
+
+api('/api/state').then(s => { showTranscript(s); render(s); refreshChats(); $('text').focus(); });
+</script>
+</body>
+</html>

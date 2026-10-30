@@ -20,7 +20,7 @@ See `../REPORT.md` for the paper-ready writeup.
 
 ```bash
 cd memgate
-python3 test_memgate.py           # 61 tests
+python3 test_memgate.py           # 80 tests (python3 run_tests.py runs all six suites)
 python3 run_locomo.py             # LoCoMo — the real benchmark
 python3 run_storage_sweep.py      # the storage-budget frontier (§23)
 python3 run_experiment.py         # synthetic sanity set
@@ -30,8 +30,15 @@ python3 run_scaling.py            # compression ratio to 182x
 python3 run_cost_model.py         # byte-denominated storage (charges for the index)
 python3 run_significance.py       # bootstrap CIs + exact McNemar
 python3 train_scorer.py           # the learned scorer
+python3 train_transfer.py         # ... on LoCoMo + REALTALK: in-corpus / cross / pooled
+python3 train_transfer.py --corpora locomo,realtalk,beam,beam500 --test-corpora locomo,realtalk,beam --balance  # + BEAM
+python3 export_scorer.py          # ship the pooled scorer; MEMGATE_SCORER=learned to use it
 python3 run_judge_eval.py         # the scorer comparison, with clustered CIs
 python3 run_endtask.py            # end-task accuracy through a real reader
+python3 run_longmemeval.py        # LongMemEval, swept by store budget (§30)
+python3 run_lme_split.py          # the recency-confound control (§34)
+python3 run_abstractive.py        # abstractive compression (§38)
+python3 run_online.py             # online learning of the eviction policy (§37.2)
 python3 make_figures.py           # publication figures
 
 python3 run_ablations.py --budget 2048 --store-budget 4096 --adaptive
@@ -48,7 +55,7 @@ The benchmark and the model weights are **not in the repo** (90 MB + 2.7 MB,
 reproducible from source). Fetch both:
 
 ```bash
-pip install sentence-transformers tiktoken
+pip install -r requirements-research.txt   # the app's packages + scikit-learn, matplotlib
 
 # LoCoMo (Maharana et al., 2024)
 mkdir -p data/locomo
@@ -316,6 +323,7 @@ memgate/
     store.py     three-tier store, dedupe, semantic supersession, consolidation
     scoring.py   P0/P1 implemented, P2/P3 stubs on the same interface
     policies.py  baselines + MemGate, routing and budget-aware assembly
+    ingest.py    any text in: cleaning, chunking, file reading, scorer guards (app only)
     data.py      synthetic generator + LoCoMo loader + integrity assertions
     harness.py   strict/soft recall, per-category breakdown, sweep, CSV
   run_locomo.py        LoCoMo evaluation
@@ -323,7 +331,7 @@ memgate/
   run_ablations.py     component attribution
   run_experiment.py    synthetic sanity set
   diagnose.py          miss analysis by cause
-  test_memgate.py      61 tests
+  test_memgate.py      80 tests
   data/locomo/         locomo10.json (2.7 MB)
   models/              vendored all-MiniLM-L6-v2
 ```

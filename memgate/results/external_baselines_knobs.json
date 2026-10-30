@@ -1,0 +1,10 @@
+{
+  "MemGPT-style": {
+    "summary_share": 0.25,
+    "gist_tokens": 16
+  },
+  "Mem0-style": {
+    "fact_tokens": 32,
+    "update_threshold": 0.65
+  }
+}

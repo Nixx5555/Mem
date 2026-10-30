@@ -1,0 +1,41 @@
+% Fig.: the per-item write decision (MemGatePolicy._route) and the budget
+% loop (ThreeTierStore.enforce_store_budget), as run by P1, P1-A and P1-S.
+\begin{tikzpicture}[x=1mm, y=1mm]
+% ---- (a) write decision
+\node[lab, font=\dfoot\bfseries] at (12,10) {(a) write decision};
+\node[proc, text width=30mm] (ev) at (12,0) {item leaves Tier 1;\\$u \leftarrow$ score (Fig.~\ref{fig:scoring})};
+\node[dec] (wm) at (12,-15) {write mode?};
+\node[res, text width=18mm] (oa) at (50,-15) {Tier 3 verbatim,\\$u$ kept};
+\node[dec] (f) at (12,-31) {$u \ge \tau_{\mathrm{fact}}$?};
+\node[res, text width=21mm] (o3) at (50,-31) {Tier 3 fact (+ gist if $u\ge\tau_{\mathrm{fact}}{+}0.2$)};
+\node[dec] (l) at (12,-47) {$u \ge \tau_{\mathrm{low}}$?};
+\node[res, text width=18mm] (o2) at (50,-47) {Tier 2 gist};
+\node[res, text width=30mm] (o0) at (12,-62) {Tier 3 verbatim if $S$ is set, else drop};
+\draw[flow] (ev) -- (wm);
+\draw[flow] (wm) -- node[lab, above, pos=0.45]{P1-A, P1-S} (oa);
+\draw[flow] (wm) -- node[lab, right]{P1} (f);
+\draw[flow] (f) -- node[lab, above]{yes} (o3);
+\draw[flow] (f) -- node[lab, right]{no} (l);
+\draw[flow] (l) -- node[lab, above]{yes} (o2);
+\draw[flow] (l) -- node[lab, right]{no} (o0);
+% ---- (b) storage budget
+\node[lab, font=\dfoot\bfseries] at (107,10) {(b) storage budget, after every write};
+\node[dec] (b) at (107,0) {$\sum_{i} c_i > S$?};
+\node[res, text width=10mm] (ok) at (140,0) {done};
+\node[dec] (t3) at (107,-16) {Tier 3\\non-empty?};
+\node[bad, text width=20mm] (w) at (140,-16) {drop $\arg\min (u_i,t_i)$ in Tier 2};
+\node[proc, text width=31mm] (v) at (107,-32) {$v \leftarrow \arg\min_{i\in T_3} (u_i, t_i)$\\(RAG: $\arg\min_i t_i$)};
+\node[dec] (dm) at (107,-48) {demote $v$?};
+\node[res, text width=18mm] (g) at (82,-62) {gist of $v$ into Tier 2 (P1, P1-A)};
+\node[bad, text width=18mm] (dr) at (132,-62) {drop $v$\\(P1-S, RAG)};
+\draw[flow] (b) -- node[lab, above]{no} (ok);
+\draw[flow] (b) -- node[lab, right]{yes} (t3);
+\draw[flow] (t3) -- node[lab, above]{no} (w);
+\draw[flow] (t3) -- node[lab, right]{yes} (v);
+\draw[flow] (v) -- (dm);
+\draw[flow] (dm) -| node[lab, above, pos=0.3]{yes} (g);
+\draw[flow] (dm) -| node[lab, above, pos=0.3]{no} (dr);
+\draw[aux] (g.west) -- ++(-4,0) |- (b.west);
+\draw[aux] (dr.east) -| (157,8) -| (b.north);
+\draw[densely dashed] (w.east) -- (157,-16);
+\end{tikzpicture}

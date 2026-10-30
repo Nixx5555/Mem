@@ -1,0 +1,35 @@
+% Fig.: GuardedScorer.score (memgate/ingest.py), the scorer the app runs.
+% Each guard fires only on one kind of input; ordinary English goes straight
+% to the wrapped scorer, so on the chat it was trained for it is unchanged.
+% Two rows, read left to right; the "no" branch of the code guard wraps down.
+\begin{tikzpicture}[node distance=5mm and 7mm]
+% ---- row 1
+\node[proc, text width=15mm] (m) {message $m$, tag removed};
+\node[dec, right=of m] (d1) {letter or\\digit?};
+\node[dec, right=of d1] (d2) {small talk, or\\$\le$2 words,\\no digit?};
+\node[dec, right=of d2] (d3) {looks like\\code?};
+\node[bad, below=of d1, text width=13mm] (o1) {$0.02$\\filler};
+\node[bad, below=of d2, text width=16mm] (o2) {$\min(0.05,u)$\\small talk};
+\node[res, below=of d3, text width=16mm] (o3) {$\max(0.5,u)$\\code};
+% ---- row 2
+\path (o2.south -| m.west) ++(0,-12mm) node[dec, anchor=north west] (d4)
+  {$\ge$3 words,\\$<$50\% Latin?};
+\node[dec, right=of d4] (d5) {$\ge$12 words,\\$<$30\% distinct?};
+\node[model, right=of d5, text width=17mm] (in) {$u\leftarrow$ inner:\\P1, Eq.~(\ref{eq:p1})\\or P3, Eq.~(\ref{eq:lr})};
+\node[dec, right=of in] (d6) {P3, $\le$30 words,\\date, time\\or amount?};
+\node[res, right=of d6, text width=6mm] (u) {$u$};
+\node[res, below=of d4, text width=13mm] (o4) {$0.5$\\neutral};
+\node[bad, below=of d5, text width=13mm] (o5) {$0.15$\\repeated};
+\node[res, below=of d6, text width=15mm] (o6) {$\max(u,u_{\mathrm{P1}})$\\Eq.~(\ref{eq:floor})};
+% ---- arrows
+\draw[flow] (m) -- (d1);
+\draw[flow] (d1) -- node[lab, above]{yes} (d2);
+\draw[flow] (d2) -- node[lab, above]{no} (d3);
+\draw[flow] (d3.east) -- node[lab, above]{no} ++(6mm,0) |- ($(o2.south)!0.5!(d4.north |- o2.south) + (0,-6mm)$) -| (d4.north);
+\foreach \a/\b in {d4/d5,d5/in,d6/u}
+  \draw[flow] (\a) -- node[lab, above]{no} (\b);
+\draw[flow] (in) -- (d6);
+\draw[flow] (d1) -- node[lab, right]{no} (o1);
+\foreach \d/\o in {d2/o2,d3/o3,d4/o4,d5/o5,d6/o6}
+  \draw[flow] (\d) -- node[lab, right]{yes} (\o);
+\end{tikzpicture}

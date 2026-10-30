@@ -1,0 +1,21 @@
+policy,store_budget,context_budget,strict_recall,answer_recall,n_questions,n_answer,knobs,embedder,tokenizer
+RAG store-all,2048,2048,10.09,18.32,1527,715,{},all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+MemGPT-style,2048,2048,12.38,18.74,1527,715,"{""gist_tokens"": 16, ""summary_share"": 0.25}",all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+Mem0-style,2048,2048,12.70,26.43,1527,715,"{""fact_tokens"": 32, ""update_threshold"": 0.65}",all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+MemGate P1-S,2048,2048,11.79,27.83,1527,715,{},all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+MemGate P1-S learned,2048,2048,18.21,33.71,1527,715,{},all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+RAG store-all,4096,2048,17.81,28.11,1527,715,{},all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+MemGPT-style,4096,2048,20.30,30.21,1527,715,"{""gist_tokens"": 16, ""summary_share"": 0.25}",all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+Mem0-style,4096,2048,23.84,44.48,1527,715,"{""fact_tokens"": 32, ""update_threshold"": 0.65}",all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+MemGate P1-S,4096,2048,20.24,37.48,1527,715,{},all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+MemGate P1-S learned,4096,2048,33.99,52.03,1527,715,{},all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+RAG store-all,8192,2048,30.65,44.34,1527,715,{},all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+MemGPT-style,8192,2048,33.20,46.43,1527,715,"{""gist_tokens"": 16, ""summary_share"": 0.25}",all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+Mem0-style,8192,2048,30.19,52.59,1527,715,"{""fact_tokens"": 32, ""update_threshold"": 0.65}",all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+MemGate P1-S,8192,2048,38.64,57.76,1527,715,{},all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+MemGate P1-S learned,8192,2048,54.75,69.09,1527,715,{},all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+RAG store-all,16384,2048,53.31,66.43,1527,715,{},all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+MemGPT-style,16384,2048,54.22,65.73,1527,715,"{""gist_tokens"": 16, ""summary_share"": 0.25}",all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+Mem0-style,16384,2048,30.19,52.59,1527,715,"{""fact_tokens"": 32, ""update_threshold"": 0.65}",all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+MemGate P1-S,16384,2048,57.89,71.33,1527,715,{},all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base
+MemGate P1-S learned,16384,2048,64.70,77.20,1527,715,{},all-MiniLM-L6-v2/384d (onnx),tiktoken/cl100k_base

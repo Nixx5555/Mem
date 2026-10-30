@@ -1,0 +1,176 @@
+[
+ {
+  "corpus": "locomo",
+  "setup": "beam",
+  "answer": 50.90909090909091,
+  "n": 715
+ },
+ {
+  "corpus": "locomo",
+  "setup": "beam+talk",
+  "answer": 50.349650349650354,
+  "n": 715
+ },
+ {
+  "corpus": "locomo",
+  "setup": "heuristic",
+  "answer": 37.48251748251748,
+  "n": 715
+ },
+ {
+  "corpus": "locomo",
+  "setup": "rag",
+  "answer": 28.11188811188811,
+  "n": 715
+ },
+ {
+  "corpus": "locomo",
+  "setup": "shipped",
+  "answer": 49.65034965034965,
+  "n": 715
+ },
+ {
+  "corpus": "locomo",
+  "setup": "app:beam",
+  "answer": 51.048951048951054,
+  "n": 715
+ },
+ {
+  "corpus": "locomo",
+  "setup": "app:beam+talk",
+  "answer": 50.349650349650354,
+  "n": 715
+ },
+ {
+  "corpus": "locomo",
+  "setup": "app:shipped",
+  "answer": 49.65034965034965,
+  "n": 715
+ },
+ {
+  "corpus": "realtalk",
+  "setup": "beam",
+  "answer": 36.875,
+  "n": 160
+ },
+ {
+  "corpus": "realtalk",
+  "setup": "beam+talk",
+  "answer": 36.25,
+  "n": 160
+ },
+ {
+  "corpus": "realtalk",
+  "setup": "heuristic",
+  "answer": 32.5,
+  "n": 160
+ },
+ {
+  "corpus": "realtalk",
+  "setup": "rag",
+  "answer": 16.875,
+  "n": 160
+ },
+ {
+  "corpus": "realtalk",
+  "setup": "shipped",
+  "answer": 30.0,
+  "n": 160
+ },
+ {
+  "corpus": "realtalk",
+  "setup": "app:beam",
+  "answer": 37.5,
+  "n": 160
+ },
+ {
+  "corpus": "realtalk",
+  "setup": "app:beam+talk",
+  "answer": 38.125,
+  "n": 160
+ },
+ {
+  "corpus": "realtalk",
+  "setup": "app:shipped",
+  "answer": 37.5,
+  "n": 160
+ },
+ {
+  "corpus": "beam",
+  "setup": "beam",
+  "answer": 73.52941176470588,
+  "n": 34
+ },
+ {
+  "corpus": "beam",
+  "setup": "beam+talk",
+  "answer": 73.52941176470588,
+  "n": 34
+ },
+ {
+  "corpus": "beam",
+  "setup": "heuristic",
+  "answer": 35.294117647058826,
+  "n": 34
+ },
+ {
+  "corpus": "beam",
+  "setup": "rag",
+  "answer": 32.35294117647059,
+  "n": 34
+ },
+ {
+  "corpus": "beam",
+  "setup": "shipped",
+  "answer": 32.35294117647059,
+  "n": 34
+ },
+ {
+  "corpus": "beam",
+  "setup": "app:beam",
+  "answer": 73.52941176470588,
+  "n": 34
+ },
+ {
+  "corpus": "beam",
+  "setup": "app:beam+talk",
+  "answer": 79.41176470588235,
+  "n": 34
+ },
+ {
+  "corpus": "beam",
+  "setup": "app:shipped",
+  "answer": 61.76470588235294,
+  "n": 34
+ },
+ {
+  "corpus": "beam500",
+  "setup": "beam",
+  "answer": 63.63636363636363,
+  "n": 55
+ },
+ {
+  "corpus": "beam500",
+  "setup": "beam+talk",
+  "answer": 63.63636363636363,
+  "n": 55
+ },
+ {
+  "corpus": "beam500",
+  "setup": "heuristic",
+  "answer": 32.72727272727273,
+  "n": 55
+ },
+ {
+  "corpus": "beam500",
+  "setup": "rag",
+  "answer": 32.72727272727273,
+  "n": 55
+ },
+ {
+  "corpus": "beam500",
+  "setup": "shipped",
+  "answer": 25.454545454545453,
+  "n": 55
+ }
+]

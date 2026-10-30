@@ -248,10 +248,78 @@ def fig_endtask():
     plt.close(fig); print("  fig5_endtask")
 
 
+def fig_external():
+    """MemGate vs MemGPT-style / Mem0-style on LoCoMo, and the learned scorer
+    across budgets on REALTALK. Both MemGate rows share the MemGate hue and
+    differ by line style and marker fill, so "which one is ours" reads first."""
+    ext = load("external_baselines.csv")
+    if not ext:
+        return
+    fig, (a, b) = plt.subplots(1, 2, figsize=(7.4, 3.0))
+    series = [("RAG store-all", "RAG (FIFO)", C["rag"], "o", "-", True),
+              ("MemGPT-style", "MemGPT-style", C["p0"], "^", "-", True),
+              ("Mem0-style", "Mem0-style (tuned on LoCoMo)", C["compress"], "s", "-", True),
+              ("MemGate P1-S", "MemGate, P1 heuristic", C["select"], "D", "--", False),
+              ("MemGate P1-S learned", "MemGate, learned (held out)", C["select"], "D", "-", True)]
+    for key, label, col, mk, ls, filled in series:
+        pts = sorted((int(r["store_budget"]), float(r["answer_recall"]))
+                     for r in ext if r["policy"] == key)
+        if not pts:
+            continue
+        a.plot([p[0] for p in pts], [p[1] for p in pts], ls, color=col, marker=mk,
+               ms=4.5, lw=1.6 if key.endswith("learned") else 1.2,
+               mfc=col if filled else "white", label=label)
+    a.set_xscale("log", base=2)
+    xs = sorted({int(r["store_budget"]) for r in ext})
+    a.set_xticks(xs); a.set_xticklabels([f"{x//1024}k" for x in xs])
+    style(a, "Store budget S (tokens)", "Answer recall (%)",
+          "(a) LoCoMo vs MemGPT, Mem0 designs")
+    a.set_ylim(15, 100)
+    a.legend(fontsize=6.5, loc="upper left", ncol=2, columnspacing=1.0)
+
+    pts = {"heuristic": [], "rag": [], "pooled": []}
+    for S in (1024, 2048, 4096, 8192, 16384):
+        rows = load(f"transfer_locomo_realtalk_S{S}.csv") or []
+        for r in rows:
+            if r["test_corpus"] != "realtalk":
+                continue
+            if r["scorer"] in ("heuristic", "rag") and r["features"] == "hand":
+                pts[r["scorer"]].append((S, float(r["answer"])))
+            if r["scorer"] == "pooled" and r["features"] == "hand+MiniLM":
+                pts["pooled"].append((S, float(r["answer"])))
+    for key, label, col, mk, ls, filled in (
+            ("rag", "RAG (FIFO)", C["rag"], "o", "-", True),
+            ("heuristic", "MemGate, P1 heuristic", C["select"], "D", "--", False),
+            ("pooled", "MemGate, learned (held out)", C["select"], "D", "-", True)):
+        p = sorted(pts[key])
+        if p:
+            b.plot([q[0] for q in p], [q[1] for q in p], ls, color=col, marker=mk,
+                   ms=4.5, lw=1.6 if key == "pooled" else 1.2,
+                   mfc=col if filled else "white", label=label)
+    b.set_xscale("log", base=2)
+    b.set_xticks([1024, 2048, 4096, 8192, 16384])
+    b.set_xticklabels(["1k", "2k", "4k", "8k", "16k"])
+    style(b, "Store budget S (tokens)", "Answer recall (%)",
+          "(b) REALTALK, real people")
+    b.set_ylim(5, 85)
+    b.legend(fontsize=6.5, loc="upper left")
+    fig.text(0.0, -0.08,
+             "Context budget 2048. The learned scorer is fitted per held-out conversation "
+             "(the other conversations plus the other corpus). The baselines' knobs were "
+             "grid-searched on LoCoMo at S=4k,\nwhich favours them. LLM-free rebuilds of each "
+             "system's memory management (memgate/external_baselines.py), not the products.",
+             fontsize=6.5, color=MUTED)
+    fig.tight_layout()
+    out = os.path.join(FIGS, "fig6_external")
+    fig.savefig(out + ".png"); fig.savefig(out + ".pdf")
+    plt.close(fig); print("  fig6_external")
+
+
 def main():
     os.makedirs(FIGS, exist_ok=True)
     print(f"\nwriting figures to {FIGS}")
     fig_storage(); fig_scaling(); fig_scorer(); fig_cost(); fig_endtask()
+    fig_external()
     print("done")
     return 0
 

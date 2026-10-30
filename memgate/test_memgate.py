@@ -52,6 +52,17 @@ check("budget fact scores high", s.score("My budget is 40000 rupees.")[0] > 0.45
 check("fact labelled", s.score("My budget is 40000 rupees.")[1] == "fact")
 check("chatter below fact threshold",
       s.score("That makes sense to me overall.")[0] < 0.45)
+# The router scores the stored "[Speaker] message" string (policies._as_item),
+# so the rules above must hold for that form too, not only for bare text.
+_tagged = [("[user] ok thanks", "user"), ("[Caroline] I went to the market.", "Caroline"),
+           ("[Maria] We decided to keep the old car.", "Maria"),
+           ("[Maria] I went there on 7 May.", "Maria"),
+           ("[assistant] Got it: report due 2 November.", "assistant")]
+check("speaker tag does not change the score",
+      all(s.score(t, sp) == s.score(t.split("] ", 1)[1], sp) for t, sp in _tagged))
+check("tagged filler still scores low", s.score("[user] ok thanks", "user")[0] < 0.1)
+check("capitalised speaker name is not a proper-noun signal",
+      s.score("[Caroline] That makes sense to me overall.", "Caroline")[1] == "context")
 
 print("\n-- store --")
 st = ThreeTierStore(short_capacity=3)
@@ -381,6 +392,125 @@ try:
           0.0 <= _a <= 1.0 and isinstance(_l, str))
 except ImportError:
     print("  SKIP  sklearn not installed")
+
+print("\n-- REALTALK evidence and the scorer's input string --")
+from memgate.data import _realtalk_evidence
+check("REALTALK evidence ranges, separators and dots normalise",
+      _realtalk_evidence(["D12:3-D12:5", "D11:17; D16:1", "D5:3.", "D13:4. D14:4"])
+      == ["D12:3", "D12:4", "D12:5", "D11:17", "D16:1", "D5:3", "D13:4", "D14:4"])
+check("an unparseable REALTALK id is kept so the question is dropped",
+      _realtalk_evidence(["D13:45:D20:19"]) == ["D13:45:D20:19"])
+from train_transfer import MessageOnly
+_h = HeuristicScorer()
+check("MessageOnly scores the message, not the [speaker] tag",
+      MessageOnly(_h).score("[Maria] ok thanks", "Maria")
+      == _h.score("ok thanks", "Maria"))
+check("P1 itself now ignores the [speaker] tag",
+      _h.score("[Maria] ok thanks", "Maria") == _h.score("ok thanks", "Maria"))
+
+print("\n-- shipped learned scorer (MEMGATE_SCORER) --")
+import os as _os2
+from memgate.pretrained import load_learned, default_scorer
+check("the library default stays P1 when MEMGATE_SCORER is unset",
+      _os2.environ.get("MEMGATE_SCORER") is not None
+      or isinstance(default_scorer(), HeuristicScorer))
+_shipped = load_learned()
+if _shipped is None:
+    print("  SKIP  shipped scorer not loadable here (needs MiniLM)")
+else:
+    _hi = _shipped.score("[Caroline] I start my new job at the hospital on 3 March.")[0]
+    _lo = _shipped.score("[Melanie] haha yeah totally")[0]
+    check("shipped scorer ranks a dated plan above chit-chat", _hi > _lo,
+          f"{_hi:.3f} vs {_lo:.3f}")
+    check("shipped scorer is label-blind at inference",
+          _tier_fingerprint(turns, scorer=_shipped, store_budget=600,
+                            write_mode="adaptive")
+          == _tier_fingerprint(blind, scorer=_shipped, store_budget=600,
+                               write_mode="adaptive"))
+
+print("\n-- BEAM evidence ids --")
+from memgate.data import _beam_ids
+check("BEAM evidence lists flatten as given",
+      _beam_ids([28, [3, 4]]) == [28, 3, 4])
+check("BEAM two-sided evidence keeps both sides",
+      _beam_ids({"original_info": [86], "updated_info": [114]}) == [86, 114])
+
+from memgate.data import _beam_segments, _resolve_segment, _beam_chat
+_t = lambda i, txt="x": {"id": i, "role": "user", "content": txt}
+_chat = [{"turns": [[_t(0), _t(1)], [_t(2, "my flight is on 14 December")]]},
+         {"turns": [[_t(0), _t(1, "the budget is 85000 rupees")]]}]
+_segs = _beam_segments(_chat)
+check("BEAM 1M: ids that restart begin a new segment",
+      [[t["id"] for s in seg for t in s] for seg in _segs] == [[0, 1, 2], [0, 1]])
+_txt = [{t["id"]: t["content"] for s in seg for t in s} for seg in _segs]
+check("BEAM: a repeated id is pinned to the segment whose words match",
+      _resolve_segment([1], _txt, ["budget", "85000"]) == 1)
+check("BEAM: an id only one segment holds needs no words",
+      _resolve_segment([2], _txt, []) == 0)
+check("BEAM: a repeated id with no matching words is dropped, not guessed",
+      _resolve_segment([0], _txt, ["budget"]) is None)
+_cnt = {"dangling": 0, "empty": 0, "ambiguous": 0}
+_ts, _qs = _beam_chat("b", _segs, {"information_extraction": [
+    {"question": "What is my budget?", "answer": "85000 rupees", "source_chat_ids": [1]},
+    {"question": "Which id?", "answer": "x", "source_chat_ids": [0]}]}, _cnt)
+check("BEAM: segmented turn ids are unique and evidence points at the right copy",
+      len({t.fact_id for t in _ts}) == 5 and _qs[0].evidence_ids == ["b/1:1"]
+      and _cnt["ambiguous"] == 1)
+_ts1, _ = _beam_chat("b", _segs[:1], {}, _cnt)
+check("BEAM 100K/500K (one segment) keep their old ids",
+      [t.fact_id for t in _ts1] == ["b/0", "b/1", "b/2"])
+
+print("\n-- MemBench --")
+import json as _json, tempfile as _tf
+from memgate.data import load_membench
+with _tf.TemporaryDirectory() as _d:
+    _os_ = __import__("os")
+    _os_.makedirs(_os_.path.join(_d, "FirstAgent"))
+    _os_.makedirs(_os_.path.join(_d, "ThirdAgent"))
+    _step = lambda i, u: {"sid": i, "user_message": u, "assistant_message": "nice!"}
+    with open(_os_.path.join(_d, "FirstAgent", "simple.json"), "w") as _f:
+        _json.dump({"roles": {}, "events": [{"tid": 0, "message_list": [
+            [_step(0, "hi"), _step(1, "My uncle lives in Portland, OR.")],
+            [_step(2, "he likes hiking")]],
+            "QA": {"question": "Where does my uncle live?", "answer": "Portland, OR",
+                   "target_step_id": [[1, 0]], "choices": {"A": "Portland, OR"},
+                   "ground_truth": "A"}}]}, _f)
+    with open(_os_.path.join(_d, "ThirdAgent", "simple.json"), "w") as _f:
+        _json.dump({"events": [{"tid": 3, "message_list": [
+            {"mid": 0, "message": "Team Connect is in Boston, MA."}],
+            "QA": {"question": "Where?", "answer": "Boston, MA", "target_step_id": [0],
+                   "choices": {"C": "Boston, MA"}, "ground_truth": "C"}}]}, _f)
+    _mb = load_membench(_d)
+_s1, _t1, _q1 = _mb[0]
+check("MemBench FirstAgent: a step is a user turn then an assistant turn",
+      [t.speaker for t in _t1] == ["user", "assistant"] * 3
+      and [t.session for t in _t1] == [0, 0, 0, 0, 1, 1]
+      and [t.index for t in _t1] == [0, 1, 2, 3, 0, 1])
+check("MemBench FirstAgent: evidence is the user's message of the cited step",
+      _q1[0].evidence_ids == [f"{_s1}/1u"] and _q1[0].answer_recoverable)
+check("MemBench ThirdAgent: evidence is the cited message",
+      _mb[1][2][0].evidence_ids == [f"{_mb[1][0]}/0"] and _mb[1][2][0].answer == "Boston, MA")
+
+print("\n-- PersonaChat --")
+from memgate.data import load_personachat, _states
+check("PersonaChat: a turn states a persona line when it says most of its words",
+      _states("i like to go hunting .", "hunting is one of my favorite hobbies .")
+      and not _states("i like to remodel homes .", "i like to go out a lot ."))
+with _tf.TemporaryDirectory() as _d:
+    _fn = __import__("os").path.join(_d, "pc.json")
+    with open(_fn, "w") as _f:
+        _json.dump({"train": [{"personality": ["i have two dogs .", "i love iced tea ."],
+                               "utterances": [{"history": ["hi , what do you do ?",
+                                                           "i walk my two dogs a lot .",
+                                                           "nice ! i read ."],
+                                               "candidates": ["x", "cool , i read too ."]}]}]},
+                   _f)
+    _pc = load_personachat(_fn, per_unit=20)
+_s, _t, _q = _pc[0]
+check("PersonaChat: the persona speaker is the user, the partner the assistant",
+      [t.speaker for t in _t] == ["assistant", "user", "assistant", "user"])
+check("PersonaChat: only stated lines become questions, with the turn as evidence",
+      len(_q) == 1 and _q[0].evidence_ids == [f"{_s}/0:1"] and _q[0].answer == "dogs two")
 
 print("\n-- offline reproducibility --")
 # A run that can silently fetch a model is a run whose inputs are not pinned,

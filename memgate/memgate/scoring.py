@@ -32,10 +32,28 @@ FILLER_PAT = re.compile(
     re.I,
 )
 NUM_PAT = re.compile(r"\d")
+# Known over-match, kept on purpose: with no word end this also fires on
+# "decided", "decision", "market", "maybe", "novel". On LoCoMo 371 of the 378
+# turns it matches contain no month. Tightening it to whole month words was
+# measured (2026-10-13) and LOWERED recall: -0.6 to -0.8 points for P1-S on
+# LoCoMo and 0.475 -> 0.375 on the synthetic set, because the stray matches
+# mostly land on decisions, which are durable. It is a broad "date or decision"
+# cue in practice; a real fix needs a decision signal of its own.
 MONTH_PAT = re.compile(
     r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)", re.I)
 MONEY_PAT = re.compile(r"[$£€₹]\s?\d|\b\d+\s?(k|rs|usd|inr|dollars|rupees)\b", re.I)
 PROPER_PAT = re.compile(r"(?<!^)(?<![.!?]\s)\b[A-Z][a-z]{2,}")
+# Stored turns read "[Speaker] message" (policies._as_item), and that string is
+# what reaches the scorer. Every rule here is about the message, so the tag is
+# removed first. Left in, it defeated the anchored filler pattern, gave every
+# LoCoMo turn the proper-noun bonus via a capitalised speaker name (5,863 of
+# 5,882 turns labelled "fact"), and "[Maria]" tripped the month pattern.
+SPEAKER_TAG = re.compile(r"^\s*\[[^\]\n]{1,40}\]\s*")
+
+
+def message_only(text: str) -> str:
+    """The message without a leading "[Speaker] " tag."""
+    return SPEAKER_TAG.sub("", text, count=1)
 
 
 class Scorer:
@@ -79,7 +97,7 @@ class HeuristicScorer(Scorer):
         return s in self.signals
 
     def score(self, text, speaker="user"):
-        t = text.strip()
+        t = message_only(text).strip()
         if self._on("filler") and (FILLER_PAT.match(t) or len(words(t)) <= 2):
             return 0.02, "filler"
 
@@ -125,11 +143,10 @@ class HeuristicScorer(Scorer):
 
 
 class LLMJudgeScorer(Scorer):
-    """P2 — stub. Phase 3.
-
-    Prompt plan: give the model the turn plus recent context, ask for
-    {"importance": 0-1, "type": fact|decision|preference|task|filler}.
-    Cache by turn hash; call only on eviction, never per turn.
+    """P2 placeholder, superseded. The P2 judge that produced the reported
+    results is `memgate.judge.LLMJudgeScorer` (Qwen2.5-0.5B, logit-expectation
+    scoring, evaluated in run_judge_eval.py). This class is kept only so old
+    imports fail loudly rather than silently resolving to a different scorer.
     """
     name = "P2-llm-judge"
 
@@ -137,7 +154,7 @@ class LLMJudgeScorer(Scorer):
         self.client = client
 
     def score(self, text, speaker="user"):
-        raise NotImplementedError("P2 lands in Phase 3 — see build plan step 3.")
+        raise NotImplementedError("use memgate.judge.LLMJudgeScorer — this stub predates it")
 
 
 class DistilledScorer(Scorer):
@@ -178,7 +195,7 @@ def features(text: str, speaker: str = "user"):
     fitted version does no better, the heuristic's weights were already fine and
     the scorer is not the bottleneck after all.
     """
-    t = text.strip()
+    t = message_only(text).strip()
     w = words(t)
     ws = set(w)
     n = max(1, len(w))
@@ -244,7 +261,7 @@ class LearnedScorer(Scorer):
         # Reuse P1's label vocabulary so routing, supersession and the type
         # counters behave identically -- only the utility number changes, which
         # is what makes this a clean single-component swap.
-        t = text.strip()
+        t = message_only(text).strip()
         w = set(words(t))
         if FILLER_PAT.match(t) or len(words(t)) <= 2:
             label = "filler"

@@ -1,16 +1,18 @@
 # MemGate — Capstone Progress Report
 
-**Prepared for the faculty progress review (pre–Review 2)**
+**Prepared for Review 2** (first issued 8 September 2026; brought up to date with the Review 2 deck, October 2026)
+
+> **Scorer fix, 13 October 2026.** The P1 router used to score `"[Speaker] message"` instead of the message. §4.1–§4.3, §4.10 and the headline use the re-run numbers (`docs/SCORER_FIX_RESULTS.md`). §4.6, §4.7, §4.8 and §4.9 were not re-run and still show numbers from before the fix.
 
 | | |
 |---|---|
 | **Project** | MemGate: An Adaptive Memory Layer for Long-Running LLM Agents |
 | **Students** | Simar Singh Khanuja (70562200088) · Yash Ramchandani (70562300097) |
 | **Institution** | SVKM's NMIMS, Indore Campus |
-| **Report date** | 8 September 2026 |
+| **Report date** | October 2026 (first issued 8 September 2026) |
 | **Covers** | Review 1 (25 July 2026) → present |
-| **Working sessions** | 12, 17, 24, 27 August 2026 |
-| **Repository state** | commit `34df12e`, 61 tests passing, 5,430 lines of Python |
+| **Working sessions** | 12, 17, 24, 27 August; 17, 25–26, 29 September 2026 |
+| **Repository state** | branch `endtask-full-run`, 78 tests passing, ~8,200 lines of Python in `memgate/` |
 | **Companion documents** | `REPORT.md` (paper-ready writeup) · `SESSION_RECORD.md` (full working record) · `frontend/index.html` (interactive results dashboard) |
 
 ---
@@ -19,12 +21,13 @@
 
 **The measurement track is complete.** Every claim the project makes is produced
 by a script in this repository, carries a 95% confidence interval clustered by
-conversation, and is pinned by a regression test. Nine experiments run end to
-end and their outputs are committed as CSVs.
+conversation, and is pinned by a regression test. Eleven experiments run end to
+end and their outputs are committed as CSVs. The last of them put the headline
+itself to the test on a second benchmark, and it does not replicate (§4.8).
 
 | Workstream | State | Evidence |
 |---|---|---|
-| Harness, three-tier store, policies P0/P1 | **Complete** | `memgate/`, 5,430 lines |
+| Harness, three-tier store, policies P0/P1 | **Complete** | `memgate/`, ~8,200 lines |
 | LoCoMo benchmark wired, evaluation leak removed | **Complete** | `run_locomo.py`, 3 label-blindness tests |
 | Ablation study (23 configurations) | **Complete** | `results/ablations_2048.csv` |
 | Storage budget — the corrected accounting | **Complete** | `results/storage_sweep.csv`, 35 configurations |
@@ -35,18 +38,21 @@ end and their outputs are committed as CSVs.
 | P2 LLM judge, built **and evaluated** | **Complete** | `results/judge_eval.csv` |
 | Publication figures | **Complete** | `results/figures/fig1–fig5` |
 | End-task accuracy through a real reader | **Complete** | `results/endtask.csv`, full 715-question run |
-| Abstractive compression | Not started | scoped in §9 |
-| LongMemEval (genuinely long conversations) | Not started | scoped in §9 |
-| Online learning of the eviction policy | Not started | scoped in §9 |
+| LongMemEval — the headline on a second benchmark | **Complete** | `results/longmemeval_S*.csv`, 94 haystacks; it does not replicate (§4.8) |
+| Recency-reservation confound ruled out | **Complete** | `results/longmemeval_split_S23000.csv` (§4.8) |
+| IEEE paper, compiled and cut to 6 pages | **Complete** | `paper/main.pdf`, 19/19 citations |
+| Abstractive compression | **Complete** | `results/abstractive.csv`, all ten conversations (§4.9) |
+| Online learning of the eviction policy | **Complete** | `results/online.csv`, all ten conversations (§4.10) |
 
 ### The headline, in one sentence
 
-Under a bounded store, **choosing which turns to forget is worth +8.7
+Under a bounded store, **choosing which turns to forget is worth +9.4
 answer-recall points** over forgetting oldest-first — at identical storage,
 identical fidelity and identical retrieval, so the gap is the decision policy
-and nothing else (95% CI [+4.8, +14.3] clustered by conversation, McNemar
-p = 1.1×10⁻⁴). **Compressing an evicted turn instead of dropping it loses 6.7
-points.**
+and nothing else (95% CI [+5.4, +14.9] clustered by conversation, McNemar
+p = 2.8×10⁻⁵). **Compressing an evicted turn instead of dropping it loses 7.1
+points.** On a second benchmark (LongMemEval) the headline does not hold, and
+the cause is the scorer rather than the mechanism (§4.8).
 
 ---
 
@@ -176,14 +182,14 @@ Context budget fixed at 2048 tokens, storage budget swept. **Answer recall:**
 
 | S (tokens) | RAG store-all | P1-A adaptive *(compress)* | **P1-S select** *(drop)* |
 |---|---|---|---|
-| 1024 | 9.1% | 10.9% | **15.7%** |
-| 2048 | 18.3% | 23.4% | **26.3%** |
-| 4096 | 28.1% | 30.1% | **36.8%** |
-| 8192 | 44.3% | 37.5% | **48.3%** |
-| 16384 | 66.4% | 66.4% | **72.3%** |
+| 1024 | 9.1% | 11.9% | **15.8%** |
+| 2048 | 18.3% | 22.7% | **27.8%** |
+| 4096 | 28.1% | 30.3% | **37.5%** |
+| 8192 | 44.3% | 41.0% | **57.8%** |
+| 16384 | 66.4% | 63.1% | **71.3%** |
 
-P1-A *wins* evidence recall (+12.9 at S=8192) while *losing* answer recall
-(−6.9). Reporting only the former would have shown compression winning.
+P1-A *wins* evidence recall (+7.0 over P1-S at S=8192) while *losing* answer
+recall (−16.8). Reporting only the former would have shown compression winning.
 
 ### 4.2 Statistical significance (§3.3)
 
@@ -191,12 +197,12 @@ Paired bootstrap, B = 10,000, resampled **by conversation**, with exact McNemar.
 
 | Comparison | Metric | Δ | 95% CI (clustered) | McNemar p | |
 |---|---|---|---|---|---|
-| P1-S vs RAG | **answer** | **+8.67** | **[+4.77, +14.27]** | 1.1×10⁻⁴ | significant |
-| P1-S vs RAG | evidence | +1.96 | [−1.48, +5.52] | 0.16 | **not significant** |
-| P1-S vs P1-A | answer | +6.71 | [+4.24, +9.54] | 3.6×10⁻⁵ | significant |
-| P1-S vs P1-A | evidence | −10.74 | [−13.65, −7.90] | 4.7×10⁻²⁰ | significant |
-| P1-S vs P0 | answer | +18.46 | [+14.68, +23.56] | 3.8×10⁻¹⁷ | significant |
-| P1-S vs P0 | evidence | +9.69 | [+6.85, +12.83] | 3.6×10⁻¹⁴ | significant |
+| P1-S vs RAG | **answer** | **+9.37** | **[+5.45, +14.90]** | 2.8×10⁻⁵ | significant |
+| P1-S vs RAG | evidence | +2.42 | [−1.48, +6.43] | 0.08 | **not significant** |
+| P1-S vs P1-A | answer | +7.13 | [+4.32, +10.28] | 2.1×10⁻⁵ | significant |
+| P1-S vs P1-A | evidence | −11.53 | [−14.73, −8.47] | 1.8×10⁻²³ | significant |
+| P1-S vs P0 | answer | +19.16 | [+15.42, +24.13] | 8.2×10⁻¹⁹ | significant |
+| P1-S vs P0 | evidence | +10.15 | [+6.58, +13.84] | 1.2×10⁻¹⁵ | significant |
 
 ### 4.3 The rate–distortion prediction fails (§3.4)
 
@@ -206,13 +212,14 @@ ratio, **answer recall at S = 2048:**
 
 | Ratio | RAG | P1-A *(compress)* | **P1-S** *(drop)* |
 |---|---|---|---|
-| 9× | 18.3% | 23.4% | **26.3%** |
-| 18× | 10.8% | 14.7% | **18.2%** |
-| 45× | 7.8% | 11.2% | **11.7%** |
-| 91× | 4.6% | 6.0% | **8.7%** |
+| 9× | 18.3% | 22.7% | **27.8%** |
+| 18× | 10.8% | 13.0% | **18.9%** |
+| 45× | 7.8% | 10.3% | **11.6%** |
+| 91× | 4.6% | 7.4% | **8.7%** |
 
-**No crossover to 182×**, and the selection margin over RAG *widens* with
-pressure.
+**No crossover to 182×**: selection stays ahead at every ratio. The margin
+over RAG narrows in points (+9.5 to +4.1) as every arm nears the floor, and
+grows as a ratio (1.5× to 1.9× RAG's recall).
 
 ### 4.4 The index is not free (§3.5)
 
@@ -301,6 +308,57 @@ answer in context more often (36.8% vs 28.1%) *and* its contexts are used more
 successfully when it does (49.4% vs 42.3%). The oracle converts only 67.3% of
 complete contexts, which locates the remaining headroom in the reader.
 
+### 4.8 The headline tested on a second benchmark — **it does not replicate**
+
+LoCoMo is ten conversations. LongMemEval is **94 independent haystacks** of
+38–62 sessions each. The store budget was swept to put LongMemEval at LoCoMo's
+retention (22.1% against 22.0%). Answer recall, 62 answer-recoverable questions:
+
+| Store | Retention | P1-S select | RAG store-all | Selection − FIFO |
+|---:|---:|---:|---:|---|
+| 4,096 | 3.9% | 14.5% | 9.7% | +4.8 [−3.2, +12.9] |
+| 8,192 | 7.9% | 22.6% | 14.5% | +8.1 [−1.6, +17.7] |
+| 16,384 | 15.7% | 21.0% | 27.4% | −6.5 [−17.7, +4.8] |
+| **23,000** | **22.1%** | **19.4%** | **40.3%** | **−21.0 [−33.9, −8.1]** |
+| **32,768** | **31.4%** | **30.6%** | **51.6%** | **−21.0 [−35.5, −6.5]** |
+
+At matched retention selection **loses to FIFO by 21 answer points**, where
+LoCoMo gives +9.4. **The cause is the scorer, not the mechanism:** the
+heuristic's separation between evidence and non-evidence turns reverses sign,
++0.0476 on LoCoMo against −0.0346 on LongMemEval, so eviction discards evidence
+first. The heuristic was written for LoCoMo's 32-token dialogue lines;
+LongMemEval's turns are ~210-token prose.
+
+**The obvious confound was ruled out.** `MemGatePolicy` reserves 25% of the
+context for recent turns; `RAGPolicy` reserves none. Removing the reservation
+(`run_lme_split.py`, S = 23,000) changed answer recall by exactly **+0.00, CI
+[+0.00, +0.00]** — selection loses by −20.97 either way.
+
+Sources: `results/longmemeval_S*.csv`, `results/longmemeval_split_S23000.csv`.
+
+### 4.9 Abstractive compression — **rewriting helps, and still loses to dropping**
+
+Replacing the extractive compressor with a 1.5B model that rewrites each evicted
+turn, everything else held fixed, all ten conversations (`results/abstractive.csv`):
+
+| Contrast (answer recall) | Δ | 95% CI (clustered) |
+|---|---:|---|
+| abstractive − extractive | **+4.06** | [+0.84, +6.66] |
+| select − extractive | +6.71 | [+4.26, +9.50] |
+
+Rewriting beats word-selection by **+4.1 points** — part of the compression
+negative was the compressor. But dropping still wins, 36.8% against 34.1%, a
+2.7-point gap, at **~1,850× the cost** (3,892 s against 2.1 s).
+
+### 4.10 Online learning of the eviction policy — **parity without labels**
+
+P4 learns the scorer from retrieval feedback every 25 turns, with no future
+questions (`results/online.csv`). Against the hand-written heuristic it is
+**−2.94 answer points, CI [−7.93, +1.13], not significant** — parity. The cues
+it learns (short turns, no sentence-final period) are the ones LongMemEval
+inverts, so it is the obvious first try at §4.8 only if allowed to re-learn per
+corpus.
+
 ---
 
 ## 5. Findings about measurement
@@ -332,13 +390,14 @@ eviction order.
 |---|---|---|---|
 | **Language** | Python | 3.10 | Entire implementation; no framework dependency |
 | | NumPy | — | Vector maths, cosine retrieval, bootstrap resampling |
-| | `dataclasses`, `unittest` | stdlib | Typed records; the 61-test suite |
+| | `dataclasses` | stdlib | Typed records; the 78-test suite (`test_memgate.py`, self-contained runner) |
 | **Tokenisation** | `tiktoken` | `cl100k_base` | Exact token accounting — budgets are real tokens, not a word-count proxy |
 | **Embeddings** | `sentence-transformers` | all-MiniLM-L6-v2, 384-d | Retrieval ranking and semantic supersession |
 | | PyTorch | MPS backend | Local inference on Apple silicon |
 | **Language models** | Qwen2.5-0.5B-Instruct | local weights | The P2 salience judge — read as a continuous expectation over digit-token logits at one forward pass |
 | | Qwen2.5-1.5B-Instruct-4bit | local weights | The end-task reader, greedy decoding |
 | **Benchmark** | LoCoMo | Maharana et al., 2024 | 10 conversations, 5,882 turns, 1,527 scoreable questions |
+| | LongMemEval | Wu et al., 2024 | 94 haystacks of 38–62 sessions; the second benchmark (§4.8) |
 | **Statistics** | Paired bootstrap | B = 10,000 | Confidence intervals, resampled by conversation |
 | | Exact McNemar | — | Paired discordant-pair test over the same questions |
 | | scikit-learn | logistic regression | The P3 learned scorer, leave-one-conversation-out |
@@ -371,23 +430,27 @@ every change.
 ```
 Capstone Project/
 ├── REPORT.md                     paper-ready writeup (the scientific document)
-├── SESSION_RECORD.md             full working record, §1–§28, cold-start readable
+├── SESSION_RECORD.md             full working record, §1–§39, cold-start readable
 ├── docs/
 │   ├── REVIEW2_PROGRESS_REPORT.md          this document
-│   ├── make_review2_deck.py                builds the deck from the CSVs
-│   └── MemGate_Capstone_Review2_NMIMS.pptx the Review 2 presentation
+│   ├── REVIEW2_SPEAKER_NOTES.md            the speech, slide by slide
+│   └── make_review2_deck.py                builds the deck from the CSVs
+├── MemGate_Capstone_Review2_NMIMS.pptx    the Review 2 presentation
+├── paper/                        the IEEE paper — main.tex, main.pdf (6 pages)
 ├── frontend/
 │   ├── index.html                interactive results dashboard (opens offline)
 │   ├── data.js                   GENERATED — every figure on the page
 │   └── build_data.py             regenerates data.js from results/*.csv
 └── memgate/
-    ├── memgate/                  the library — 2,022 lines
+    ├── memgate/                  the library
     │   ├── types.py              MemoryItem, Turn, Question (multi-evidence)
     │   ├── utils.py              tiktoken + MiniLM, with fallbacks and provenance
     │   ├── store.py              three-tier store, dedupe, supersession, consolidation
     │   ├── scoring.py            P0/P1 scorers on one interface
     │   ├── policies.py           baselines + MemGate, routing, budget-aware assembly
     │   ├── compress.py           the extractive compressor
+    │   ├── abstractive.py        the abstractive (rewriting) summariser, §4.9
+    │   ├── online.py             the P4 online scorer, §4.10
     │   ├── judge.py              the P2 LLM judge (logit-expectation scoring)
     │   ├── llm_judge.py          local model loading, offline-pinned
     │   ├── data.py               synthetic generator + LoCoMo loader + integrity assertions
@@ -401,16 +464,20 @@ Capstone Project/
     ├── precompute_judge.py       P2 judge scores (~15 min, cached)
     ├── run_judge_eval.py         §3.7 scorer comparison with clustered CIs
     ├── run_endtask.py            §3.8 end-task accuracy (resumable)
+    ├── run_longmemeval.py        §4.8 LongMemEval, swept by store budget
+    ├── run_lme_split.py          §4.8 the recency-confound control
+    ├── run_abstractive.py        §4.9 abstractive compression
+    ├── run_online.py             §4.10 online learning
     ├── run_ablations.py          23-configuration component attribution
     ├── run_experiment.py         synthetic sanity set
     ├── diagnose.py               attributes every miss to one swappable component
     ├── make_figures.py           fig1–fig5
-    ├── test_memgate.py           61 tests
+    ├── test_memgate.py           78 tests
     └── results/                  every CSV and figure quoted in this report
 ```
 
-**Not in the repository, by design:** the LoCoMo benchmark (2.7 MB) and the
-model weights (~1 GB). Both are reproducible from source, and
+**Not in the repository, by design:** the LoCoMo benchmark (2.7 MB), the
+LongMemEval data (~280 MB) and the model weights (~1 GB). Both are reproducible from source, and
 `memgate/README.md` gives the exact fetch commands. The results CSVs *are*
 committed, so a reviewer can check every number in this report without a
 nine-minute benchmark run.
@@ -421,7 +488,7 @@ nine-minute benchmark run.
 
 | Guard | What it prevents |
 |---|---|
-| **61 tests** (`test_memgate.py`) | Regression across the store, scorers, policies, compressor and harness |
+| **78 tests** (`test_memgate.py`) | Regression across the store, scorers, policies, compressor and harness |
 | **3 label-blindness invariants** | The §5.1 leak, re-armed. Routing, eviction *and* demotion must produce a bit-identical store when every evaluation label is stripped |
 | **Offline pinning** on import | A silently fetched or half-downloaded model relabelling a whole results table — this already happened once, with MiniLM |
 | **Backend provenance** (`backend_info()`) | Reporting a MiniLM number that was actually produced by the hashed bag-of-words fallback |
@@ -438,10 +505,11 @@ Stated in full, because each one bounds a claim above.
 1. **Ten conversations.** Clustered intervals are wide because the cluster count
    is small. Effects are reported with those intervals, and the one that does
    not survive clustering is reported as not significant.
-2. **Context recall, not end-task accuracy.** Recall is the *ceiling* on
-   accuracy. Closing this needs the full generative run (§4.7).
-3. **Extractive compression only.** P1-A selects words; it does not rewrite. The
-   negative result about compression is stated for the extractive case.
+2. **Context recall is the ceiling on end-task accuracy, not accuracy itself.**
+   The full generative run (§4.7) measures the accuracy directly.
+3. **Compression is tested in both forms.** Rewriting beats word-selection by
+   +4.1 answer points and still loses to dropping by 2.7, at ~1,850× the cost
+   (§4.9). Untested: a larger summariser.
 4. **Concatenated streams are synthetic.** In §4.3 each question concerns one
    constituent conversation, so the others act as distractors. It is a stress
    test of retention under pressure, not a long-dialogue benchmark.
@@ -449,6 +517,12 @@ Stated in full, because each one bounds a claim above.
    future questions to learn from.
 6. **Single embedder, single judge model.** The §4.6 negative is evidence about
    *a 0.5B model prompted per turn*, not about LLM judging in general.
+7. **The scorer is tuned to LoCoMo.** Read +9.4 as what a policy recovers given
+   a scorer that suits the corpus, not as a property of scored selection in
+   general (§4.8).
+8. **On LongMemEval, strict recall is uninterpretable for a compressing arm:** a
+   gist carries the evidence id of text it discarded. Answer recall is
+   unaffected.
 
 ---
 
@@ -457,10 +531,13 @@ Stated in full, because each one bounds a claim above.
 | # | Work | Why it matters | Effort | Target |
 |---|---|---|---|---|
 | 1 | ~~Full 715-question end-task run~~ | **Done** (§4.7). +6.0 of the +8.7 points realised as correct answers, 69% of the ceiling gap | completed 17 September 2026 | ✅ |
-| 2 | **Abstractive compression** | The compression negative is stated for extractive methods only; a rewriting summariser may retain more content per token, and would either overturn or strengthen the finding | 1 working session | October 2026 |
-| 3 | **LongMemEval** | Replaces the concatenated-stream stress test with genuinely long single conversations | 1–2 sessions | October 2026 |
-| 4 | **Online learning of the eviction policy** | The only route that makes a learned scorer deployable — P3 currently needs future questions | 2 sessions | November 2026 |
-| 5 | **Final report and defence** | — | — | December 2026 |
+| 2 | ~~LongMemEval~~ | **Done** (§4.8). The headline does not replicate; the scorer's evidence separation reverses sign | completed 29 September 2026 | ✅ |
+| 3 | ~~Abstractive compression~~ | **Done** (§4.9). +4.1 over extractive; still 2.7 behind dropping | completed 29 September 2026 | ✅ |
+| 4 | ~~Online learning of the eviction policy~~ | **Done** (§4.10). Parity with the heuristic, without labels | completed 29 September 2026 | ✅ |
+| 5 | **A scorer that transfers across corpora** | The critical path. Started: a scorer trained on LoCoMo + REALTALK beats P1 by +14.6 answer points on held-out LoCoMo, +3.8 (n.s.) on REALTALK (`docs/SCORER_TRANSFER.md`). Still to run: LongMemEval | — | final review |
+| 6 | **A larger summariser** | Whether a bigger model closes the last 2.7 points to dropping | 1 session | final review |
+| 7 | **A second reader model** | Separates the memory layer from this one reader | 1 session | final review |
+| 8 | **Final report and defence** | — | — | final review |
 
 ---
 
@@ -472,14 +549,17 @@ what *doesn't* work:
 
 1. With storage unbounded — the standard accounting — tiered compression is a
    **net loss** against keeping everything and retrieving.
-2. With storage bounded, the decision policy is worth **+8.7 answer-recall
-   points**, while compression still **loses 6.7**.
+2. With storage bounded, the decision policy is worth **+9.4 answer-recall
+   points**, while compression still **loses 7.1**.
 3. The rate–distortion crossover at which compression should pay is **not
    reachable** on this benchmark — to 182×, keeping a selected subset whole
    beats compressing everything.
 4. Charging for the embedding index **inverts the ranking** below ~40 KiB.
 5. An LLM judge, the obvious way to improve the scorer, **loses to a regex** —
    and the reason is diagnosable: it rates turns in isolation.
+6. On a second benchmark the headline **does not replicate**, and the cause is
+   the scorer, not the mechanism: its separation between evidence and
+   non-evidence turns reverses sign between corpora.
 
 **Practical guidance: keep a scored subset whole; do not compress everything.
 And denominate the budget in bytes, including the index, or the comparison is
@@ -491,7 +571,7 @@ not the one you think you are making.**
 
 ```bash
 cd memgate
-python3 test_memgate.py          # 61 tests
+python3 test_memgate.py          # 78 tests
 python3 run_locomo.py            # context-budget frontier
 python3 run_storage_sweep.py     # §4.1 storage budget
 python3 run_significance.py      # §4.2 bootstrap + McNemar
@@ -501,6 +581,10 @@ python3 train_scorer.py          # §4.5 learned scorer
 python3 precompute_judge.py      # P2 judge scores (~15 min, cached)
 python3 run_judge_eval.py        # §4.6 scorer comparison + CIs
 python3 run_endtask.py           # §4.7 end-task accuracy (resumable)
+python3 run_longmemeval.py       # §4.8 LongMemEval, swept by store budget
+python3 run_lme_split.py         # §4.8 recency-confound control
+python3 run_abstractive.py       # §4.9 abstractive compression
+python3 run_online.py            # §4.10 online learning
 python3 make_figures.py          # fig1–fig5
 
 cd ..

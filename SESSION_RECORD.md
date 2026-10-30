@@ -2121,3 +2121,49 @@ Paper still compiles at **6 pages**, 19/19 citations, 0 undefined references.
 3. A second reader model, to separate the memory layer from this one.
 4. The prose rewrite — abstract, introduction, threats, conclusion — is the
    authors'.
+
+## 40. A larger training set for the learned scorer, and a shipped scorer
+
+Full write-up: `docs/SCORER_TRANSFER.md`. In brief:
+
+* REALTALK (10 real human chats, 8,944 turns, 660 questions) added beside
+  LoCoMo (`data.load_realtalk`). LongMemEval could not be downloaded on the
+  machine that ran this (huggingface.co blocked); the script accepts it.
+* MiniLM loads from an ONNX export when the safetensors copy is absent
+  (`utils._OnnxMiniLM`); `train_scorer.py` reproduces `learned_scorer.csv`
+  with it (hand row exact, MiniLM row within one question).
+* `train_transfer.py`, S=4096, hand+MiniLM, on PR #2's scorer: pooled training
+  (all other 19 conversations) beats P1 on LoCoMo by **+14.55 [+10.40, +19.70]**
+  answer recall and beats the old in-corpus protocol by +3.36 [+0.27, +6.52].
+  On REALTALK every gain over P1 is n.s. (160 answerable questions).
+  Cross-corpus transfer works REALTALK→LoCoMo (+9.09, SIG) but not
+  LoCoMo→REALTALK (−4.38, n.s.). Hand features alone transfer worse than P1.
+* Whole-word months on top of the tag fix lower recall, agreeing with PR #2.
+* Boosted trees and a small MLP do not beat logistic regression (≤0.03 AUC,
+  mixed sign); logistic regression stays.
+* `export_scorer.py` fits the pooled model on all 20 conversations into
+  `memgate/scorer_pooled_lr.json` (plain numbers, no pickle);
+  `MEMGATE_SCORER=learned` makes `MemGatePolicy` use it. Library default
+  stays P1 so every committed experiment keeps its meaning.
+
+Item 1 of §39's list is now partly answered: the pooled scorer is the one that
+transfers to a new conversation, but not yet shown on LongMemEval.
+
+## 41. A 4× larger training set: BEAM, and a rebalanced shipped scorer
+
+Full write-up: `docs/BEAM_RESULTS.md`. Viva Q&A: `docs/VIVA_PREP.md`. In brief:
+
+* BEAM 100K (20 chats) and 500K (35 chats) added (`data.load_beam`), bringing
+  the scorer's data to 75 conversations and 58,616 turns, 4× §40.
+* Trained only on LoCoMo + REALTALK, the scorer ranks BEAM evidence below
+  chance (AUC 0.372; P1 0.447). §3.9's LongMemEval sign flip replicates.
+* With BEAM in the pool, at 20% retention (S = 26,000) answer recall on BEAM is
+  76.5% vs P1's 35.3% (+41.18 [+20.51, +63.64], SIG; 34 answerable questions).
+* Unweighted, BEAM (75% of turns) costs LoCoMo −3.22 [−6.50, −0.16] (SIG).
+  `--balance` (equal weight per dataset family) removes that (−0.14, n.s.)
+  and keeps the BEAM gain at S = 26,000 (+38.24, SIG). At S = 4096 (3% of a
+  BEAM chat) the balanced gain is n.s.
+* Not shipped: the balanced model fails `test_scorer.py` (it scores "Hi!" 0.68
+  above a flight date 0.12; BEAM turns are long). `scorer_pooled_lr.json` stays
+  PR #4's; `export_scorer.py --with-beam --balance` rebuilds the BEAM model.
+  Library default stays P1.

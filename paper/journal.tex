@@ -1,0 +1,124 @@
+%% MemGate --- journal version, laid out after the Springer Nature journal
+%% template (sn-jnl): single column, one-paragraph abstract, numbered sections,
+%% Declarations before the references.
+%% Compile: pdflatex journal / bibtex journal / pdflatex journal / pdflatex journal
+%% The body is shared with the IEEE conference version (main.tex) through
+%% body.tex; only the front matter, abstract and declarations differ.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{adjustbox}
+\usepackage{url}
+\usepackage[textwidth=135mm,textheight=215mm,centering]{geometry}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc}
+
+% body.tex opens with an IEEE drop cap; journal style has none
+\newcommand{\IEEEPARstart}[2]{#1#2}
+% one-column figures of the IEEE layout, at a readable single-column width
+\newcommand{\colfig}{0.8\textwidth}
+% run-in heads for the Declarations, as in the template
+\renewcommand{\paragraph}[1]{\par\smallskip\noindent\textbf{#1}\ }
+
+\begin{document}
+\input{diagrams/styles}
+
+\begin{center}
+{\LARGE Selection Beats Compression: Memory Decision\\[2pt]
+Policies for Large Language Model Agents\\[2pt]
+Under a Bounded Store\par}
+\vspace{1.4em}
+{\normalsize Yash Ramchandani\textsuperscript{1$\dagger$}, \ Simar Singh Khanuja\textsuperscript{1$\dagger$}, \
+\mbox{Dr.\ Praveen Modi\textsuperscript{1*}}\par}
+\vspace{1em}
+\textsuperscript{1}School of Technology Management \& Engineering, SVKM's NMIMS,\\
+Indore Campus, India.\par
+\vspace{0.6em}
+{\small \href{mailto:yash.ramchandani097@nmims.in}{yash.ramchandani097@nmims.in},
+\href{mailto:simarsingh.khanuja088@nmims.in}{simarsingh.khanuja088@nmims.in},\\
+\href{mailto:praveen.modi@nmims.edu}{praveen.modi@nmims.edu}\par}
+\end{center}
+
+{\renewcommand{\thefootnote}{}\footnotetext{\textsuperscript{$\dagger$}These authors contributed equally to this work.}}
+{\renewcommand{\thefootnote}{}\footnotetext{\textsuperscript{*}Corresponding author: Praveen Modi, School of Technology Management \& Engineering, SVKM's NMIMS,
+Indore Campus, India. E-mail: praveen.modi@nmims.edu}}
+\vspace{1em}
+\begin{center}\small\textbf{Abstract}\end{center}
+\vspace{-0.6em}
+{\small\leftskip=8mm \rightskip=8mm \noindent
+Agents built on large language models (LLMs) accumulate
+conversations far longer than any context window, so a memory layer must
+decide what to keep, compress, forget and recall. Existing memory systems are
+evaluated end to end, so the contribution of each decision is never measured
+on its own, and the usual accounting bounds the context sent to the model but
+leaves the store unbounded.
+We present MemGate, an evaluation harness that sits between an agent
+and a frozen LLM, isolates the memory policy and compares policies on a common
+accuracy-per-token frontier, changing one factor at a time. It bounds the
+store as well as the assembled context, in tokens or in bytes with the
+embedding index included. Policies are evaluated on LoCoMo, REALTALK and BEAM
+with paired bootstrap intervals clustered by conversation. The primary metric,
+answer recall, checks that the answer text itself reaches the context, not
+only the identifier of its turn. We compare a hand-written heuristic, a 0.5B
+LLM judge and a logistic salience scorer over shallow features and a sentence
+embedding, trained on generated and human conversations together.
+Bounding only the context charges a store-everything
+baseline nothing for retention. With the store bounded, choosing which turns
+to forget gains $+9.37$ answer-recall points over oldest-first eviction at
+identical storage, fidelity and retrieval (95\% CI $[+5.45, +14.90]$), while
+compressing evicted turns loses $7.13$ points, with no rate--distortion
+crossover up to $182\times$ compression. A 1.5B model that rewrites evicted
+turns narrows this gap but does not close it. Counting the embedding index
+reverses the ranking below about 40\,KiB. The LLM judge loses to the
+regular-expression heuristic by $5.87$ points, because salience is not a
+property of a turn read on its own. The learned scorer beats the heuristic by
+$+14.55$ points on held-out conversations, transfers from human to generated
+dialogue but not the reverse, and outperforms MemGPT-style and Mem0-style
+memory at every budget tested. On held-out chats of up to ten million tokens
+it beats retrieval on every corpus; on million-token chats typed into the
+application it keeps the answer for 51.9\% of questions against 19.2\% for
+retrieval, and $+6.0$ points of its advantage become correct answers through a
+fixed reader. Selection, not compression, is what a bounded memory should
+spend its budget on, counted in bytes with the index included. The learned
+scorer ships in an offline chat application built on the experimental code.
+\par\medskip\noindent\textbf{Keywords:} Large language models, agent memory, context management,
+retrieval-augmented generation, rate--distortion, empirical evaluation
+\par}
+
+\vspace{1.5em}
+
+\input{body}
+
+\section*{Declarations}
+
+\paragraph{Funding.} This research did not receive any specific grant from
+funding agencies in the public, commercial, or not-for-profit sectors.
+
+\paragraph{Conflict of interest.} The authors declare that they have no
+competing interests.
+
+\paragraph{Ethics approval.} Not applicable.
+
+\paragraph{Data and code availability.} The code, the result files behind
+every table and figure, the trained scorer and the chat application are
+available at \url{https://github.com/Nixx5555/Mem}. LoCoMo, REALTALK, BEAM,
+MemBench and PersonaChat are public datasets available from their authors.
+
+\paragraph{Authors' contributions.} Yash Ramchandani: Investigation,
+Validation, Writing -- review \& editing. Simar Singh Khanuja:
+Conceptualization, Methodology, Software, Investigation, Formal analysis,
+Writing -- original draft. Praveen Modi: Supervision, Writing -- review \&
+editing.
+
+\paragraph{Use of AI tools.} During the preparation of this work the
+authors used an AI assistant for drafting and code assistance. The authors
+reviewed and edited the content and take full responsibility for it.
+
+\bibliographystyle{unsrtnat}
+\bibliography{refs}
+
+\end{document}

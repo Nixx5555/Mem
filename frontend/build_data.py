@@ -60,7 +60,7 @@ data = {
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         "commit": git("rev-parse", "--short", "HEAD", default="uncommitted"),
         "loc": loc(),
-        "tests": 61,
+        "tests": 78,
         "turns": 5882,
         "questions": 1527,
         "answerable": 715,

@@ -1,16 +1,45 @@
-# MemGate — IEEE conference paper
+# MemGate — IEEE conference and journal paper
 
 ```
 paper/
-  main.tex          the paper (hand-written prose)
-  refs.bib          19 references
+  main.tex          conference version: front matter (authors, abstract)
+  journal.tex       journal version, laid out after the Springer Nature
+                    sn-jnl template (the class itself could not be
+                    downloaded, so it uses article): authors and
+                    affiliation under the title, one-paragraph abstract,
+                    keywords, numbered sections, Declarations (funding,
+                    conflict of interest, ethics, data and code,
+                    contributions, AI tools)
+  body.tex          the shared paper body, Introduction to Acknowledgment
+                    (hand-written prose); edit here and both versions follow
+  refs.bib          52 references, each cited in the body
   tables/*.tex      GENERATED — do not edit by hand
   figures/*.pdf     vector figures, copied from memgate/results/figures/
-  make_tables.py    regenerates tables/ from memgate/results/*.csv
+  diagrams/*.tex    TikZ diagrams and flowcharts (architecture, scoring,
+                    routing + budget, scorer training), drawn by hand from the code
+  make_tables.py    regenerates tables/ from memgate/results/*.csv and
+                    memgate/results/{scale,stress}/*.json
   check.py          structural checks (no TeX installed on the dev machine)
 ```
 
 ## Compiling
+
+On Debian/Ubuntu (this is how the cloud builds it):
+
+```sh
+apt-get install texlive-latex-extra texlive-pictures texlive-publishers texlive-science
+cd paper && pdflatex main && bibtex main && pdflatex main && pdflatex main
+cd paper && pdflatex journal && bibtex journal && pdflatex journal && pdflatex journal
+```
+
+The journal version is 28 pages (single column, 11 pt) and the conference
+version 13 (2026-10-26). Section order (mentor's review, 2026-10-26): Introduction (15 references),
+Related Work (23, none shared with the Introduction), Proposed Methodology
+(including evaluation metrics and datasets and experimental setup), Results,
+Conclusion and Future Work. The corresponding author is a page-1 footnote. Author order: Yash Ramchandani, Simar Singh Khanuja,
+Dr. Praveen Modi. `\colfig` sets one-column figure width in each wrapper.
+The two abstracts are written separately (both one paragraph; conference
+~385 words, journal ~440). If a number in the body changes, update both.
 
 **Tectonic is installed locally** (`brew install tectonic`, v0.17.0), so the
 paper compiles here:
@@ -67,7 +96,7 @@ compiling once on Overleaf.
 
 ## Length
 
-**6 pages exactly**, at 4,225 words with 7 tables and 1 figure — measured, not
+**8 pages** since the learned-scorer budget sweep (Table VIII) was added on 2026-10-21; 7 pages before that, once the learned-scorer (§VI-G) and application (§VII) sections were added, at about 5,300 words with 8 tables and 1 figure; compiled with TeX Live pdfLaTeX. Before that it was **6 pages exactly**, at 4,225 words with 7 tables and 1 figure — measured, not
 estimated (`Output written on main.xdv (6 pages...)` in `main.log`). It was 8
 pages at 4,975 words, 8 tables and 5 figures before the cut.
 

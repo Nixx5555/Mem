@@ -1,0 +1,29 @@
+% Fig.: how the shipped scorer is built (retrain_10x.py --export r2-ens-pos).
+% Two training columns on fixed x positions, merged below; every row is placed
+% with anchor=north and explicit gaps so no box can grow into the next row.
+\begin{tikzpicture}[x=1mm, y=1mm]
+\node[proc, text width=30mm, anchor=north] (a) at (0,0)
+  {\textbf{Model A data}\\LoCoMo, \mbox{REALTALK},\\BEAM 100K/500K\\58{,}616 turns};
+\node[proc, text width=30mm, anchor=north] (b) at (64,0)
+  {\textbf{Model B data}\\A + BEAM 1M/10M,\\MemBench, PersonaChat\\856{,}876 turns};
+\node[proc, text width=30mm, anchor=north] (fa) at (0,-25)
+  {LR on $x(m)\in\mathbb{R}^{399}$,\\families weighted\\equally, Eq.~(\ref{eq:loss})};
+\node[proc, text width=30mm, anchor=north] (fb) at (64,-25)
+  {LR on $x(m)\in\mathbb{R}^{399}$,\\family weight split\\by evidence turns};
+\node[proc, text width=17mm, font=\dscript] (t) at (32,-32)
+  {small-talk\\negatives,\\5\% weight};
+\node[model, text width=74mm, anchor=north] (m) at (32,-48)
+  {logit mean $\bar z=\tfrac12(z_A+z_B)$,\\folded into one $(\mathbf{w},b)$, Eq.~(\ref{eq:ens})};
+\node[model, text width=74mm, below=5mm of m] (c)
+  {affine calibration of $\bar z$, Eq.~(\ref{eq:cal})};
+\node[res, text width=74mm, below=5mm of c] (j)
+  {\texttt{scorer\_pooled\_lr.json}: 399 weights, 1 bias};
+\draw[flow] (a) -- (fa);
+\draw[flow] (b) -- (fb);
+\draw[aux] (t.west) -- (t.west -| fa.east);
+\draw[aux] (t.east) -- (t.east -| fb.west);
+\draw[flow] (fa.south) -- node[lab, right]{$z_A$} (fa.south |- m.north);
+\draw[flow] (fb.south) -- node[lab, left]{$z_B$} (fb.south |- m.north);
+\draw[flow] (m) -- (c);
+\draw[flow] (c) -- (j);
+\end{tikzpicture}

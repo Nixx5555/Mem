@@ -37,7 +37,7 @@ conversation. Every number on these slides is generated from a committed
 results file, so nothing is typed by hand.
 
 The headline: choosing which turns to forget, instead of forgetting the oldest
-first, is worth **8.7 answer-recall points**. Storage, fidelity and retrieval
+first, is worth **9.4 answer-recall points**. Storage, fidelity and retrieval
 are held identical. We'll also be upfront that on the second benchmark this
 result does not hold. Slides 18 and 19 show why.
 
@@ -184,11 +184,11 @@ Here are the numbers: context fixed at 2048 tokens, storage swept, answer
 recall.
 
 P1-S, scored selection that drops whole turns, beats RAG store-all at every
-budget, by 3.9 to 8.7 points. At S = 4096 it is **36.8 against 28.1**.
+budget, by 2.8 to 13.5 points. At S = 4096 it is **37.5 against 28.1**.
 Compression, P1-A, sits in between.
 
-Notice that the metrics disagree again. P1-A wins evidence recall by 12.9
-points at 8192 while losing answer recall by 6.9, because its summaries keep
+Notice that the metrics disagree again. P1-A wins evidence recall by 15.0
+points at 8192 while losing answer recall by 3.4, because its summaries keep
 the IDs but not the content.
 
 RAG against P1-S is the cleanest comparison in the project: the same verbatim
@@ -200,10 +200,10 @@ turns are forgotten, oldest first or lowest utility first.
 Does that survive proper statistics? This is a paired bootstrap with 10,000
 resamples, clustered by conversation, plus exact McNemar tests, at S = 4096.
 
-Selection over RAG on answer recall: **+8.67 points**, interval 4.8 to 14.3,
-p around 10 to the minus 4. That is significant.
+Selection over RAG on answer recall: **+9.37 points**, interval 5.5 to 14.9,
+p around 3 in 100,000. That is significant.
 
-On evidence recall, though, the gain over RAG is only 1.96 points, the
+On evidence recall, though, the gain over RAG is only 2.42 points, the
 interval crosses zero, and p is 0.16. So we do **not** claim an
 evidence-recall improvement over RAG. The comparisons against compression and
 against recency are all significant.
@@ -222,8 +222,8 @@ we stretched the length instead. We concatenated up to 10 conversations,
 186,000 tokens, and held storage fixed, pushing the compression ratio to 182
 times.
 
-There is no crossover anywhere, and selection's margin over RAG actually
-widens as the pressure rises. One caveat: concatenated streams are synthetic.
+There is no crossover anywhere: selection stays ahead of both RAG and
+compression at every ratio. One caveat: concatenated streams are synthetic.
 This is a stress test, not a natural long conversation.
 
 ## Slide 14 — The index is not free  ·  ~45 s
@@ -246,8 +246,9 @@ eviction is worth about 5.
 
 So is the scorer the limit? We trained a learned scorer, evaluated
 leave-one-conversation-out, so it never sees the conversation it is scoring.
-With hand-built features it reaches an AUC of 0.746. Adding MiniLM embeddings
-takes it to 0.793 and lifts answer recall from 26.3 to 31.5 percent.
+With hand-built features it reaches an AUC of 0.747, and only ties the
+hand-written rules. Adding MiniLM embeddings takes it to 0.793 and lifts
+answer recall from 27.8 to 30.5 percent, a modest gain.
 
 The interesting part is what it learned. **Turn length** is the single
 strongest predictor of whether a turn is evidence, and our hand-tuned
@@ -280,7 +281,8 @@ Closed-book, with no memory, gets 1.7%, so the model is not answering from its
 own knowledge. Oracle gets 67.3%, the ceiling.
 
 P1-S reaches **18.5% accuracy against 12.4% for RAG**. That means 6 points of
-the 8.7-point recall gap turn into correct answers, with a clustered interval
+the 8.7-point recall gap of that run, which predates the scorer fix, turn
+into correct answers, with a clustered interval
 of 3.3 to 9.1, so about 69% of the gap converts. Because closed-book is so
 low, nearly all of that margin comes from the memory system.
 
@@ -290,7 +292,7 @@ Then we tested our own headline on a second benchmark, and it failed.
 
 LoCoMo is only ten conversations. LongMemEval has 94 independent haystacks of
 38 to 62 sessions each. At storage matched to LoCoMo's retention, about 22%,
-selection **loses to FIFO by 21 answer points**, where LoCoMo gave plus 8.7.
+selection **loses to FIFO by 21 answer points**, where LoCoMo gave plus 9.4.
 
 Why? The mechanism didn't fail, the scorer did. Our heuristic scorer separates
 evidence from non-evidence turns in opposite directions on the two corpora:
@@ -355,7 +357,7 @@ affordable to re-run after every change.
 Every guard on this slide exists because the failure it prevents already
 happened once.
 
-There are 68 regression tests, plus three label-blindness checks that re-run
+There are 78 regression tests, plus three label-blindness checks that re-run
 the leak test whenever we add a decision point. Offline pinning stops a
 half-downloaded model from silently relabelling a results table; that
 happened once with MiniLM. Then there is provenance logging, the NaN guard,
@@ -396,7 +398,7 @@ accuracy, not accuracy itself. Compression is now tested in both forms:
 rewriting beats word-selection by 4.1 points but still loses to dropping, at
 1,850 times the cost. Concatenated streams are synthetic. We used one embedder
 and one judge model. P3 is an upper bound, not something an agent could run
-live. And the scorer is tuned to LoCoMo, so plus 8.7 is what selection
+live. And the scorer is tuned to LoCoMo, so plus 9.4 is what selection
 recovers *given a scorer that suits the corpus*.
 
 On the right is what remains. First and most important is a scorer that
@@ -409,7 +411,7 @@ model.
 To conclude:
 
 With storage unlimited, tiered compression is a net loss. With storage
-bounded, the decision policy is worth **8.7 answer-recall points**, and
+bounded, the decision policy is worth **9.4 answer-recall points**, and
 compression still loses. The rate–distortion crossover is not reachable even
 at 182 times compression. Charging for the index flips the ranking below about
 40 KiB. An LLM judge loses to a regex, for a reason we can diagnose. And on a

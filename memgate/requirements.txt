@@ -1,0 +1,13 @@
+# The MemGate app. sentence-transformers also brings torch and transformers,
+# which is the chat backend on Windows, Linux and Intel Macs.
+numpy
+tiktoken
+sentence-transformers
+huggingface_hub
+# Reading uploaded PDFs. Word and PowerPoint need nothing extra.
+pypdf
+# Apple-silicon Macs only: the faster chat backend.
+mlx-lm; sys_platform == "darwin" and platform_machine == "arm64"
+# Optional: lets Claude write the replies if ANTHROPIC_API_KEY is set.
+# (Gemini, with GEMINI_API_KEY, needs no extra package.)
+anthropic
